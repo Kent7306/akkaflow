@@ -31,6 +31,7 @@ class WorkFlowManager extends Actor with ActorLogging{
    * 增
    */
   def add(wf: WorkflowInfo): Boolean = {
+println("添加工作流："+wf.name)
 		persistManager ! Save(wf)
     workflows = workflows + (wf.name -> wf)
     true
@@ -61,6 +62,7 @@ class WorkFlowManager extends Actor with ActorLogging{
    * 生成工作流实例并执行
    */
   def execute(wfName: String,params: Map[String, String]){
+log.info("开始生成并执行工作流："+wfName)
     val newWfInstance = WorkflowInstance(workflows(wfName))
     newWfInstance.workflow.params = params
     //创建新的workflow actor，并加入到列表中
@@ -88,7 +90,6 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   def killWorkFlowInstance(wfaName: String): Boolean = {
     import com.kent.workflow.WorkflowActor.Kill
-    import com.kent.main.Master._
     if(!workflowActors.get(wfaName).isEmpty){
     	val wfaRef = workflowActors(wfaName)._2
     	wfaRef ! Kill()

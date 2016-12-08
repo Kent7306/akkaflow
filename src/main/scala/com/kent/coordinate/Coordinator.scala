@@ -38,6 +38,8 @@ class Coordinator(val name: String) {
     if(isSatisfyTrigger()) {
       this.workflows.foreach { x => println(s"[coordinator:${this.name}]开始触发[workflow:${x}]") }
       this._status = ACTIVE
+      println("wfManager: " + wfManager)
+      this.workflows.foreach { x => println("*****"+x) }
       this.workflows.foreach ( wfManager ! NewAndExecuteWorkFlowInstance(_, this.paramMap) )
       this.resetTrigger()
       true
