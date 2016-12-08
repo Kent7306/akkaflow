@@ -8,9 +8,13 @@
 dist/*
 target/
 lib_managed/
+bin/
+.classpath
+.project
 src_managed/
 project/boot/
 project/plugins/project/
+.settings
 
 # Scala-IDE specific
 .scala_dependencies
