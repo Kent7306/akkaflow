@@ -20,28 +20,50 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
   var endTime: Date = _
   
   def name = s"${id}_${nodeInfo.name}"
-  
+  /**
+   * 节点实例运行入口
+   */
   def run(wfa: WorkflowActor):Boolean = {
     this.preExecute()
     this.execute()
 		this.terminate(wfa)
 		this.postTerminate()
   }
+  /**
+   * 执行前方法
+   */
   def preExecute():Boolean = {
     this.startTime = Util.nowDate 
     this.status = RUNNING 
     PersistManager.pm ! Save(this)
     true
   }
+  /**
+   * 节点执行动作
+   */
   def execute(): Boolean
+  /**
+   * 节点实例执行结束
+   */
   def terminate(wfa: WorkflowActor): Boolean
+  /**
+   * 执行结束后回调方法
+   */
   def postTerminate():Boolean = {
     PersistManager.pm ! Save(this)
     true
   }
-  
+  /**
+   * 该节点是否满足执行条件
+   */
   def ifCanExecuted(wfi: WorkflowInstance): Boolean = true
+  /**
+   * 得到该节点的下一执行节点集合
+   */
   def getNextNodes(wfi: WorkflowInstance): List[NodeInstance]
+  /**
+   * 替换该节点参数
+   */
   def replaceParam(param: Map[String, String]): Boolean
 
   def deepClone(): NodeInstance

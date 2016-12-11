@@ -99,7 +99,7 @@ object Main extends App{
                   <script>/Users/kent/tmp/test_1.sh</script>
               </host-script>
               <ok to="join_node"/>
-              <error to="join_node"/>
+              <error to=""/>
           </action>
           <action name="action_node_2" retry-times="1" interval="3" timeout="500">
               <host-script>

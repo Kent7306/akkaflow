@@ -25,47 +25,18 @@ class ForkNodeInfo(name: String) extends ControlNodeInfo(name){
     fni
   }
 
-  def save(implicit conn: Connection): Boolean = {
-    
-    
-    val insertStr = s"""
-      insert into node 
-      values('${name}',0,'${getClass.getName}','{"paths":"${this.pathList.mkString("[", "," ,"]")}"}','${workflowId}','${desc}')
-      """
-    val updateStr = s"""
-      update node set type = '${getClass.getName}',is_action = 0,
-                      content = '{"paths":"${this.pathList.mkString("[", "," ,"]")}"}', workflow_id = '${workflowId}',
-                      description = '${desc}'
-                      where name = '${name}'
-      """
-     
-    if(this.getEntity.isEmpty){
-    	executeSql(insertStr)     
-    }else{
-      executeSql(updateStr)
-    }
+  override def setContent(contentStr: String){
+    val content = JsonMethods.parse(contentStr)
+    import org.json4s._
+    implicit val formats = DefaultFormats
+    this.pathList = (content \ "paths" \\ classOf[JString]).asInstanceOf[List[String]]
   }
-
-  def delete(implicit conn: Connection): Boolean = {
-    executeSql(s"delete from node where name='${name}'")
-  }
-
-  def getEntity(implicit conn: Connection): Option[ForkNodeInfo] = {
-    val queryStr = """
-         select name,type,is_action,workflow_id,description, content
-         from node where name='"""+name+"""' and workflow_id = '"""+workflowId+""""'
-                    """
-    querySql(queryStr, (rs: ResultSet) => {
-          if(rs.next()){
-            val json = JsonMethods.parse(rs.getString("content"))
-            this.pathList = (json \ "paths" \\ classOf[JString]).asInstanceOf[List[String]]
-            this.desc = rs.getString("description")
-            this.workflowId = rs.getString("workflow_id")
-            this
-          }else{
-            null
-          }
-      })
+  
+  override def getContent(): String = {
+    import org.json4s.JsonDSL._
+    import org.json4s.jackson.JsonMethods._
+    val pathStr = compact(render(pathList))
+    s"""{"paths":${pathStr}}"""
   }
 }
 

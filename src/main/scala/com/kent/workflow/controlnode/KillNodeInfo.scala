@@ -6,6 +6,7 @@ import java.sql.Connection
 import com.kent.workflow.node.NodeInfo
 import java.sql.ResultSet
 import com.kent.util.Util
+import org.json4s.jackson.JsonMethods
 
 class KillNodeInfo(name: String) extends ControlNodeInfo(name) {
   var msg: String = _
@@ -23,44 +24,16 @@ class KillNodeInfo(name: String) extends ControlNodeInfo(name) {
     kni
   }
 
-  def save(implicit conn: Connection): Boolean = {
-    val insertStr = s"""
-      insert into node 
-      values('${name}',0,'${getClass.getName}','{"msg":"${msg}"}','${workflowId}','${desc}')
-      """
-    val updateStr = s"""
-      update node set type = '${getClass.getName}',is_action = 0,
-                      content = '{"msg":"${msg}"}', workflow_id = '${workflowId}',
-                      description = '${desc}'
-                      where name = '${name}'
-      """
-     
-    if(this.getEntity.isEmpty){
-    	executeSql(insertStr)     
-    }else{
-      executeSql(updateStr)
-    }
+  override def setContent(contentStr: String){
+    val content = JsonMethods.parse(contentStr)
+    import org.json4s._
+    implicit val formats = DefaultFormats
+    val msg = (content \ "msg").extract[String]
+    this.msg = msg
   }
-
-  def delete(implicit conn: Connection): Boolean = {
-    executeSql(s"delete from node where name='${name}'")
-  }
-
-  def getEntity(implicit conn: Connection): Option[KillNodeInfo] = {
-    val queryStr = """
-         select name,type,is_action,workflow_id,description, content->"$.msg" msg
-         from node where name='"""+name+"""' and workflow_id = '"""+workflowId+""""'
-                    """
-    querySql(queryStr, (rs: ResultSet) =>{
-          if(rs.next()){
-            this.msg = Util.remove2endStr(rs.getString("msg"), "\"")
-            this.desc = rs.getString("description")
-            this.workflowId = rs.getString("workflow_id")
-            this
-          }else{
-            null
-          }
-      })
+  
+  override def getContent(): String = {
+    s"""{"to":"${msg}"}"""
   }
 }
 
