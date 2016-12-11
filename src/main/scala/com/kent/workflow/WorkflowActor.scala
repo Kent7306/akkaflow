@@ -26,6 +26,10 @@ import akka.actor.SupervisorStrategy._
 import com.kent.coordinate.CoordinatorManager.GetManagers
 import com.kent.db.PersistManager
 import com.kent.db.PersistManager.Save
+import com.kent.main.Master._
+import scala.concurrent.Await
+import com.kent.main.Worker.CreateAction
+import scala.util.Random
 
 class WorkflowActor(val workflowInstance: WorkflowInstance,private val _param: Map[String, String]) extends Actor with ActorLogging {
 	import com.kent.workflow.WorkflowActor._
@@ -35,6 +39,8 @@ class WorkflowActor(val workflowInstance: WorkflowInstance,private val _param: M
 	var runningActors: Map[ActorRef, NodeInstance] = Map()
 	//节点等待执行队列
 	var waitingNodes = Queue[NodeInstance]()
+	//任务节点
+	var workers = IndexedSeq.empty[ActorRef] 
 	var scheduler:Cancellable = _
   
   
@@ -46,6 +52,10 @@ class WorkflowActor(val workflowInstance: WorkflowInstance,private val _param: M
    */
   def start(){
 	  log.info(s"[workflow:${this.workflowInstance.actorName}开始启动")
+	  askWorkers()
+	  log.info("一共有"+ workers.size+"个workers,分别是：")
+	  workers.foreach(x => println(x))
+	  this.workflowInstance.status = W_RUNNING
 	  //节点替换参数
 	   this.workflowInstance.nodeInstanceList.foreach { _.replaceParam(workflowInstance.workflow.params) }
 	  //找到开始节点并加入到等待队列
@@ -110,13 +120,32 @@ class WorkflowActor(val workflowInstance: WorkflowInstance,private val _param: M
 	 * 创建并开始actor节点
 	 */
 	def createAndStartActionActor(actionNodeInstance: ActionNodeInstance):Boolean = {
-	  val cloneNodeInstance = actionNodeInstance.deepClone().asInstanceOf[ActionNodeInstance]
-	  val props = Props(new ActionActor(cloneNodeInstance)) 
-		val actionActorRef = context.actorOf(props, cloneNodeInstance.nodeInfo.name)
+	  implicit val timeout = Timeout(10 seconds)
+	  val rand = new Random()
+	  val i = rand.nextInt(workers.size)
+	  val r = (workers(i) ? CreateAction(actionNodeInstance)).mapTo[ActorRef]
+	  r.map{x => 
+	      if(x!=null){runningActors += (x -> actionNodeInstance)}
+	      x ! Start()
+	    }
+		true
+	}
+	/*def createAndStartActionActor(actionNodeInstance: ActionNodeInstance):Boolean = {
+	  val props = Props(ActionActor(actionNodeInstance)) 
+		val actionActorRef = context.actorOf(props, actionNodeInstance.nodeInfo.name)
 		runningActors += (actionActorRef -> actionNodeInstance)
 		actionActorRef ! Start()
 		true
-	}
+	}*/
+	
+	def askWorkers() = {
+    implicit val timeout = Timeout(10 seconds)
+    val r = (context.parent ? AskWorkers()).mapTo[GetWorkers]
+    val r2 = Await.result(r, 30 seconds)
+    r2 match {
+      case GetWorkers(workers) => this.workers = workers
+    }
+  }
 	/**
 	 * kill掉所有子actor
 	 */

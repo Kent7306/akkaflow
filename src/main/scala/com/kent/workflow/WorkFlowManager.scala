@@ -1,8 +1,7 @@
 package com.kent.workflow
 
 import akka.actor.Actor
-import akka.pattern.ask
-import akka.pattern.pipe
+import akka.pattern.{ ask, pipe }
 import akka.actor.ActorLogging
 import com.kent.coordinate.Coordinator
 import akka.actor.ActorRef
@@ -18,6 +17,8 @@ import com.kent.workflow.WorkflowActor.Start
 import com.kent.coordinate.CoordinatorManager.GetManagers
 import com.kent.db.PersistManager.Save
 import com.kent.db.PersistManager.Delete
+import com.kent.main.Master.AskWorkers
+import com.kent.main.Master.GetWorkers
 
 class WorkFlowManager extends Actor with ActorLogging{
   var workflows: Map[String, WorkflowInfo] = Map()
@@ -61,16 +62,16 @@ println("添加工作流："+wf.name)
   /**
    * 生成工作流实例并执行
    */
-  def execute(wfName: String,params: Map[String, String]){
-log.info("开始生成并执行工作流："+wfName)
+  def newAndExecute(wfName: String,params: Map[String, String]){
+    log.info("开始生成并执行工作流："+wfName)
     val newWfInstance = WorkflowInstance(workflows(wfName))
     newWfInstance.workflow.params = params
     //创建新的workflow actor，并加入到列表中
     val wfActorRef = context.actorOf(Props(WorkflowActor(newWfInstance, params)), newWfInstance.actorName)
     workflowActors = workflowActors + (newWfInstance.actorName -> (newWfInstance.workflow.name,wfActorRef))
-    var str = "";;;;;
-    workflowActors.foreach( x => str = str + x._1+" ");;;;;
-    println("<WorkFlowManager> workflow实例 actor个数：" + workflowActors.size + " 分别是：" + str);;;;
+    //var str = "";;;;;
+    //workflowActors.foreach( x => str = str + x._1+" ");;;;;
+    //println("<WorkFlowManager> workflow实例 actor个数：" + workflowActors.size + " 分别是：" + str);;;;
     wfActorRef ! Start()
   }
   /**
@@ -105,7 +106,13 @@ log.info("开始生成并执行工作流："+wfName)
     workflowActors.foreach(x => if(x._2._1 == wfName){killWorkFlowInstance(x._1)})
     true
   }
-  
+  /**
+   * 请求得到所有的worker
+   */
+  def askWorkers() = {
+    implicit val timeout = Timeout(10 seconds)
+    (context.parent ? AskWorkers()).pipeTo(sender)
+  }
   /**
    * receive方法
    */
@@ -113,7 +120,7 @@ log.info("开始生成并执行工作流："+wfName)
     case AddWorkFlow(content) => this.add(WorkflowInfo(content))
     case RemoveWorkFlow(name) => this.remove(name)
     case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
-    case NewAndExecuteWorkFlowInstance(name, params) => this.execute(name, params)
+    case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
     case KillWorkFlowInstance(wfActorName) => this.killWorkFlowInstance(wfActorName)
     case KillWorkFlow(wfName) => this.killWorkFlow(wfName)
@@ -122,6 +129,7 @@ log.info("开始生成并执行工作流："+wfName)
       persistManager = pm
       context.watch(coordinatorManager)
     }
+    case AskWorkers() => askWorkers()
     case Terminated(arf) => if(coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")
   }
 }

@@ -4,7 +4,7 @@ import java.util.Date
 import com.kent.pub.DeepCloneable
 import com.kent.pub.Daoable
 
-abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with Daoable[NodeInfo] {
+abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with Daoable[NodeInfo] with Serializable{
   import com.kent.workflow.node.NodeInfo.Status._
   var workflowId: String = _
   var desc: String = _

@@ -33,7 +33,7 @@ object Main extends App{
               <path to="action_node_1" />
               <path to="action_node_2" />
           </fork> 
-          <action name="action_node_1" retry-times="3" interval="10" timeout="500">
+          <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
               <host-script>
                   <host>127.0.0.1</host>
                   <script>D://Strawberry//perl//bin//perl F://test.pl</script>
@@ -63,7 +63,7 @@ object Main extends App{
               <path to="action_node_1" />
               <path to="action_node_2" />
           </fork>
-          <action name="action_node_1" retry-times="3" interval="10" timeout="500">
+          <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
               <host-script>
                   <host>127.0.0.1</host>
                   <script>D://Strawberry//perl//bin//perl F://test.pl</script>
@@ -87,13 +87,13 @@ object Main extends App{
       </work-flow>
       """
     val wfStr_mac = """
-      <work-flow name="wf_join">
+      <work-flow name="wf_join" desc="这是工作流描述">
           <start name="start_node" to="fork_node" />
           <fork name="fork_node">
               <path to="action_node_1" />
               <path to="action_node_2" />
           </fork>
-          <action name="action_node_1" retry-times="3" interval="10" timeout="500">
+          <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
               <host-script>
                   <host>127.0.0.1</host>
                   <script>/Users/kent/tmp/test_1.sh</script>

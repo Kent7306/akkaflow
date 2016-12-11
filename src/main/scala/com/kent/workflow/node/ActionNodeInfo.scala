@@ -7,6 +7,7 @@ abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
   var retryTimes:Int = 0
   var interval:Int = 0
   var timeout:Int = -1
+  var host:String = "-1"
   var ok: String = _
   var error: String = _ 
   
@@ -30,6 +31,7 @@ object ActionNodeInfo {
 		val retryOpt = node.attribute("retry-times")
 	  val intervalOpt = node.attribute("interval")
 		val timeoutOpt = node.attribute("timeout")
+		val hostOpt = node.attribute("host")
     if((node \ "@name").size != 1){    
   	  throw new Exception("存在action未配置name属性")
     }else if((node \ "ok").size != 1){
@@ -55,9 +57,10 @@ object ActionNodeInfo {
         throw new Exception(s"该[action:${nameOpt.get}]的类型不存在")
     }
     
-    actionNode.retryTimes = if(!retryOpt.isEmpty){retryOpt.get.text.toInt}else{actionNode.retryTimes}
-    actionNode.interval = if(!intervalOpt.isEmpty){intervalOpt.get.text.toInt}else{actionNode.interval}
-    actionNode.timeout = if(!retryOpt.isEmpty){timeoutOpt.get.text.toInt}else{actionNode.timeout}
+    actionNode.retryTimes = if(!retryOpt.isEmpty) retryOpt.get.text.toInt else actionNode.retryTimes 
+    actionNode.interval = if(!intervalOpt.isEmpty) intervalOpt.get.text.toInt else actionNode.interval
+    actionNode.timeout = if(!retryOpt.isEmpty) timeoutOpt.get.text.toInt else actionNode.timeout
+    actionNode.host = if(!hostOpt.isEmpty) hostOpt.get.text else actionNode.host
     actionNode.ok = (node \ "ok" \ "@to").text
     if((node \ "error").size == 1 && (node \ "error" \ "@to").size == 1){
     	actionNode.error = (node \ "error" \ "@to").text      

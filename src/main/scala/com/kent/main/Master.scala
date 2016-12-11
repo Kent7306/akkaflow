@@ -8,6 +8,7 @@ import akka.cluster.ClusterEvent.CurrentClusterState
 import akka.cluster.ClusterEvent.MemberEvent
 import com.kent.main.ClusterRole.Registration
 import akka.actor.Terminated
+import scala.concurrent.duration._
 import akka.actor.ActorRef
 import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
@@ -19,6 +20,14 @@ import com.kent.coordinate.CoordinatorManager.GetManagers
 import com.kent.workflow.WorkFlowManager.AddWorkFlow
 import com.kent.coordinate.CoordinatorManager.AddCoor
 import com.kent.coordinate.CoordinatorManager.Start
+import com.kent.main.Worker.CreateAction
+import com.kent.workflow.node.ActionNodeInstance
+import scala.concurrent.ExecutionContext.Implicits.global
+import akka.pattern.ask
+import akka.pattern.pipe
+import akka.util.Timeout
+import com.kent.main.Master.GetWorkers
+import com.kent.main.Master.AskWorkers
 
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
@@ -48,6 +57,7 @@ class Master extends ClusterRole {
       workers = workers.filterNot(_ == workerActorRef)
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
+    case AskWorkers() => sender ! GetWorkers(workers)
   }
   
   def start():Boolean = {
@@ -62,6 +72,8 @@ class Master extends ClusterRole {
   }
 }
 object Master extends App {
+  case class GetWorkers(workers: IndexedSeq[ActorRef])
+  case class AskWorkers()
   def props = Props[Master]
   val port = "2751"
   // 创建一个Config对象
@@ -200,6 +212,7 @@ object Master extends App {
     //master ! AddWorkFlow(wfStr_win_1)
     //master ! AddWorkFlow(wfStr_win_2)
     //master ! AddCoor(coorStr_win) 
+    Thread.sleep(30000)
     master ! AddWorkFlow(wfStr_mac)
     master ! AddCoor(coorStr_mac) 
 }

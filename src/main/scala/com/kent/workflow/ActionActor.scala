@@ -61,6 +61,11 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
 }
 
 object ActionActor{
-  case class ActionExecuteResult(status: Status, msg: String)
-  case class ActionExecuteRetryTimes(times: Int)
+  def apply(actionNodeInstance: ActionNodeInstance): ActionActor = {
+    val cloneNodeInstance = actionNodeInstance.deepClone().asInstanceOf[ActionNodeInstance]
+    new ActionActor(cloneNodeInstance)
+  }
+  
+  case class ActionExecuteResult(status: Status, msg: String) extends Serializable
+  case class ActionExecuteRetryTimes(times: Int) extends Serializable
 }

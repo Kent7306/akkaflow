@@ -39,7 +39,7 @@ abstract class ClusterRole extends Actor with ActorLogging {
 }
 
 object ClusterRole {
-  case class Request(status: String, msg: String, data: Any)
-  case class Response(status: String, msg: String, data: Any)
-  case class Registration()
+  case class Request(status: String, msg: String, data: Any) extends Serializable
+  case class Response(status: String, msg: String, data: Any) extends Serializable
+  case class Registration() extends Serializable
 }

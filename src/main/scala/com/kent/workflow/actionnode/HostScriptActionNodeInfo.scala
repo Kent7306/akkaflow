@@ -9,7 +9,6 @@ import java.sql.ResultSet
 import org.json4s.jackson.JsonMethods
 
 class HostScriptActionNodeInfo(name: String) extends ActionNodeInfo(name) {
-  var host: String = _
   var script: String = _
 
   def deepClone(): HostScriptActionNodeInfo = {

@@ -12,12 +12,14 @@ import java.sql.ResultSet
 import com.kent.db.PersistManager
 import com.kent.db.PersistManager.Save
 
-abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeInstance] with Daoable[NodeInstance]{
+abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeInstance] with Daoable[NodeInstance] with Serializable{
   var id: String = _
   var status: Status = PREP
   var executedMsg: String = _
   var startTime: Date= _
   var endTime: Date = _
+  
+  def name = s"${id}_${nodeInfo.name}"
   
   def run(wfa: WorkflowActor):Boolean = {
     this.preExecute()
