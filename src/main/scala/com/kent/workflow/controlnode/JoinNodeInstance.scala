@@ -46,18 +46,6 @@ class JoinNodeInstance(override val nodeInfo: JoinNodeInfo) extends ControlNodeI
    isExcecuted 
   }
   
-  override def setContent(contentStr: String){
-    val content = JsonMethods.parse(contentStr)
-    import org.json4s._
-    implicit val formats = DefaultFormats
-    val to = (content \ "to").extract[String]
-    this.nodeInfo.to = to
-  }
-  
-  override def getContent(): String = {
-    s"""{"to":"${nodeInfo.to}"}"""
-  }
-  
   def getNextNodes(wfi: WorkflowInstance): List[NodeInstance] = wfi.nodeInstanceList.filter { _.nodeInfo.name == nodeInfo.to }.toList
 }
 

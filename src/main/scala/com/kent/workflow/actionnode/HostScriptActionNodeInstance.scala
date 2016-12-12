@@ -37,20 +37,6 @@ class HostScriptActionNodeInstance(override val nodeInfo: HostScriptActionNodeIn
     hsni.executeResult = executeResult
     hsni
   }
-  
-  override def setContent(contentStr: String){
-    val content = JsonMethods.parse(contentStr)
-    import org.json4s._
-    implicit val formats = DefaultFormats
-    val script = (content \ "script").extract[String]
-    val host = (content \ "host").extract[String]
-    this.nodeInfo.script = script
-    this.nodeInfo.host = host
-  }
-  
-  override def getContent(): String = {
-    s"""{"script":"${nodeInfo.script}","host":"${nodeInfo.host}"}"""
-  }
 }
 
 object HostScriptActionNodeInstance {

@@ -7,6 +7,7 @@ import com.kent.workflow.WorkflowActor
 import com.kent.util.Util
 import java.util.Calendar
 import java.util.Date
+import org.json4s.jackson.JsonMethods
 
 abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends NodeInstance(nodeInfo) {
   var hasRetryTimes: Int = 0
@@ -57,6 +58,21 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends
     val nodes = this.getNextNodes(wfa.workflowInstance)
     nodes.filter { _.ifCanExecuted(wfa.workflowInstance) }.foreach { x => wfa.waitingNodes = wfa.waitingNodes.enqueue(x)}
     return true
+  }
+    
+  override def setContent(contentStr: String){
+    val content = JsonMethods.parse(contentStr)
+    import org.json4s._
+    implicit val formats = DefaultFormats
+    this.nodeInfo.setContent(contentStr)
+    this.hasRetryTimes = (content \ "has-retry-times").extract[Int]
+  }
+  override def getContent(): String = {
+    val ncontent = this.nodeInfo.getContent()
+    val c1 = JsonMethods.parse(ncontent)
+    val c2 = JsonMethods.parse(s"""{"has-retry-times":${hasRetryTimes}}""")
+    val c3 = c1.merge(c2)
+    JsonMethods.pretty(JsonMethods.render(c3))
   }
   
   override def toString(): String = {

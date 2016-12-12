@@ -2,6 +2,7 @@ package com.kent.workflow.node
 
 import com.kent.workflow.actionnode.HostScriptActionNodeInfo
 import com.kent.workflow.actionnode.HostScriptActionNodeInfo
+import org.json4s.jackson.JsonMethods
 
 abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
   var retryTimes:Int = 0
@@ -19,6 +20,28 @@ abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
     an.ok = ok
     an.error = error
     an
+  }
+  
+  override def setContent(contentStr: String){
+    val content = JsonMethods.parse(contentStr)
+    import org.json4s._
+    implicit val formats = DefaultFormats
+    this.host = (content \ "host").extract[String]
+    this.retryTimes = (content \ "retry-times").extract[Int]
+    this.timeout = (content \ "timeout").extract[Int]
+    this.ok = (content \ "ok").extract[String]
+		this.error = (content \ "error").extract[String]
+  }
+  override def getContent(): String = {
+    s"""
+      {"host":"${host}",
+       "retry-times":${retryTimes},
+       "timeout":${timeout},
+       "interval":${interval},
+       "ok":"${ok}",
+       "error":"${if(error == null) "" else error}"
+      }
+    """
   }
 
 }

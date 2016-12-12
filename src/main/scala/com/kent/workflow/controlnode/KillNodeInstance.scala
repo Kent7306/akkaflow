@@ -23,18 +23,6 @@ class KillNodeInstance (override val nodeInfo: KillNodeInfo) extends ControlNode
 
   def getNextNodes(wfi: WorkflowInstance): List[NodeInstance] = List()
   
-  override def setContent(contentStr: String){
-    val content = JsonMethods.parse(contentStr)
-    import org.json4s._
-    implicit val formats = DefaultFormats
-    val msg = (content \ "msg").extract[String]
-    this.nodeInfo.msg = msg
-  }
-  
-  override def getContent(): String = {
-    s"""{"to":"${nodeInfo.msg}"}"""
-  }
-  
   override def terminate(wfa: WorkflowActor): Boolean = {
     println("KILL! 执行workflow名称："+wfa.workflowInstance.workflow.name+"执行完毕."+"actor名称: "+ wfa.workflowInstance.actorName)
     wfa.workflowInstance.status = W_KILLED

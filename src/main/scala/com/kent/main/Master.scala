@@ -125,7 +125,7 @@ object Master extends App {
               <path to="action_node_1" />
               <path to="action_node_2" />
           </fork> 
-          <action name="action_node_1" retry-times="3" interval="10" timeout="500">
+          <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
               <host-script>
                   <host>127.0.0.1</host>
                   <script>D://Strawberry//perl//bin//perl F://test.pl</script>
@@ -133,7 +133,7 @@ object Master extends App {
               <ok to="join_node"/>
               <error to="join_node"/>
           </action>
-          <action name="action_node_2" retry-times="1" interval="3" timeout="500">
+          <action name="action_node_2" retry-times="1" interval="3" timeout="500" host="127.0.0.1" desc = "这是节点测试">
               <host-script>
                   <host>127.0.0.1</host>
                   <script>D://Strawberry//perl//bin//perl F://test2.pl</script>
@@ -155,7 +155,7 @@ object Master extends App {
               <path to="action_node_1" />
               <path to="action_node_2" />
           </fork>
-          <action name="action_node_1" retry-times="3" interval="10" timeout="500">
+          <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
               <host-script>
                   <host>127.0.0.1</host>
                   <script>D://Strawberry//perl//bin//perl F://test.pl</script>
@@ -185,7 +185,7 @@ object Master extends App {
               <path to="action_node_1" />
               <path to="action_node_2" />
           </fork>
-          <action name="action_node_1" retry-times="3" interval="10" timeout="500">
+          <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
               <host-script>
                   <host>127.0.0.1</host>
                   <script>/Users/kent/tmp/test_1.sh</script>
@@ -209,10 +209,10 @@ object Master extends App {
       </work-flow>
       """
     
-    //master ! AddWorkFlow(wfStr_win_1)
-    //master ! AddWorkFlow(wfStr_win_2)
-    //master ! AddCoor(coorStr_win) 
     Thread.sleep(30000)
-    master ! AddWorkFlow(wfStr_mac)
-    master ! AddCoor(coorStr_mac) 
+    master ! AddWorkFlow(wfStr_win_1)
+    master ! AddWorkFlow(wfStr_win_2)
+    master ! AddCoor(coorStr_win) 
+    //master ! AddWorkFlow(wfStr_mac)
+   // master ! AddCoor(coorStr_mac) 
 }

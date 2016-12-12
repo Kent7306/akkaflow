@@ -4,6 +4,7 @@ import com.kent.workflow.WorkflowInstance
 import com.kent.workflow.WorkflowActor
 import com.kent.util.Util
 import com.kent.workflow.node.NodeInfo.Status._
+import org.json4s.jackson.JsonMethods
 
 abstract class ControlNodeInstance(override val nodeInfo: ControlNodeInfo) extends NodeInstance(nodeInfo){
   def execute(): Boolean = true
@@ -31,5 +32,23 @@ abstract class ControlNodeInstance(override val nodeInfo: ControlNodeInfo) exten
   def deepCloneAssist(e: ControlNodeInstance): ControlNodeInstance = {
     super.deepCloneAssist(e)
     e
+  }
+  
+  override def setContent(contentStr: String){
+    if(contentStr != null){
+    	val content = JsonMethods.parse(contentStr)
+    			import org.json4s._
+    			implicit val formats = DefaultFormats
+    			this.nodeInfo.setContent(contentStr)       
+    }
+  }
+  override def getContent(): String = {
+    val ncontent = this.nodeInfo.getContent()
+    if(ncontent != null){
+    	val c1 = JsonMethods.parse(ncontent)
+    	JsonMethods.pretty(JsonMethods.render(c1))      
+    }else {
+      null
+    }
   }
 }

@@ -30,17 +30,20 @@ class HostScriptActionNodeInfo(name: String) extends ActionNodeInfo(name) {
   }
 
   override def setContent(contentStr: String){
+	  super.setContent(contentStr)
     val content = JsonMethods.parse(contentStr)
     import org.json4s._
     implicit val formats = DefaultFormats
     val script = (content \ "script").extract[String]
-    val host = (content \ "host").extract[String]
     this.script = script
-    this.host = host
   }
   
   override def getContent(): String = {
-    s"""{"script":"${script}","host":"${host}"}"""
+    val contentStr = super.getContent()
+    val c1 = JsonMethods.parse(contentStr)
+    val c2 = JsonMethods.parse(s""" {"script":"${script}"}""")
+    val c3 = c1.merge(c2)
+    JsonMethods.pretty(JsonMethods.render(c3))
   }
 }
 

@@ -44,11 +44,11 @@ trait Daoable[A] {
   /**
    * 设置该对象的content字段
    */
-  protected def setContent(contentStr: String) = {}
+  def setContent(contentStr: String) = {}
   /**
    * 获取对象的content内容
    */
-  protected def getContent(): String = null
+  def getContent(): String = null
   /**
    * 保存或更新对象
    */
