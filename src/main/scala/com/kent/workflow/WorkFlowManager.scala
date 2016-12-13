@@ -17,8 +17,7 @@ import com.kent.workflow.WorkflowActor.Start
 import com.kent.coordinate.CoordinatorManager.GetManagers
 import com.kent.db.PersistManager.Save
 import com.kent.db.PersistManager.Delete
-import com.kent.main.Master.AskWorkers
-import com.kent.main.Master.GetWorkers
+import com.kent.main.Master._
 
 class WorkFlowManager extends Actor with ActorLogging{
   var workflows: Map[String, WorkflowInfo] = Map()
@@ -107,13 +106,6 @@ println("添加工作流："+wf.name)
     true
   }
   /**
-   * 请求得到所有的worker
-   */
-  def askWorkers() = {
-    implicit val timeout = Timeout(10 seconds)
-    (context.parent ? AskWorkers()).pipeTo(sender)
-  }
-  /**
    * receive方法
    */
   def receive: Actor.Receive = {
@@ -129,7 +121,6 @@ println("添加工作流："+wf.name)
       persistManager = pm
       context.watch(coordinatorManager)
     }
-    case AskWorkers() => askWorkers()
     case Terminated(arf) => if(coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")
   }
 }

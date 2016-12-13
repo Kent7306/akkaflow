@@ -26,8 +26,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.pattern.ask
 import akka.pattern.pipe
 import akka.util.Timeout
-import com.kent.main.Master.GetWorkers
-import com.kent.main.Master.AskWorkers
+import com.kent.main.Master.GetWorker
+import com.kent.main.Master.AskWorker
+import scala.util.Random
 
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
@@ -57,9 +58,24 @@ class Master extends ClusterRole {
       workers = workers.filterNot(_ == workerActorRef)
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
-    case AskWorkers() => sender ! GetWorkers(workers)
+    case AskWorker(host: String) => sender ! GetWorker(askWorker(host: String))
   }
-  
+  /**
+   * 请求得到新的worker，动态分配
+   */
+  def askWorker(host: String):ActorRef = {
+    //host为-1情况下，随机分配
+    if(host == "-1") {
+      workers(Random.nextInt(workers.size))
+    }else{ //指定host分配
+    	val list = workers.map { x => x.path.address.host.get }.toList
+    	if(list.size > 0){
+    		workers(Random.nextInt(list.size))       	  
+    	}else{
+    	  null
+    	}
+    }
+  }
   def start():Boolean = {
     coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
     workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
@@ -72,8 +88,8 @@ class Master extends ClusterRole {
   }
 }
 object Master extends App {
-  case class GetWorkers(workers: IndexedSeq[ActorRef])
-  case class AskWorkers()
+  case class GetWorker(worker: ActorRef)
+  case class AskWorker(host: String)
   def props = Props[Master]
   val port = "2751"
   // 创建一个Config对象
