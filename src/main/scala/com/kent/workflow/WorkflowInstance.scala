@@ -38,7 +38,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     wfi.startTime = startTime
     wfi.endTime = endTime
     wfi.status = status
-    wfi.id = wfi.id
+    wfi.id = id
     wfi
   }
   override def toString: String = {
@@ -105,28 +105,53 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   }
 
   def getEntity(implicit conn: Connection): Option[WorkflowInstance] = {
-    val queryStr = """
+    getEntityWithNodeInstance(conn, true)
+  }
+  
+  def getEntityWithNodeInstance(implicit conn: Connection, isWithNodeInstance: Boolean): Option[WorkflowInstance] = {
+    import com.kent.util.Util._
+    val wfi = this.deepClone()
+    //工作流实例查询sql
+    val queryStr = s"""
          select id,workflow_id,name,param,status,description,stime,etime,create_time,last_update_time
-         from workflow_instance where id='"""+id+"""'
+         from workflow_instance where id=${withQuate(id)}
                     """
-    querySql(queryStr, (rs: ResultSet) =>{
+    println(queryStr)
+    //节点实例查询sql
+    val queryNodesStr = s"""
+         select name,type from node_instance 
+         where workflow_instance_id = ${withQuate(id)}
+      """
+    val wfiOpt = querySql(queryStr, (rs: ResultSet) =>{
           if(rs.next()){
-            this.id = rs.getString("id")
-            this.workflow.desc = rs.getString("description")
-            this.workflow.name = rs.getString("name")
-            this.workflow.id = rs.getString("workflow_id")
-            this.status = WStatus.getWstatusWithId(rs.getInt("status"))
-            this.workflow.createTime = Util.getStandarTimeWithStr(rs.getString("create_time"))
-            this.startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
-            this.endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
+            wfi.id = rs.getString("id")
+            wfi.workflow.desc = rs.getString("description")
+            wfi.workflow.name = rs.getString("name")
+            wfi.workflow.id = rs.getString("workflow_id")
+            wfi.status = WStatus.getWstatusWithId(rs.getInt("status"))
+            wfi.workflow.createTime = Util.getStandarTimeWithStr(rs.getString("create_time"))
+            wfi.startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
+            wfi.endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
             val json = JsonMethods.parse(rs.getString("param"))
             val list = for{ JObject(ele) <- json; (k, JString(v)) <- ele} yield (k->v)
-            this.parsedParams = list.map(x => x).toMap
-            this
+            wfi.parsedParams = list.map(x => x).toMap
+            wfi
           }else{
             null
           }
       })
+    //关联查询节点实例
+    if(isWithNodeInstance && !wfiOpt.isEmpty){
+      querySql(queryNodesStr, (rs: ResultSet) => {
+        var nameTypes = List[(String, String)]()
+        while(rs.next()) nameTypes =  (rs.getString("name"), rs.getString("type")) :: nameTypes
+        val nis = nameTypes.map { x => NodeInstance(x._2, x._1, id).getEntity.get }.toList
+        wfi.nodeInstanceList = nis
+        wfi
+      })
+    }else{
+      wfiOpt
+    }
   }
 
   def delete(implicit conn: Connection): Boolean = {
@@ -144,9 +169,17 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
 }
 
 object WorkflowInstance {
+  /**
+   * 由一个workflow对象产生一个实例
+   */
   def apply(wf: WorkflowInfo): WorkflowInstance = {
-    val wfi = new WorkflowInstance(wf.deepClone())
-    wfi.nodeInstanceList = wfi.workflow.nodeList.map { _.createInstance(wfi.id) }.toList
-    wfi
+    if(wf != null){
+    	val wfi = new WorkflowInstance(wf.deepClone())
+    	wfi.nodeInstanceList = wfi.workflow.nodeList.map { _.createInstance(wfi.id) }.toList
+    	wfi      
+    } else{
+      val wfi = new WorkflowInstance(null)
+      wfi
+    }
   }
 }

@@ -32,8 +32,8 @@ object PersistTest extends App{
       <work-flow name="wf_join" id='1111'>
           <start name="start_node" to="fork_node" />
           <fork name="fork_node">
-              <path start="action_node_1" />
-              <path start="action_node_2" />
+              <path to="action_node_1" />
+              <path to="action_node_2" />
           </fork>
           <action name="action_node_1" retry-times="3" interval="10" timeout="500">
               <host-script>
@@ -67,14 +67,18 @@ object PersistTest extends App{
   //
   val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root")),"pm")
   
-  val wf = WorkflowInfo(wfStr_mac)
+  //val wf = WorkflowInfo(wfStr_mac)
   //pm ! Save(wfi)
   //pm ! Save(wfi)
   
-  val wfi = WorkflowInstance(wf)
+ // val wfi = WorkflowInstance(wf)
  // wfi.nodeInstanceList.foreach { x => x.startTime = Util.nowDate; x.endTime = Util.nowDate }
-  wfi.startTime = new Date()
-  wfi.endTime = new Date()
-  pm ! Save(wfi)
+ // wfi.startTime = new Date()
+ // wfi.endTime = new Date()
+ // pm ! Save(wfi)
+  val wf = WorkflowInfo(wfStr_mac)
+  val wfi = WorkflowInstance(wf)
+  wfi.id = "428f7671"
+  pm ! Get(wfi)
   
 }

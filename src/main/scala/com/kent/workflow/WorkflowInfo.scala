@@ -19,6 +19,11 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   var nodeList:List[NodeInfo] = List()
   var createTime: Date = _
   var params:Map[String, String] = Map()
+  
+  /**
+   * 由该工作流信息创建属于某工作流实例
+   */
+  def createInstance(): WorkflowInstance = WorkflowInstance(this)
 
   def deepClone(): WorkflowInfo = {
 	  val wf = new WorkflowInfo(name)

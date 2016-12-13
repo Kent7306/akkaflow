@@ -8,6 +8,7 @@ import java.sql.Connection
 import java.sql.DriverManager
 import com.kent.db.PersistManager._
 import akka.actor.ActorRef
+import com.kent.workflow.WorkflowInstance
 
 class PersistManager(url: String, username: String, pwd: String) extends Actor with ActorLogging {
   //初始化数据连接 
@@ -20,7 +21,7 @@ class PersistManager(url: String, username: String, pwd: String) extends Actor w
   def receive: Actor.Receive = {
     case Save(obj) => obj.save
     case Delete(obj) => obj.delete
-    case Get(obj) => obj.getEntity
+    case Get(obj) => val tmp = obj.getEntity.get.asInstanceOf[WorkflowInstance]; println(tmp)
   }
   override def postStop(){
     if(connection != null)connection.close()

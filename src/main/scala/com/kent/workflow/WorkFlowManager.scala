@@ -63,14 +63,11 @@ println("添加工作流："+wf.name)
    */
   def newAndExecute(wfName: String,params: Map[String, String]){
     log.info("开始生成并执行工作流："+wfName)
-    val newWfInstance = WorkflowInstance(workflows(wfName))
+    val newWfInstance = workflows(wfName).createInstance()
     newWfInstance.workflow.params = params
     //创建新的workflow actor，并加入到列表中
     val wfActorRef = context.actorOf(Props(WorkflowActor(newWfInstance, params)), newWfInstance.actorName)
     workflowActors = workflowActors + (newWfInstance.actorName -> (newWfInstance.workflow.name,wfActorRef))
-    //var str = "";;;;;
-    //workflowActors.foreach( x => str = str + x._1+" ");;;;;
-    //println("<WorkFlowManager> workflow实例 actor个数：" + workflowActors.size + " 分别是：" + str);;;;
     wfActorRef ! Start()
   }
   /**

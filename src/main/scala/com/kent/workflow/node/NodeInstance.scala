@@ -11,6 +11,15 @@ import com.kent.util.Util
 import java.sql.ResultSet
 import com.kent.db.PersistManager
 import com.kent.db.PersistManager.Save
+import com.kent.workflow.controlnode.StartNodeInfo
+import com.kent.workflow.controlnode.EndNodeInstance
+import com.kent.workflow.controlnode.StartNodeInstance
+import com.kent.workflow.controlnode.JoinNodeInstance
+import com.kent.workflow.controlnode.KillNodeInstance
+import com.kent.workflow.controlnode.ForkNodeInstance
+import com.kent.workflow.actionnode.HostScriptActionNodeInstance
+import com.kent.workflow.controlnode._
+import com.kent.workflow.actionnode.HostScriptActionNodeInfo
 
 abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeInstance] with Daoable[NodeInstance] with Serializable{
   var id: String = _
@@ -117,8 +126,8 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
    * 获取对象
    */
   def getEntity(implicit conn: Connection): Option[NodeInstance] = {
-    val newNodeInstance = this.deepClone()
     import com.kent.util.Util._
+    val newNodeInstance = this.deepClone()
     val queryStr = s"""
          select workflow_instance_id,name,is_action,type,content,description,status,stime,etime,msg
          from node_instance 
@@ -141,3 +150,17 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
       })
   }
 }
+
+object NodeInstance {
+  def apply(nodeType: String, name: String, id: String): NodeInstance = {
+    if(nodeType == StartNodeInstance.getClass.getName) StartNodeInfo(name).createInstance(id)
+    else if(nodeType == EndNodeInstance.getClass.getName) EndNodeInfo(name).createInstance(id)
+    else if(nodeType == JoinNodeInstance.getClass.getName) JoinNodeInfo(name).createInstance(id)
+    else if(nodeType == KillNodeInstance.getClass.getName) KillNodeInfo(name).createInstance(id)
+    else if(nodeType == ForkNodeInstance.getClass.getName) ForkNodeInfo(name).createInstance(id)
+    else if(nodeType == HostScriptActionNodeInstance.getClass.getName) HostScriptActionNodeInfo(name).createInstance(id)
+    else null
+  }
+  
+}
+

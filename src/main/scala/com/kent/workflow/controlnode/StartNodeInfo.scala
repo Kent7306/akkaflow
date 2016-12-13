@@ -34,8 +34,10 @@ class StartNodeInfo(name: String) extends ControlNodeInfo(name){
 }
 
 object StartNodeInfo {
+  def apply(name: String): StartNodeInfo = new StartNodeInfo(name)
+  
   def apply(name: String, to: String): StartNodeInfo = {
-    val sn = new StartNodeInfo(name)
+    val sn = StartNodeInfo(name)
     sn.to = to
     sn
   }
