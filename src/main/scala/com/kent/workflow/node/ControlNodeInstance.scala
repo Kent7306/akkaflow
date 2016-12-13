@@ -25,7 +25,7 @@ abstract class ControlNodeInstance(override val nodeInfo: ControlNodeInfo) exten
 	    str = str + s"    startTime = ${startTime},\n"
 	    str = str + s"    endTime = ${endTime})\n"
 	    str
-	  }    
+	  }
 
   def replaceParam(param: Map[String, String]): Boolean = true
 
