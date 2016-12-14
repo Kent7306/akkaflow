@@ -31,8 +31,6 @@ abstract class ClusterRole extends Actor with ActorLogging {
     val pathOpt = createPath(member)
     if(!pathOpt.isEmpty){
     	val actorSelection = context.actorSelection(pathOpt.get)
-			log.info("Actor path: " + pathOpt.get)
-			log.info(actorSelection.toString()+"____________________");
     	actorSelection ! Registration()      
     }
   }

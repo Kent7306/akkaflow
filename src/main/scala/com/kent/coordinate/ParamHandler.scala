@@ -18,11 +18,11 @@ class ParamHandler(date:Date){
     }else{
     	val pattern2 = "(.*?)\\$\\{(.*?)\\}(.*)".r
     	val pattern2(pre, mid, end) = expr
-    	if(!paramMap.get(mid).isEmpty){
+    	if(!paramMap.get(mid).isEmpty){  //该参数可在paramMap中找到
     	  pre+paramMap.get(mid).get + this.getValue(end, paramMap)
-    	}else if(!"time\\.".r.findFirstIn(mid).isEmpty){
+    	}else if(!"time\\.".r.findFirstIn(mid).isEmpty){  //时间参数
     	  pre + handleTimeParam(mid) + this.getValue(end, paramMap)
-    	}else{
+    	}else{  //未找到，定义为undefined
     	  pre + "undedfined" + end
     	}
     }

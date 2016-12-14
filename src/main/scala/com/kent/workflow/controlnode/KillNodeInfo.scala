@@ -33,7 +33,7 @@ class KillNodeInfo(name: String) extends ControlNodeInfo(name) {
   }
   
   override def getContent(): String = {
-    s"""{"to":"${msg}"}"""
+    s"""{"msg":"${msg}"}"""
   }
 }
 

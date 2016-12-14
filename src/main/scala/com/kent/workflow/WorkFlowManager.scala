@@ -15,9 +15,9 @@ import scala.concurrent.duration._
 import akka.util.Timeout
 import com.kent.workflow.WorkflowActor.Start
 import com.kent.coordinate.CoordinatorManager.GetManagers
-import com.kent.db.PersistManager.Save
-import com.kent.db.PersistManager.Delete
+import com.kent.db.PersistManager._
 import com.kent.main.Master._
+import com.kent.workflow.node.NodeInfo.Status._
 
 class WorkFlowManager extends Actor with ActorLogging{
   var workflows: Map[String, WorkflowInfo] = Map()
@@ -63,11 +63,11 @@ println("添加工作流："+wf.name)
    */
   def newAndExecute(wfName: String,params: Map[String, String]){
     log.info("开始生成并执行工作流："+wfName)
-    val newWfInstance = workflows(wfName).createInstance()
-    newWfInstance.workflow.params = params
+    val wfi = workflows(wfName).createInstance()
+    wfi.parsedParams = params
     //创建新的workflow actor，并加入到列表中
-    val wfActorRef = context.actorOf(Props(WorkflowActor(newWfInstance, params)), newWfInstance.actorName)
-    workflowActors = workflowActors + (newWfInstance.actorName -> (newWfInstance.workflow.name,wfActorRef))
+    val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
+    workflowActors = workflowActors + (wfi.actorName -> (wfi.workflow.name,wfActorRef))
     wfActorRef ! Start()
   }
   /**
@@ -103,6 +103,33 @@ println("添加工作流："+wf.name)
     true
   }
   /**
+   * 重跑指定的工作流实例
+   */
+  def reRun(wfiId: String){
+    
+    val wf = new WorkflowInfo(null)
+    val wfi = wf.createInstance()
+    wfi.id = "b2bdfe0c"
+    implicit val timeout = Timeout(20 seconds)
+    val wfiF = (persistManager ? Get(wfi)).mapTo[WorkflowInstance]
+    //重置时间与状态
+    wfiF.map { x => 
+      x.status = W_PREP
+      x.startTime = null
+      x.endTime = null
+      x.nodeInstanceList.foreach { y => 
+        y.status = PREP
+        y.startTime = null
+        y.endTime = null}
+      x }.map {
+         z =>
+          //创建新的workflow actor，并加入到列表中
+          val wfActorRef = context.actorOf(Props(WorkflowActor(z)), z.actorName)
+          workflowActors = workflowActors + (z.actorName -> (z.workflow.name,wfActorRef))
+          wfActorRef ! Start()
+      }
+  }
+  /**
    * receive方法
    */
   def receive: Actor.Receive = {
@@ -113,6 +140,7 @@ println("添加工作流："+wf.name)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
     case KillWorkFlowInstance(wfActorName) => this.killWorkFlowInstance(wfActorName)
     case KillWorkFlow(wfName) => this.killWorkFlow(wfName)
+    case ReRunWorkflowInstance(wfiId: String) => reRun(wfiId)
     case GetManagers(wfm, cm, pm) => {
       coordinatorManager = cm
       persistManager = pm
@@ -140,7 +168,7 @@ object WorkFlowManager{
   case class AddWorkFlow(content: String)
   case class RemoveWorkFlow(wfName: String)
   case class UpdateWorkFlow(content: String)
-  
+  case class ReRunWorkflowInstance(worflowInstanceId: String)
   case class WorkFlowInstanceExecuteResult(workflowInstance: WorkflowInstance)
   case class WorkFlowExecuteResult(wfName: String, status: WStatus)
 }

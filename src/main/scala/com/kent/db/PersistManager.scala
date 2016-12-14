@@ -21,7 +21,8 @@ class PersistManager(url: String, username: String, pwd: String) extends Actor w
   def receive: Actor.Receive = {
     case Save(obj) => obj.save
     case Delete(obj) => obj.delete
-    case Get(obj) => val tmp = obj.getEntity.get.asInstanceOf[WorkflowInstance]; println(tmp)
+    case Get(obj) => sender ! obj.getEntity.get
+    //case Get(obj) => println(obj.getEntity.get.asInstanceOf[WorkflowInstance])
   }
   override def postStop(){
     if(connection != null)connection.close()

@@ -18,7 +18,6 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   var desc: String = _
   var nodeList:List[NodeInfo] = List()
   var createTime: Date = _
-  var params:Map[String, String] = Map()
   
   /**
    * 由该工作流信息创建属于某工作流实例
@@ -33,7 +32,6 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 
   def deepCloneAssist(wf: WorkflowInfo): WorkflowInfo = {
 	  wf.id = id
-	  wf.params = this.params.map(x => (x._1,x._2)).toMap
 	  wf.nodeList = this.nodeList.map { _.deepClone() }.toList
 	  wf.createTime = if(createTime == null) null else new Date(this.createTime.getTime)
 	  wf

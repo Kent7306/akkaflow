@@ -17,7 +17,7 @@ import com.kent.coordinate.CoordinatorManager
 import com.kent.workflow.WorkFlowManager
 import com.kent.db.PersistManager
 import com.kent.coordinate.CoordinatorManager.GetManagers
-import com.kent.workflow.WorkFlowManager.AddWorkFlow
+import com.kent.workflow.WorkFlowManager._
 import com.kent.coordinate.CoordinatorManager.AddCoor
 import com.kent.coordinate.CoordinatorManager.Start
 import com.kent.main.Worker.CreateAction
@@ -59,6 +59,7 @@ class Master extends ClusterRole {
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
     case AskWorker(host: String) => sender ! GetWorker(askWorker(host: String))
+    case ReRunWorkflowInstance(id: String) => workflowManager ! ReRunWorkflowInstance(id)
   }
   /**
    * 请求得到新的worker，动态分配
@@ -226,9 +227,11 @@ object Master extends App {
       """
     
     Thread.sleep(30000)
-    //master ! AddWorkFlow(wfStr_win_1)
-    //master ! AddWorkFlow(wfStr_win_2)
-    //master ! AddCoor(coorStr_win) 
-    master ! AddWorkFlow(wfStr_mac)
-    master ! AddCoor(coorStr_mac) 
+    master ! ReRunWorkflowInstance("b2bdfe0c")
+    
+    master ! AddWorkFlow(wfStr_win_1)
+    master ! AddWorkFlow(wfStr_win_2)
+    master ! AddCoor(coorStr_win) 
+   // master ! AddWorkFlow(wfStr_mac)
+   // master ! AddCoor(coorStr_mac) 
 }

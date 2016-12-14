@@ -45,6 +45,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     var str = this.getClass().getName + "(\n"
     str = str + s"  id = ${id},\n"
     str = str + s"  name = ${workflow.name},\n"
+    str = str + s"param = ${parsedParams},\n"
     str = str + s"  actorName = ${actorName},\n"
     str = str + s"  status = ${status},\n"
     str = str + s"  startTime = ${startTime},\n"
@@ -116,7 +117,6 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
          select id,workflow_id,name,param,status,description,stime,etime,create_time,last_update_time
          from workflow_instance where id=${withQuate(id)}
                     """
-    println(queryStr)
     //节点实例查询sql
     val queryNodesStr = s"""
          select name,type from node_instance 
@@ -144,7 +144,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     if(isWithNodeInstance && !wfiOpt.isEmpty){
       querySql(queryNodesStr, (rs: ResultSet) => {
         var nameTypes = List[(String, String)]()
-        while(rs.next()) nameTypes =  (rs.getString("name"), rs.getString("type")) :: nameTypes
+        while(rs.next()) nameTypes = nameTypes ::: ((rs.getString("name"), rs.getString("type")) :: Nil)
         val nis = nameTypes.map { x => NodeInstance(x._2, x._1, id).getEntity.get }.toList
         wfi.nodeInstanceList = nis
         wfi

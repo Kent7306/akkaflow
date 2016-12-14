@@ -31,7 +31,7 @@ import scala.concurrent.Await
 import com.kent.main.Worker.CreateAction
 import scala.util.Random
 
-class WorkflowActor(val workflowInstance: WorkflowInstance,private val _param: Map[String, String]) extends Actor with ActorLogging {
+class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with ActorLogging {
 	import com.kent.workflow.WorkflowActor._
   
   var workflowManageAcotrRef:ActorRef = _
@@ -53,7 +53,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance,private val _param: M
 	  log.info(s"[workflow:${this.workflowInstance.actorName}开始启动")
 	  this.workflowInstance.status = W_RUNNING
 	  //节点替换参数
-	   this.workflowInstance.nodeInstanceList.foreach { _.replaceParam(workflowInstance.workflow.params) }
+	   this.workflowInstance.nodeInstanceList.foreach { _.replaceParam(workflowInstance.parsedParams) }
 	  //找到开始节点并加入到等待队列
     val sn = workflowInstance.getStartNode()
     if(!sn.isEmpty && sn.get.ifCanExecuted(workflowInstance)){
@@ -171,7 +171,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance,private val _param: M
 }
 
 object WorkflowActor {
-  def apply(workflowInstance: WorkflowInstance, param: Map[String, String]): WorkflowActor = new WorkflowActor(workflowInstance, param)
+  def apply(workflowInstance: WorkflowInstance): WorkflowActor = new WorkflowActor(workflowInstance)
   
   case class Start()
   case class Kill()

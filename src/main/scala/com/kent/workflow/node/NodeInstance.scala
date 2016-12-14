@@ -153,12 +153,13 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
 
 object NodeInstance {
   def apply(nodeType: String, name: String, id: String): NodeInstance = {
-    if(nodeType == StartNodeInstance.getClass.getName) StartNodeInfo(name).createInstance(id)
-    else if(nodeType == EndNodeInstance.getClass.getName) EndNodeInfo(name).createInstance(id)
-    else if(nodeType == JoinNodeInstance.getClass.getName) JoinNodeInfo(name).createInstance(id)
-    else if(nodeType == KillNodeInstance.getClass.getName) KillNodeInfo(name).createInstance(id)
-    else if(nodeType == ForkNodeInstance.getClass.getName) ForkNodeInfo(name).createInstance(id)
-    else if(nodeType == HostScriptActionNodeInstance.getClass.getName) HostScriptActionNodeInfo(name).createInstance(id)
+    val withDollar = nodeType + "$"
+    if(withDollar == StartNodeInstance.getClass.getName.replaceAll("$", "")) StartNodeInfo(name).createInstance(id)
+    else if(withDollar == EndNodeInstance.getClass.getName) EndNodeInfo(name).createInstance(id)
+    else if(withDollar == JoinNodeInstance.getClass.getName) JoinNodeInfo(name).createInstance(id)
+    else if(withDollar == KillNodeInstance.getClass.getName) KillNodeInfo(name).createInstance(id)
+    else if(withDollar == ForkNodeInstance.getClass.getName) ForkNodeInfo(name).createInstance(id)
+    else if(withDollar == HostScriptActionNodeInstance.getClass.getName) HostScriptActionNodeInfo(name).createInstance(id)
     else null
   }
   

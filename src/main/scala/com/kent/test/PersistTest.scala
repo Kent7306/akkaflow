@@ -76,9 +76,11 @@ object PersistTest extends App{
  // wfi.startTime = new Date()
  // wfi.endTime = new Date()
  // pm ! Save(wfi)
-  val wf = WorkflowInfo(wfStr_mac)
-  val wfi = WorkflowInstance(wf)
-  wfi.id = "428f7671"
+  //val wf = WorkflowInfo(wfStr_mac)
+  //val wfi = WorkflowInstance(wf)
+  val wf = new WorkflowInfo(null)
+  val wfi = wf.createInstance()
+  wfi.id = "b2bdfe0c"
   pm ! Get(wfi)
   
 }
