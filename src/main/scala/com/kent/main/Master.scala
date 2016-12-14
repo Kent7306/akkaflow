@@ -29,6 +29,8 @@ import akka.util.Timeout
 import com.kent.main.Master.GetWorker
 import com.kent.main.Master.AskWorker
 import scala.util.Random
+import com.typesafe.config.Config
+import com.kent.pub.ShareData
 
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
@@ -78,9 +80,16 @@ class Master extends ClusterRole {
     }
   }
   def start():Boolean = {
+    import com.kent.pub.ShareData._
+    val mysqlConfig = (config.getString("workflow.mysql.user"),
+                    config.getString("workflow.mysql.password"),
+                    config.getString("workflow.mysql.jdbc-url"),
+                    config.getBoolean("workflow.mysql.is-enabled"))
+                    
+    
     coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
     workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
-    PersistManager.pm = context.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root")),"pm")
+    PersistManager.pm = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
     coordinatorManager ! GetManagers(workflowManager,coordinatorManager, PersistManager.pm)
     workflowManager ! GetManagers(workflowManager,coordinatorManager, PersistManager.pm)
     Thread.sleep(1000)
@@ -97,6 +106,7 @@ object Master extends App {
   val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port)
       .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
       .withFallback(ConfigFactory.load())
+  ShareData.config = config
   // 创建一个ActorSystem实例
   val system = ActorSystem("workflow-system", config)
   val master = system.actorOf(Master.props, name = "master")
@@ -227,8 +237,8 @@ object Master extends App {
       """
     
     Thread.sleep(30000)
-    master ! ReRunWorkflowInstance("b2bdfe0c")
-    
+//    master ! ReRunWorkflowInstance("b2bdfe0c")
+//    
     master ! AddWorkFlow(wfStr_win_1)
     master ! AddWorkFlow(wfStr_win_2)
     master ! AddCoor(coorStr_win) 

@@ -65,7 +65,7 @@ object PersistTest extends App{
   val system = ActorSystem("workflow-system", config)
   
   //
-  val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root")),"pm")
+  val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root", true)),"pm")
   
   //val wf = WorkflowInfo(wfStr_mac)
   //pm ! Save(wfi)

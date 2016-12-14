@@ -139,7 +139,7 @@ object Main extends App{
   //
   val cm = system.actorOf(Props(CoordinatorManager(List())),"cm")
   val wfm = system.actorOf(Props(WorkFlowManager(List())),"wfm")
-  val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root")),"pm")
+  val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root", true)),"pm")
   PersistManager.pm = pm
   cm ! GetManagers(wfm,cm,pm)
   wfm ! GetManagers(wfm,cm,pm)

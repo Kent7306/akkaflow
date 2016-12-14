@@ -10,20 +10,28 @@ import com.kent.db.PersistManager._
 import akka.actor.ActorRef
 import com.kent.workflow.WorkflowInstance
 
-class PersistManager(url: String, username: String, pwd: String) extends Actor with ActorLogging {
-  //初始化数据连接 
-  //注册Driver
-  val driver = "com.mysql.jdbc.Driver"
-  Class.forName(driver)
-    //得到连接
-  implicit val connection = DriverManager.getConnection(url, username, pwd)
+class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging {
+  implicit var connection: Connection = null
+  def receive = passive
+  if(isEnabled){
+	  //初始化数据连接 
+	  //注册Driver
+	  val driver = "com.mysql.jdbc.Driver"
+	  Class.forName(driver)
+	  //得到连接
+	  connection = DriverManager.getConnection(url, username, pwd)
+    context.become(active)
+  }
   
-  def receive: Actor.Receive = {
+  def active: Actor.Receive = {
     case Save(obj) => obj.save
     case Delete(obj) => obj.delete
     case Get(obj) => sender ! obj.getEntity.get
-    //case Get(obj) => println(obj.getEntity.get.asInstanceOf[WorkflowInstance])
   }
+  def passive: Actor.Receive = {
+    case _ => //do nothing!!!
+  }
+  
   override def postStop(){
     if(connection != null)connection.close()
   }
@@ -31,7 +39,7 @@ class PersistManager(url: String, username: String, pwd: String) extends Actor w
 
 object PersistManager {
   var pm: ActorRef = _
-  def apply(url: String, username: String, pwd: String):PersistManager = new PersistManager(url, username, pwd)
+  def apply(url: String, username: String, pwd: String, isEnabled: Boolean):PersistManager = new PersistManager(url, username, pwd, isEnabled)
   case class Save[A](obj: Daoable[A])
   case class Delete[A](obj: Daoable[A])
   case class Get[A](obj: Daoable[A])
