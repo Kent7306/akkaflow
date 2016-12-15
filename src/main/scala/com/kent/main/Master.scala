@@ -31,6 +31,8 @@ import com.kent.main.Master.AskWorker
 import scala.util.Random
 import com.typesafe.config.Config
 import com.kent.pub.ShareData
+import com.kent.mail.EmailSender
+import com.kent.mail.EmailSender.EmailMessage
 
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
@@ -81,15 +83,29 @@ class Master extends ClusterRole {
   }
   def start():Boolean = {
     import com.kent.pub.ShareData._
+    //mysql参数配置
     val mysqlConfig = (config.getString("workflow.mysql.user"),
-                    config.getString("workflow.mysql.password"),
-                    config.getString("workflow.mysql.jdbc-url"),
-                    config.getBoolean("workflow.mysql.is-enabled"))
+                      config.getString("workflow.mysql.password"),
+                      config.getString("workflow.mysql.jdbc-url"),
+                      config.getBoolean("workflow.mysql.is-enabled")
+                    )
+   //Email参数配置
+   val emailConfig = (config.getString("workflow.email.hostname"),
+                      config.getInt(("workflow.email.smtp-port")),
+                      config.getString("workflow.email.account"),
+                      config.getString("workflow.email.password"),
+                      config.getBoolean("workflow.email.is-enabled")
+                    )
                     
-    
+    //创建coordinator管理器
     coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
+    //创建workflow管理器
     workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
+    //创建持久化管理器
     ShareData.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
+    //创建邮件发送器
+    println(emailConfig)
+    ShareData.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)))
     coordinatorManager ! GetManagers(workflowManager,coordinatorManager, ShareData.persistManager)
     workflowManager ! GetManagers(workflowManager,coordinatorManager, ShareData.persistManager)
     Thread.sleep(1000)
@@ -237,11 +253,13 @@ object Master extends App {
       """
     
     Thread.sleep(30000)
+    println(ShareData.emailSender)
+      ShareData.emailSender ! EmailMessage("492005267@qq.com","测试","这是workflow测试")
 //    master ! ReRunWorkflowInstance("b2bdfe0c")
 //    
-    master ! AddWorkFlow(wfStr_win_1)
-    master ! AddWorkFlow(wfStr_win_2)
-    master ! AddCoor(coorStr_win) 
+ //   master ! AddWorkFlow(wfStr_win_1)
+ //   master ! AddWorkFlow(wfStr_win_2)
+ //   master ! AddCoor(coorStr_win) 
    // master ! AddWorkFlow(wfStr_mac)
    // master ! AddCoor(coorStr_mac) 
 }

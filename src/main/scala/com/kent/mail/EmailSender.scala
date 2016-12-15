@@ -2,13 +2,13 @@ package com.kent.mail
 
 import akka.actor.ActorLogging
 import akka.actor.Actor
-import com.kent.mail.EmailManager._
+import com.kent.mail.EmailSender._
 import org.apache.commons.mail.HtmlEmail
 
 /**
  * Email发送actor
  */
-class EmailManager(hostName: String, port: Int, account: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging {
+class EmailSender(hostName: String, port: Int, account: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging {
   def receive = passive
   if(isEnabled) context.become(active)
   /**
@@ -43,6 +43,11 @@ class EmailManager(hostName: String, port: Int, account: String, pwd: String, is
   }
 }
 
-object EmailManager {
+object EmailSender {
+  def apply(hostName: String, port: Int, account: String, pwd: String, isEnabled: Boolean):EmailSender = {
+    println("*****")
+    new EmailSender(hostName, port, account, pwd, isEnabled)
+  }
+  
   case class EmailMessage(to: String,subject: String,htmlText: String)
 }

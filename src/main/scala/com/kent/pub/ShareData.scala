@@ -9,5 +9,5 @@ import akka.actor.ActorRef
 object ShareData {
   var config: Config = _
   var persistManager:ActorRef = _
-  var emailManager:ActorRef = _
+  var emailSender:ActorRef = _
 }
