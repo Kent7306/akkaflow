@@ -20,6 +20,7 @@ import com.kent.workflow.controlnode.ForkNodeInstance
 import com.kent.workflow.actionnode.HostScriptActionNodeInstance
 import com.kent.workflow.controlnode._
 import com.kent.workflow.actionnode.HostScriptActionNodeInfo
+import com.kent.pub.ShareData
 
 abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeInstance] with Daoable[NodeInstance] with Serializable{
   var id: String = _
@@ -44,7 +45,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
   def preExecute():Boolean = {
     this.startTime = Util.nowDate 
     this.status = RUNNING 
-    PersistManager.pm ! Save(this)
+    ShareData.persistManager ! Save(this)
     true
   }
   /**
@@ -59,7 +60,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
    * 执行结束后回调方法
    */
   def postTerminate():Boolean = {
-    PersistManager.pm ! Save(this)
+    ShareData.persistManager ! Save(this)
     true
   }
   /**

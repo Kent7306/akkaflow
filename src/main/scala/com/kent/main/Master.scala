@@ -89,9 +89,9 @@ class Master extends ClusterRole {
     
     coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
     workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
-    PersistManager.pm = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
-    coordinatorManager ! GetManagers(workflowManager,coordinatorManager, PersistManager.pm)
-    workflowManager ! GetManagers(workflowManager,coordinatorManager, PersistManager.pm)
+    ShareData.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
+    coordinatorManager ! GetManagers(workflowManager,coordinatorManager, ShareData.persistManager)
+    workflowManager ! GetManagers(workflowManager,coordinatorManager, ShareData.persistManager)
     Thread.sleep(1000)
     coordinatorManager ! Start()
     true

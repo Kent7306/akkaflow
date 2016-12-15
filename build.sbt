@@ -20,11 +20,11 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
     "com.typesafe.akka" %% "akka-cluster-metrics" % akkaVersion,
     "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
-    "mysql" % "mysql-connector-java" % "5.1.+",
-    "org.json4s" % "json4s-jackson_2.11" % "3.5.0"
+    "mysql" % "mysql-connector-java" % "5.1.+"
     //"io.kamon" % "sigar-loader" % "1.6.6-rev002"
   )
 }
 
-//libraryDependencies += "net.sf.json-lib" % "json-lib" % "2.4" % "jdk15"
 libraryDependencies += "com.github.philcali" %% "cronish" % "0.1.3"
+libraryDependencies += "org.json4s" % "json4s-jackson_2.11" % "3.5.0"
+libraryDependencies += "org.apache.commons" % "commons-email" % "1.4"

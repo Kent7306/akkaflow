@@ -14,20 +14,23 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
   implicit var connection: Connection = null
   def receive = passive
   if(isEnabled){
-	  //初始化数据连接 
 	  //注册Driver
-	  val driver = "com.mysql.jdbc.Driver"
-	  Class.forName(driver)
+	  Class.forName("com.mysql.jdbc.Driver")
 	  //得到连接
 	  connection = DriverManager.getConnection(url, username, pwd)
     context.become(active)
   }
-  
+  /**
+   * 开启持久化
+   */
   def active: Actor.Receive = {
     case Save(obj) => obj.save
     case Delete(obj) => obj.delete
     case Get(obj) => sender ! obj.getEntity.get
   }
+  /**
+   * 取消持久化
+   */
   def passive: Actor.Receive = {
     case _ => //do nothing!!!
   }
@@ -38,7 +41,6 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
 }
 
 object PersistManager {
-  var pm: ActorRef = _
   def apply(url: String, username: String, pwd: String, isEnabled: Boolean):PersistManager = new PersistManager(url, username, pwd, isEnabled)
   case class Save[A](obj: Daoable[A])
   case class Delete[A](obj: Daoable[A])

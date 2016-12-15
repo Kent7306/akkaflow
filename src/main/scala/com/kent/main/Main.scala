@@ -7,6 +7,7 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import com.kent.workflow.WorkFlowManager
 import com.kent.db.PersistManager
+import com.kent.pub.ShareData
 
 object Main extends App{
     val coorStr4 = """
@@ -140,7 +141,7 @@ object Main extends App{
   val cm = system.actorOf(Props(CoordinatorManager(List())),"cm")
   val wfm = system.actorOf(Props(WorkFlowManager(List())),"wfm")
   val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root", true)),"pm")
-  PersistManager.pm = pm
+  ShareData.persistManager = pm
   cm ! GetManagers(wfm,cm,pm)
   wfm ! GetManagers(wfm,cm,pm)
   

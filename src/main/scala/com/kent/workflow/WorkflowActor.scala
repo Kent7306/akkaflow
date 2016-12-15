@@ -30,6 +30,7 @@ import com.kent.main.Master._
 import scala.concurrent.Await
 import com.kent.main.Worker.CreateAction
 import scala.util.Random
+import com.kent.pub.ShareData
 
 class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with ActorLogging {
 	import com.kent.workflow.WorkflowActor._
@@ -61,7 +62,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
     	waitingNodes = waitingNodes.enqueue(sn.get)
     }
     //保存工作流实例
-    PersistManager.pm ! Save(workflowInstance)
+    ShareData.persistManager ! Save(workflowInstance)
     
     //启动队列
 	  this.scheduler = context.system.scheduler.schedule(0 millis, 100 millis){
@@ -96,7 +97,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
  private def handleActionRetryTimes(times: Int, actionSender: ActorRef){
    val ni = runningActors(actionSender).asInstanceOf[ActionNodeInstance]
    ni.hasRetryTimes = times
-   PersistManager.pm ! Save(ni)
+   ShareData.persistManager ! Save(ni)
  }
  
 	/**
@@ -109,7 +110,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  this.workflowInstance.endTime = Util.nowDate
 	  workflowManageAcotrRef ! WorkFlowInstanceExecuteResult(workflowInstance)
 	  //保存工作流实例
-	  PersistManager.pm ! Save(workflowInstance)
+	  ShareData.persistManager ! Save(workflowInstance)
 	  context.stop(self)
 	}
 	/**
