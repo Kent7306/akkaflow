@@ -130,7 +130,7 @@ object Master extends App {
   master ! Start()
   
   val coorStr_win = """
-	     <coordinator name="coor1_1" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00">    
+	  <coordinator name="coor1_1" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00">    
         <trigger>
             <cron config="* * * * * *"/>
         </trigger>

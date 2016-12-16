@@ -18,6 +18,8 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   var desc: String = _
   var nodeList:List[NodeInfo] = List()
   var createTime: Date = _
+  var mailLevel = List[WStatus]()
+  var mailReceivers = List[String]()
   
   /**
    * 由该工作流信息创建属于某工作流实例
@@ -34,6 +36,9 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 	  wf.id = id
 	  wf.nodeList = this.nodeList.map { _.deepClone() }.toList
 	  wf.createTime = if(createTime == null) null else new Date(this.createTime.getTime)
+	  wf.desc = desc
+	  wf.mailLevel = mailLevel.map { x => x }.toList
+	  wf.mailReceivers = mailReceivers.map { x => x }.toList
 	  wf
 	}
 
@@ -103,20 +108,27 @@ object WorkflowInfo {
    * 解析xml为一个对象
    */
   def parseXmlNode(node: scala.xml.Node): WorkflowInfo = {
+      val a = WStatus.withName("W_FAILED")
       val nameOpt = node.attribute("name")
       val idOpt = node.attribute("id")
       val descOpt = node.attribute("desc")
       val createTimeOpt = node.attribute("create-time")
+      val mailLevelOpt = node.attribute("mail-level")
+      val mailReceiversOpt = node.attribute("mail-receivers")
+      
       if(nameOpt == None) throw new Exception("节点<work-flow/>未配置name属性")
       val id = if(idOpt == None) Util.produce6UUID else idOpt.get.text
       val wf = new WorkflowInfo(nameOpt.get.text)
       wf.id = id
       if(descOpt != None) wf.desc = descOpt.get.text
     	wf.nodeList = (node \ "_").map{x => val n = NodeInfo(x); n.workflowId = id; n }.toList
-    	if(createTimeOpt != None)
-    	  wf.createTime = Util.getStandarTimeWithStr(createTimeOpt.get.text) 	
-    	else
-    	  wf.createTime = Util.nowDate
+    	wf.createTime = if(createTimeOpt != None) Util.getStandarTimeWithStr(createTimeOpt.get.text) else Util.nowDate
+    	if(!mailLevelOpt.isEmpty){
+    	  val levels = mailLevelOpt.get.text.split(",")
+    	  levels.map { x => }.toList   //??? 这里可能后续要调整一下，不直接用枚举名称
+    	}else{
+    	  
+    	}
     	wf
   }
   
