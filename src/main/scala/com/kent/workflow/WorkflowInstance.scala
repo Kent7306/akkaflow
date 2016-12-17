@@ -44,6 +44,8 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   override def toString: String = {
     var str = this.getClass().getName + "(\n"
     str = str + s"  id = ${id},\n"
+    str = str + s"  mailLevel = ${workflow.mailLevel},\n"
+    str = str + s"  toUser = ${workflow.mailReceivers},\n"
     str = str + s"  name = ${workflow.name},\n"
     str = str + s"param = ${parsedParams},\n"
     str = str + s"  actorName = ${actorName},\n"

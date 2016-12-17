@@ -18,6 +18,8 @@ import com.kent.coordinate.CoordinatorManager.GetManagers
 import com.kent.db.PersistManager._
 import com.kent.main.Master._
 import com.kent.workflow.node.NodeInfo.Status._
+import com.kent.pub.ShareData
+import com.kent.mail.EmailSender.EmailMessage
 
 class WorkFlowManager extends Actor with ActorLogging{
   var workflows: Map[String, WorkflowInfo] = Map()
@@ -76,6 +78,11 @@ println("添加工作流："+wf.name)
   def handleWorkFlowInstanceReply(wfInstance: WorkflowInstance):Boolean = {
     val (wfname, af) = this.workflowActors.get(wfInstance.actorName).get
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.actorName }.toMap
+    if(wfInstance.workflow.mailLevel.contains(wfInstance.status)){
+    	ShareData.emailSender ! EmailMessage(wfInstance.workflow.mailReceivers,
+    	                "workflow告警",
+    	                s"任务【${wfInstance.id}】执行状态：${wfInstance.status}")      
+    }
     println("==============================")
     println(wfInstance)
     println("==============================")

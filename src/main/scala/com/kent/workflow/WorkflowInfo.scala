@@ -125,9 +125,10 @@ object WorkflowInfo {
     	wf.createTime = if(createTimeOpt != None) Util.getStandarTimeWithStr(createTimeOpt.get.text) else Util.nowDate
     	if(!mailLevelOpt.isEmpty){
     	  val levels = mailLevelOpt.get.text.split(",")
-    	  levels.map { x => }.toList   //??? 这里可能后续要调整一下，不直接用枚举名称
-    	}else{
-    	  
+    	  wf.mailLevel = levels.map { x => WStatus.withName(x)}.toList   //??? 这里可能后续要调整一下，不直接用枚举名称
+    	}
+    	if(!mailReceiversOpt.isEmpty){
+    	  wf.mailReceivers = mailReceiversOpt.get.text.split(",").toList
     	}
     	wf
   }

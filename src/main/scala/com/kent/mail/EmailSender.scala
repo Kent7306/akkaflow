@@ -35,19 +35,19 @@ class EmailSender(hostName: String, port: Int, account: String, pwd: String, isE
     email.setSmtpPort(port)
     email.setAuthentication(account, pwd)
     email.setCharset("UTF-8")
-    email.addTo(emailMessage.to)
+    emailMessage.toUsers.foreach { email.addTo(_) }
     email.setFrom(account)
     email.setSubject(emailMessage.subject)
     email.setHtmlMsg(emailMessage.htmlText)
     email.send()
+    println("Email 发送成功！！！！")
   }
 }
 
 object EmailSender {
   def apply(hostName: String, port: Int, account: String, pwd: String, isEnabled: Boolean):EmailSender = {
-    println("*****")
     new EmailSender(hostName, port, account, pwd, isEnabled)
   }
   
-  case class EmailMessage(to: String,subject: String,htmlText: String)
+  case class EmailMessage(toUsers: List[String],subject: String,htmlText: String)
 }

@@ -222,7 +222,8 @@ object Master extends App {
       </work-flow>
       """
     val wfStr_mac = """
-      <work-flow name="wf_join">
+      <work-flow name="wf_join" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
+        mail-receivers="15018735011@163.com,492005267@qq.com">
           <start name="start_node" to="fork_node" />
           <fork name="fork_node">
               <path to="action_node_1" />
@@ -252,14 +253,13 @@ object Master extends App {
       </work-flow>
       """
     
-    Thread.sleep(30000)
-    println(ShareData.emailSender)
-      ShareData.emailSender ! EmailMessage("492005267@qq.com","测试","这是workflow测试")
+    Thread.sleep(10000)
+      
 //    master ! ReRunWorkflowInstance("b2bdfe0c")
 //    
  //   master ! AddWorkFlow(wfStr_win_1)
  //   master ! AddWorkFlow(wfStr_win_2)
  //   master ! AddCoor(coorStr_win) 
-   // master ! AddWorkFlow(wfStr_mac)
-   // master ! AddCoor(coorStr_mac) 
+    master ! AddWorkFlow(wfStr_mac)
+    master ! AddCoor(coorStr_mac) 
 }
