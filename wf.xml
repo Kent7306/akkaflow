@@ -1,0 +1,56 @@
+<work-flow name="my_work_flow">
+    <start name="start" to="node_1" />
+    <action name="node_2" retry-times="3" interval="5" timeout="500">
+        <host-script>
+            <host>127.0.0.1</host>
+            <path>/home/ouguangneng/1123/run.sh ${wf.date}</path>
+        </host-script>
+        <ok to="node_2"/>
+        <error to="node_2"/>
+    </action>
+    <fork name="node_fork">
+        <path start="fork_1" />
+        <path start="fork_2" />
+    </fork>
+    <action name="fork_1" retry-times="3" interval="5" timeout="500">
+        <host-script>
+            <host>127.0.0.1</host>
+            <path>/home/ouguangneng/1123/run.sh ${wf.date}</path>
+        </host-script>
+        <ok to="fork_1_2"/>
+        <error to="node_2"/>
+    </action>
+    <action name="fork_1_2" retry-times="3" interval="5" timeout="500">
+        <host-script>
+            <host>127.0.0.1</host>
+            <path>/home/ouguangneng/1123/run.sh ${wf.date}</path>
+        </host-script>
+        <ok to="join_node"/>
+        <error to="node_2"/>
+    </action>
+    <action name="fork_2" retry-times="3" interval="5" timeout="500">
+        <host-script>
+            <host>127.0.0.1</host>
+            <path>/home/ouguangneng/1123/run.sh ${wf.date}</path>
+        </host-script>
+        <ok to="join_node"/>
+        <error to="node_2"/>
+    </action>
+    
+    <join name="join_node" to="node_end"/>
+        
+    <action name="node_end" retry-times="3" interval="5" timeout="500">
+        <host-script>
+            <host>127.0.0.1</host>
+            <script>/home/ouguangneng/1123/run.sh ${wf.date}</script>
+        </host-script>
+        <ok to="join_node"/>
+        <error to="end"/>
+    </action>
+    
+    <end name="end"/>
+    
+    <kill name="node_2">
+        <message>nihao a </message>
+    </kill>
+</work-flow>

@@ -75,11 +75,15 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     import org.json4s.jackson.JsonMethods._
     import com.kent.util.Util._
     val paramStr = compact(render(parsedParams))
+    val levelStr = compact(workflow.mailLevel.map { _.toString()})
+    val receiversStr = compact(workflow.mailReceivers)
+    
     try{
       conn.setAutoCommit(false)
   	  val insertSql = s"""
   	     insert into workflow_instance values(${withQuate(id)},${withQuate(workflow.id)},${withQuate(workflow.name)},
   	                                          ${withQuate(paramStr)},'${status.id}',${withQuate(workflow.desc)},
+  	                                          ${withQuate(levelStr)},${withQuate(receiversStr)},
   	                                          ${withQuate(formatStandarTime(startTime))},${withQuate(formatStandarTime(endTime))},
   	                                          ${withQuate(formatStandarTime(workflow.createTime))},${withQuate(formatStandarTime(workflow.createTime))})
   	    """
@@ -88,6 +92,8 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   	                        name = ${withQuate(workflow.name)}, param = ${withQuate(paramStr)}, 
   	                        status = '${status.id}',
   	                        description = ${withQuate(workflow.desc)},
+  	                        mail_level = ${withQuate(levelStr)},
+  	                        mail_receivers = ${withQuate(receiversStr)},
   	                        stime = ${withQuate(formatStandarTime(startTime))}, 
   	                        etime = ${withQuate(formatStandarTime(endTime))},
   	                        create_time = ${withQuate(formatStandarTime(workflow.createTime))}
@@ -118,7 +124,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     val wfi = this.deepClone()
     //工作流实例查询sql
     val queryStr = s"""
-         select id,workflow_id,name,param,status,description,stime,etime,create_time,last_update_time
+         select id,workflow_id,name,param,status,description,mail_level,mail_receivers,stime,etime,create_time,last_update_time
          from workflow_instance where id=${withQuate(id)}
                     """
     //节点实例查询sql
@@ -131,6 +137,11 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
             wfi.id = rs.getString("id")
             wfi.workflow.desc = rs.getString("description")
             wfi.workflow.name = rs.getString("name")
+            val levelStr = JsonMethods.parse(rs.getString("mail_level"))
+            val receiversStr = JsonMethods.parse(rs.getString("mail_receivers"))
+            wfi.workflow.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
+            wfi.workflow.mailReceivers = (receiversStr \\ classOf[JString]).asInstanceOf[List[String]]
+            
             wfi.workflow.id = rs.getString("workflow_id")
             wfi.status = WStatus.getWstatusWithId(rs.getInt("status"))
             wfi.workflow.createTime = Util.getStandarTimeWithStr(rs.getString("create_time"))

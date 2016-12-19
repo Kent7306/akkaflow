@@ -10,4 +10,5 @@ object ShareData {
   var config: Config = _
   var persistManager:ActorRef = _
   var emailSender:ActorRef = _
+  var logRecorder:ActorRef = _
 }

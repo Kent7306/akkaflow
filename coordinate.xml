@@ -1,0 +1,18 @@
+<coordinator name="coor1_1" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00">    
+    <trigger>
+        <depend-list> 
+            <depend wf="wf_1" />
+            <depend wf="wf_2" />
+            <cron config="* * * * * *"/>
+        </depend-list>
+    </trigger>
+    <workflow-list>
+        <workflow path="wf_join"></workflow>
+        <workflow path="wf_join_2"></workflow>
+    </workflow-list>
+    <param-list>
+        <param name="yestoday" value="${time.today|yyyy-MM-dd|-1 day}"/>
+        <param name="lastMonth" value="${time.today|yyyyMM|-1 month}"/>
+        <param name="yestoday2" value="${time.yestoday}"/>
+    </param-list>
+</coordinator>

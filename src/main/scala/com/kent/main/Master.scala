@@ -33,6 +33,7 @@ import com.typesafe.config.Config
 import com.kent.pub.ShareData
 import com.kent.mail.EmailSender
 import com.kent.mail.EmailSender.EmailMessage
+import com.kent.db.LogRecorder._
 
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
@@ -83,11 +84,16 @@ class Master extends ClusterRole {
   }
   def start():Boolean = {
     import com.kent.pub.ShareData._
-    //mysql参数配置
+    //mysql持久化参数配置
     val mysqlConfig = (config.getString("workflow.mysql.user"),
                       config.getString("workflow.mysql.password"),
                       config.getString("workflow.mysql.jdbc-url"),
                       config.getBoolean("workflow.mysql.is-enabled")
+                    )
+   val logRecordConfig = (config.getString("workflow.log-mysql.user"),
+                      config.getString("workflow.log-mysql.password"),
+                      config.getString("workflow.log-mysql.jdbc-url"),
+                      config.getBoolean("workflow.log-mysql.is-enabled")
                     )
    //Email参数配置
    val emailConfig = (config.getString("workflow.email.hostname"),
@@ -104,8 +110,10 @@ class Master extends ClusterRole {
     //创建持久化管理器
     ShareData.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
     //创建邮件发送器
-    println(emailConfig)
-    ShareData.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)))
+    ShareData.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
+    //创建日志记录器
+    ShareData.logRecorder = context.actorOf(Props(PersistManager(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+    
     coordinatorManager ! GetManagers(workflowManager,coordinatorManager, ShareData.persistManager)
     workflowManager ! GetManagers(workflowManager,coordinatorManager, ShareData.persistManager)
     Thread.sleep(1000)
@@ -254,12 +262,13 @@ object Master extends App {
       """
     
     Thread.sleep(10000)
-      
+      ShareData.logRecorder ! Info("A","B","C")
 //    master ! ReRunWorkflowInstance("b2bdfe0c")
 //    
  //   master ! AddWorkFlow(wfStr_win_1)
  //   master ! AddWorkFlow(wfStr_win_2)
  //   master ! AddCoor(coorStr_win) 
-    master ! AddWorkFlow(wfStr_mac)
-    master ! AddCoor(coorStr_mac) 
+    
+  //  master ! AddWorkFlow(wfStr_mac)
+  //  master ! AddCoor(coorStr_mac) 
 }

@@ -11,6 +11,9 @@ import com.kent.pub.Daoable
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
+import org.json4s.jackson.JsonMethods
+import com.kent.workflow.WorkflowInfo.WStatus
+import org.json4s.JsonAST.JString
 
 class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Daoable[WorkflowInfo] {
 	import com.kent.workflow.WorkflowInfo.WStatus._
@@ -57,13 +60,17 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 
   def getEntity(implicit conn: Connection): Option[WorkflowInfo] = {
     val queryStr = """
-         select id,name,description,create_time,last_update_time
+         select id,name,description,mail_level,mail_receivers,create_time,last_update_time
          from workflow where id='"""+id+"""'
                     """
     querySql(queryStr, (rs: ResultSet) =>{
           if(rs.next()){
             this.desc = rs.getString("description")
             this.name= rs.getString("name")
+            val levelStr = JsonMethods.parse(rs.getString("mail_level"))
+            val receiversStr = JsonMethods.parse(rs.getString("mail_receivers"))
+            this.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
+            this.mailReceivers = (receiversStr \\ classOf[JString]).asInstanceOf[List[String]]
             this
           }else{
             null
@@ -74,15 +81,23 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   def save(implicit conn: Connection): Boolean = {
     var result = false;
     import com.kent.util.Util._
+    import org.json4s.JsonDSL._
+    import org.json4s.jackson.JsonMethods._
+    
+    val levelStr = compact(mailLevel.map { _.toString()})
+    val receiversStr = compact(mailReceivers)
+    
     try{
       conn.setAutoCommit(false)
   	  val insertSql = s"""
-  	     insert into workflow values(${withQuate(id)},${withQuate(name)},${withQuate(desc)},
+  	     insert into workflow values(${withQuate(id)},${withQuate(name)},${withQuate(desc)},${withQuate(levelStr)},${withQuate(receiversStr)},
   	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))})
   	    """
   	  val updateSql = s"""
   	    update workflow set name = ${withQuate(name)}, 
   	                        description = ${withQuate(desc)}, 
+  	                        mail_level = ${withQuate(levelStr)}, 
+  	                        mail_receivers = ${withQuate(receiversStr)}, 
   	                        last_update_time = ${withQuate(formatStandarTime(nowDate))}
   	    where id = '${id}'
   	    """

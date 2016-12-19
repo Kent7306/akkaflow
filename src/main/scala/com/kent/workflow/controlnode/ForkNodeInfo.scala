@@ -27,8 +27,6 @@ class ForkNodeInfo(name: String) extends ControlNodeInfo(name){
 
   override def setContent(contentStr: String){
     val content = JsonMethods.parse(contentStr)
-    import org.json4s._
-    implicit val formats = DefaultFormats
     this.pathList = (content \ "paths" \\ classOf[JString]).asInstanceOf[List[String]]
   }
   
