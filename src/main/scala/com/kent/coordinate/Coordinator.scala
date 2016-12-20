@@ -6,12 +6,17 @@ import java.text.SimpleDateFormat
 import scala.xml.XML
 import akka.actor.ActorRef
 import com.kent.util.Util
+import com.kent.pub.Daoable
+import java.sql.Connection
+import com.kent.pub.ShareData
+import com.kent.db.LogRecorder.Info
 
-class Coordinator(val name: String) {
+class Coordinator(val name: String) extends Daoable[Coordinator] {
+  var id: String = _
   private var paramMap: Map[String, String] = Map()
 	private var paramList: List[Tuple2[String, String]] = List()
 	import com.kent.coordinate.Coordinator.Status._
-	import com.kent.coordinate.Coordinator.Depend
+  import com.kent.coordinate.Coordinator.Depend
   private var cron: CronComponent = _
   private var content: String = _
   private var startDate: Date = _
@@ -36,10 +41,9 @@ class Coordinator(val name: String) {
     import com.kent.coordinate.Coordinator.Status._
     import com.kent.workflow.WorkFlowManager._
     if(isSatisfyTrigger()) {
-      this.workflows.foreach { x => println(s"[coordinator:${this.name}]开始触发[workflow:${x}]") }
+      
+      this.workflows.foreach { x => ShareData.logRecorder ! Info("Coordinator",this.id,s"开始触发工作流: ${x}") }
       this._status = ACTIVE
-      println("wfManager: " + wfManager)
-      this.workflows.foreach { x => println("*****"+x) }
       this.workflows.foreach ( wfManager ! NewAndExecuteWorkFlowInstance(_, this.paramMap) )
       this.resetTrigger()
       true
@@ -72,6 +76,18 @@ class Coordinator(val name: String) {
     paramList.foreach(x => paramMap += (x._1 -> paramHandler.getValue(x._2, paramMap)))
      paramMap
   }
+
+  def delete(implicit conn: Connection): Boolean = {
+    ???
+  }
+
+  def getEntity(implicit conn: Connection): Option[Coordinator] = {
+    ???
+  }
+
+  def save(implicit conn: Connection): Boolean = {
+    ???
+  }
   
 }
 object Coordinator {
@@ -83,6 +99,8 @@ object Coordinator {
     if(nameOpt.isEmpty || nameOpt.get.text.trim() == ""){
       throw new Exception("[coordinator]属性name为空")
     }
+    val idOpt = node.attribute("id")
+    val id = if(idOpt.isEmpty || idOpt.get.text.trim() == "") Util.produce8UUID else idOpt.get.text
     val startDateOpt = node.attribute("start")
     val endDateOpt = node.attribute("end")
     var cronConfig:String = null;
@@ -102,6 +120,7 @@ object Coordinator {
     coor.startDate = sdate
     coor.endDate = edate
     coor.cron = cron
+    coor.id = id
     coor.paramList = paramList
     coor.depends = depends
     import com.kent.coordinate.Coordinator.Status._

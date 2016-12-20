@@ -11,15 +11,9 @@ import com.kent.util.Util
 import java.sql.ResultSet
 import com.kent.db.PersistManager
 import com.kent.db.PersistManager.Save
-import com.kent.workflow.controlnode.StartNodeInfo
-import com.kent.workflow.controlnode.EndNodeInstance
-import com.kent.workflow.controlnode.StartNodeInstance
-import com.kent.workflow.controlnode.JoinNodeInstance
-import com.kent.workflow.controlnode.KillNodeInstance
-import com.kent.workflow.controlnode.ForkNodeInstance
-import com.kent.workflow.actionnode.HostScriptActionNodeInstance
 import com.kent.workflow.controlnode._
-import com.kent.workflow.actionnode.HostScriptActionNodeInfo
+import com.kent.workflow.actionnode._
+import com.kent.workflow.controlnode._
 import com.kent.pub.ShareData
 
 abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeInstance] with Daoable[NodeInstance] with Serializable{
@@ -160,7 +154,8 @@ object NodeInstance {
     else if(withDollar == JoinNodeInstance.getClass.getName) JoinNodeInfo(name).createInstance(id)
     else if(withDollar == KillNodeInstance.getClass.getName) KillNodeInfo(name).createInstance(id)
     else if(withDollar == ForkNodeInstance.getClass.getName) ForkNodeInfo(name).createInstance(id)
-    else if(withDollar == HostScriptActionNodeInstance.getClass.getName) HostScriptActionNodeInfo(name).createInstance(id)
+    else if(withDollar == ShellActionNodeInstance.getClass.getName) ShellActionNodeInfo(name).createInstance(id)
+    else if(withDollar == ScriptActionNodeInstance.getClass.getName) ScriptActionNodeInfo(name).createInstance(id)
     else null
   }
   

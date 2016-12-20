@@ -7,11 +7,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Cancellable
 import akka.actor.ActorRef
 import com.kent.workflow.WorkflowInfo.WStatus._
+import com.kent.pub.ShareData
+import com.kent.db.LogRecorder._
 
 class CoordinatorManager extends Actor with ActorLogging{
   var coordinators: Map[String, Coordinator] = Map()
   var workflowManager: ActorRef = _
-  var persistManager: ActorRef = _
   //调度器
   var scheduler: Cancellable = _
   /**
@@ -19,6 +20,7 @@ class CoordinatorManager extends Actor with ActorLogging{
    */
   def add(coor: Coordinator): Boolean = {
     coordinators = coordinators + (coor.name -> coor)
+    ShareData.logRecorder ! Info("CoordinatorManager",null,s"增加coordinator：${coor.name}")
     true
   }
   /**
@@ -26,6 +28,7 @@ class CoordinatorManager extends Actor with ActorLogging{
    */
   def remove(name: String): Boolean = {
     coordinators = coordinators.filterNot {x => x._1 == name}.toMap
+    ShareData.logRecorder ! Info("CoordinatorManager",null,s"删除coordinator：${name}")
     true
   }
   /**
@@ -33,6 +36,7 @@ class CoordinatorManager extends Actor with ActorLogging{
    */
   def update(coor: Coordinator): Boolean = {
     coordinators = coordinators.map {x => if(x._1 == coor.name) coor.name -> coor else x }.toMap
+    ShareData.logRecorder ! Info("CoordinatorManager",null,s"更新coordinator：${coor.name}")
     true
   }
   /**
@@ -45,7 +49,8 @@ class CoordinatorManager extends Actor with ActorLogging{
    * 启动
    */
   def start(): Boolean = {
-     this.scheduler = context.system.scheduler.schedule(0 millis, 5 seconds){
+      ShareData.logRecorder ! Info("CoordinatorManager",null,s"启动扫描...")
+      this.scheduler = context.system.scheduler.schedule(0 millis, 5 seconds){
       this.scan()
     }
     true
@@ -53,7 +58,10 @@ class CoordinatorManager extends Actor with ActorLogging{
   /**
    * 停止
    */
-  def stop(): Boolean = if(scheduler.isCancelled) true else scheduler.cancel()
+  def stop(): Boolean = {
+    ShareData.logRecorder ! Info("CoordinatorManager",null,s"停止扫描...")
+    if(scheduler.isCancelled) true else scheduler.cancel()
+  }
   /**
    * 扫描
    */
@@ -81,7 +89,7 @@ class CoordinatorManager extends Actor with ActorLogging{
     case RemoveCoor(name) => this.remove(name)
     case UpdateCoor(content) => this.update(Coordinator(content))
     case WorkFlowExecuteResult(wfName, status) => this.setCoordinatorDepend(wfName, status)
-    case GetManagers(wfm, cm, pm) => this.workflowManager = wfm; this.persistManager = pm
+    case GetManagers(wfm, cm) => this.workflowManager = wfm
   }
 }
 
@@ -103,5 +111,5 @@ object CoordinatorManager{
   case class RemoveCoor(name: String)
   case class UpdateCoor(content: String)
   
-  case class GetManagers(workflowManager: ActorRef, coorManager: ActorRef, persistManager: ActorRef)
+  case class GetManagers(workflowManager: ActorRef, coorManager: ActorRef)
 }

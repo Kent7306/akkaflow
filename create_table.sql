@@ -21,8 +21,8 @@ id varchar(8) primary key not null,
 name varchar(128) unique,
 param JSON,
 cron varchar(128),
-depends varchar(1024) comment '工作流依赖id集合，例：xxxx,xxxx',
-workflow_ids varchar(1024) comment '触发工作流id集合，例：xxxx，xxxx',
+depends JSON comment '工作流依赖id集合，例：xxxx,xxxx',
+workflow_ids JSON comment '触发工作流id集合，例：xxxx，xxxx',
 stime datetime,
 etime datetime,
 status int(1),
@@ -41,23 +41,6 @@ content JSON comment '节点存放内容',
 workflow_id varchar(8) comment '外键->workflow_info:id',
 description varchar(1024)
 )	
-action: 
-{
-	retry_times:xxx,
-	interval: xxx,
-	timeout: xxx,
-	ok: 'xxx',
-	error: 'xxx',
-	node:{host:'xxx',script:'xxxx'}
-}
-start
-{
-	to:'xxxx'
-}
-fork
-{
-	path:['xxxx','xxx']
-}
 
 2、workflow实例表
 drop table workflow_instance;
@@ -104,10 +87,11 @@ msg varchar(1024)
 )
 
 7、日志表
-create table wf.log_record (
-id varchar(8),  --foreigner key
-type varchar(1024),  --coordinator, workflow, node
+create table log_record (
+id int(10) primary key auto_increment,
+sid varchar(20),
+level varchar(10),
+ctype varchar(60),
 stime datetime,
-content varchar(1024),
-level varchar(10)
+content varchar(1024)
 )

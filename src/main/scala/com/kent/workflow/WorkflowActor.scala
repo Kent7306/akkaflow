@@ -31,6 +31,7 @@ import scala.concurrent.Await
 import com.kent.main.Worker.CreateAction
 import scala.util.Random
 import com.kent.pub.ShareData
+import com.kent.db.LogRecorder._
 
 class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with ActorLogging {
 	import com.kent.workflow.WorkflowActor._
@@ -76,7 +77,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
     if(waitingNodes.size > 0){
     	val(ni, queue) = waitingNodes.dequeue
     	waitingNodes = queue
-      println("----执行节点："+ni.nodeInfo.name+"， 类型："+ni.getClass)
+    	ShareData.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "执行节点："+ni.nodeInfo.name+"， 类型："+ni.getClass)
 	    ni.run(this)
     }
   }

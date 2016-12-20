@@ -1,7 +1,6 @@
 package com.kent.workflow.node
 
-import com.kent.workflow.actionnode.HostScriptActionNodeInfo
-import com.kent.workflow.actionnode.HostScriptActionNodeInfo
+import com.kent.workflow.actionnode._
 import org.json4s.jackson.JsonMethods
 
 abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
@@ -17,6 +16,7 @@ abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
     an.retryTimes = retryTimes
     an.interval = interval
     an.timeout = timeout
+    an.host = host
     an.ok = ok
     an.error = error
     an
@@ -72,8 +72,10 @@ object ActionNodeInfo {
 
     val childNode = (node \ "_")(0)
     childNode match {
-      case <host-script>{content @ _*}</host-script> => 
-        actionNode = HostScriptActionNodeInfo(nameOpt.get.text, childNode)
+      case <shell>{content @ _*}</shell> => 
+        actionNode = ShellActionNodeInfo(nameOpt.get.text, childNode)
+      case <script>{content @ _*}</script> => 
+        actionNode = ScriptActionNodeInfo(nameOpt.get.text, childNode)
       case <sub-workflow>{content @ _*}</sub-workflow> => 
         ???
       case _ => 

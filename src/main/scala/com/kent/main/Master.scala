@@ -34,6 +34,7 @@ import com.kent.pub.ShareData
 import com.kent.mail.EmailSender
 import com.kent.mail.EmailSender.EmailMessage
 import com.kent.db.LogRecorder._
+import com.kent.db.LogRecorder
 
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
@@ -90,6 +91,7 @@ class Master extends ClusterRole {
                       config.getString("workflow.mysql.jdbc-url"),
                       config.getBoolean("workflow.mysql.is-enabled")
                     )
+   //日志记录器配置
    val logRecordConfig = (config.getString("workflow.log-mysql.user"),
                       config.getString("workflow.log-mysql.password"),
                       config.getString("workflow.log-mysql.jdbc-url"),
@@ -112,10 +114,10 @@ class Master extends ClusterRole {
     //创建邮件发送器
     ShareData.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
     //创建日志记录器
-    ShareData.logRecorder = context.actorOf(Props(PersistManager(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+    ShareData.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
     
-    coordinatorManager ! GetManagers(workflowManager,coordinatorManager, ShareData.persistManager)
-    workflowManager ! GetManagers(workflowManager,coordinatorManager, ShareData.persistManager)
+    coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
+    workflowManager ! GetManagers(workflowManager,coordinatorManager)
     Thread.sleep(1000)
     coordinatorManager ! Start()
     true
@@ -138,7 +140,7 @@ object Master extends App {
   master ! Start()
   
   val coorStr_win = """
-	  <coordinator name="coor1_1" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00">    
+	  <coordinator name="coor1_1" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" id="0001">    
         <trigger>
             <cron config="* * * * * *"/>
         </trigger>
@@ -153,6 +155,26 @@ object Master extends App {
         </param-list>
     </coordinator>
 	    """
+  val coorStr_win2 = """
+    <coordinator name="coor1_2" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" id="0002">    
+        <trigger>
+            <cron config="* * * * * *"/>
+            <depend-list>
+              <depend wf="wf_join_1" />
+              <depend wf="wf_join_2" />
+            </depend-list>
+        </trigger>
+        <workflow-list>
+          <workflow path="wf_join_1"></workflow>
+        </workflow-list>
+        <param-list>
+            <param name="yestoday" value="${time.today|yyyy-MM-dd|-1 day}"/>
+            <param name="lastMonth" value="${time.today|yyyyMM|-1 month}"/>
+            <param name="yestoday2" value="${time.yestoday}"/>
+        </param-list>
+    </coordinator>
+    
+    """
   val coorStr_mac = """
 	     <coordinator name="coor1_1" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00">    
         <trigger>
@@ -170,27 +192,42 @@ object Master extends App {
 	    """
     
     val wfStr_win_1 = """
-      <work-flow name="wf_join_1" id="c80c53">
+      <work-flow name="wf_join_1" id="c80c53" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
+        mail-receivers="15018735011@163.com,492005267@qq.com">
           <start name="start_node_1" to="fork_node" />
           <fork name="fork_node">
               <path to="action_node_1" />
               <path to="action_node_2" />
+              <path to="action_node_3" />
           </fork> 
           <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
-              <host-script>
-                  <host>127.0.0.1</host>
-                  <script>D://Strawberry//perl//bin//perl F://test.pl</script>
-              </host-script>
+              <shell>
+                  <command>D://Strawberry//perl//bin//perl F://test.pl</command>
+              </shell>
               <ok to="join_node"/>
               <error to="join_node"/>
           </action>
           <action name="action_node_2" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "这是节点测试">
-              <host-script>
-                  <host>127.0.0.1</host>
-                  <script>D://Strawberry//perl//bin//perl F://test2.pl</script>
-              </host-script>
+              <shell>
+                  <command>D://Strawberry//perl//bin//perl F://test2.pl</command>
+              </shell>
               <ok to="join_node"/>
               <error to="join_node"/>
+          </action>
+          <action name="action_node_3" retry-times="1" interval="1" timeout="500" desc = "这是节点测试">
+            <script>
+                <location>/tmp/tmp.sh</location>
+                <content>
+                	<![CDATA[
+                	#!/bin/bash
+                	echo "你好"
+                	sleep 10
+                	echo "done"
+                	]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+            <error to="join_node"/>
           </action>
           <kill name="kill_node">
               <message>kill by node(被kill node杀掉了)</message>
@@ -207,18 +244,16 @@ object Master extends App {
               <path to="action_node_2" />
           </fork>
           <action name="action_node_1" retry-times="3" interval="2" timeout="500" host="127.0.0.1" desc = "这是节点测试">
-              <host-script>
-                  <host>127.0.0.1</host>
-                  <script>D://Strawberry//perl//bin//perl F://test.pl</script>
-              </host-script>
+              <shell>
+                  <command>D://Strawberry//perl//bin//perl F://test.pl</command>
+              </shell>
               <ok to="join_node"/>
               <error to="join_node"/>
           </action>
           <action name="action_node_2" retry-times="1" interval="3" timeout="500">
-              <host-script>
-                  <host>127.0.0.1</host>
-                  <script>D://Strawberry//perl//bin//perl F://test2.pl</script>
-              </host-script>
+              <shell>
+                  <command>D://Strawberry//perl//bin//perl F://test2.pl</command>
+              </shell>
               <ok to="join_node"/>
               <error to="join_node"/>
           </action>
@@ -238,18 +273,16 @@ object Master extends App {
               <path to="action_node_2" />
           </fork>
           <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
-              <host-script>
-                  <host>127.0.0.1</host>
-                  <script>/Users/kent/tmp/test_1.sh ${yestoday}</script>
-              </host-script>
+              <shell>
+                  <command>/Users/kent/tmp/test_1.sh ${yestoday}</command>
+              </shell>
               <ok to="join_node"/>
               <error to="join_node"/>
           </action>
           <action name="action_node_2" retry-times="1" interval="3" timeout="500">
-              <host-script>
-                  <host>127.0.0.1</host>
-                  <script>/Users/kent/tmp/test_2.sh ${lastMonth}</script>
-              </host-script>
+              <shell>
+                  <command>/Users/kent/tmp/test_2.sh ${lastMonth}</command>
+              </shell>
               <ok to="join_node"/>
               <error to="join_node"/>
           </action>
@@ -262,12 +295,12 @@ object Master extends App {
       """
     
     Thread.sleep(10000)
-      ShareData.logRecorder ! Info("A","B","C")
 //    master ! ReRunWorkflowInstance("b2bdfe0c")
 //    
- //   master ! AddWorkFlow(wfStr_win_1)
+    master ! AddWorkFlow(wfStr_win_1)
  //   master ! AddWorkFlow(wfStr_win_2)
- //   master ! AddCoor(coorStr_win) 
+//    master ! AddCoor(coorStr_win) 
+//    master ! AddCoor(coorStr_win2) 
     
   //  master ! AddWorkFlow(wfStr_mac)
   //  master ! AddCoor(coorStr_mac) 

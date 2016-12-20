@@ -15,6 +15,9 @@ import akka.actor.ActorPath
 import akka.actor.ActorRef
 import com.kent.workflow.node.ActionNodeInstance
 import com.kent.workflow.ActionActor
+import com.kent.pub.ShareData
+import com.kent.db.LogRecorder
+import com.kent.workflow.WorkflowActor.Start
 
 class Worker extends ClusterRole {
   val i = 0
@@ -29,6 +32,8 @@ class Worker extends ClusterRole {
     
     case CreateAction(ani) => sender ! createActionActor(ani)
     case _:MemberEvent => // ignore 
+    
+    case Start() => this.start()
   }
   /**
    * 创建action actor
@@ -48,6 +53,19 @@ class Worker extends ClusterRole {
       None
     }
   }
+  
+  def start(): Boolean = {
+    import com.kent.pub.ShareData._
+     //日志记录器配置
+     val logRecordConfig = (config.getString("workflow.log-mysql.user"),
+                      config.getString("workflow.log-mysql.password"),
+                      config.getString("workflow.log-mysql.jdbc-url"),
+                      config.getBoolean("workflow.log-mysql.is-enabled")
+                    )
+      //创建日志记录器
+      ShareData.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+      true
+  }
 }
 
 object Worker extends App {
@@ -58,10 +76,10 @@ object Worker extends App {
       val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port)
         .withFallback(ConfigFactory.parseString("akka.cluster.roles = [worker]"))
         .withFallback(ConfigFactory.load())
-      
+      ShareData.config = config
       val system = ActorSystem("workflow-system", config)
-      val processingActor = system.actorOf(Worker.props, name = "worker")
-      system.log.info("Processing Actor: " + processingActor)
+      val worker = system.actorOf(Worker.props, name = "worker")
+      worker ! Start()
   }
   
   def props = Props[Worker]

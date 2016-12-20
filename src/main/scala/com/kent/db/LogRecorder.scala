@@ -8,18 +8,18 @@ import com.kent.db.LogRecorder._
 
 class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging{
   implicit var connection: Connection = null
-  def receive = passive
+  def receive = print2Console
   if(isEnabled){
 	  //注册Driver
 	  Class.forName("com.mysql.jdbc.Driver")
 	  //得到连接
 	  connection = DriverManager.getConnection(url, username, pwd)
-    context.become(active)
+    context.become(print2DB)
   }
   /**
-   * 开启保存到数据库
+   * 开启打印到数据库
    */
-  def active: Actor.Receive = {
+  def print2DB: Actor.Receive = {
     case Info(ctype, sid, content) => logging("INFO", ctype, sid, content)
     case Warn(ctype, sid, content) => logging("WARN", ctype, sid, content)
     case Error(ctype, sid, content) => logging("ERROR", ctype, sid, content)
@@ -30,8 +30,6 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     val insertSql = s"""
       insert into log_record values(null,${withQuate(sid)},${withQuate(level)},${withQuate(ctype)},${withQuate(now)},${withQuate(content)})
       """
-      
-      println(insertSql)
     executeSql(insertSql)
   }
   private def loggingStr(ctype: String, sid: String, content: String): String = {
@@ -52,9 +50,9 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     result
   }
   /**
-   * 消极处理方法
+   * 打印到终端
    */
-  def passive: Actor.Receive = {
+  def print2Console: Actor.Receive = {
     case Info(ctype, sid, content) => log.info(loggingStr(ctype, sid, content))
     case Warn(ctype, sid, content) => log.warning(loggingStr(ctype, sid, content))
     case Error(ctype, sid, content) => log.error(loggingStr(ctype, sid, content))

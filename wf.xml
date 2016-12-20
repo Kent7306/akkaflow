@@ -1,56 +1,43 @@
-<work-flow name="my_work_flow">
-    <start name="start" to="node_1" />
-    <action name="node_2" retry-times="3" interval="5" timeout="500">
-        <host-script>
-            <host>127.0.0.1</host>
-            <path>/home/ouguangneng/1123/run.sh ${wf.date}</path>
-        </host-script>
-        <ok to="node_2"/>
-        <error to="node_2"/>
-    </action>
-    <fork name="node_fork">
-        <path start="fork_1" />
-        <path start="fork_2" />
-    </fork>
-    <action name="fork_1" retry-times="3" interval="5" timeout="500">
-        <host-script>
-            <host>127.0.0.1</host>
-            <path>/home/ouguangneng/1123/run.sh ${wf.date}</path>
-        </host-script>
-        <ok to="fork_1_2"/>
-        <error to="node_2"/>
-    </action>
-    <action name="fork_1_2" retry-times="3" interval="5" timeout="500">
-        <host-script>
-            <host>127.0.0.1</host>
-            <path>/home/ouguangneng/1123/run.sh ${wf.date}</path>
-        </host-script>
+<work-flow name="wf_join_1" id="c80c53" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
+  mail-receivers="15018735011@163.com,492005267@qq.com">
+    <start name="start_node_1" to="fork_node" />
+    <fork name="fork_node">
+        <path to="action_node_1" />
+        <path to="action_node_2" />
+    </fork> 
+    <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
+        <shell>
+            <command>D://Strawberry//perl//bin//perl F://test.pl</command>
+        </shell>
         <ok to="join_node"/>
-        <error to="node_2"/>
+        <error to="join_node"/>
     </action>
-    <action name="fork_2" retry-times="3" interval="5" timeout="500">
-        <host-script>
-            <host>127.0.0.1</host>
-            <path>/home/ouguangneng/1123/run.sh ${wf.date}</path>
-        </host-script>
+    <action name="action_node_2" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "这是节点测试">
+        <shell>
+            <command>D://Strawberry//perl//bin//perl F://test2.pl</command>
+        </shell>
         <ok to="join_node"/>
-        <error to="node_2"/>
+        <error to="join_node"/>
     </action>
-    
-    <join name="join_node" to="node_end"/>
-        
-    <action name="node_end" retry-times="3" interval="5" timeout="500">
-        <host-script>
-            <host>127.0.0.1</host>
-            <script>/home/ouguangneng/1123/run.sh ${wf.date}</script>
-        </host-script>
-        <ok to="join_node"/>
-        <error to="end"/>
-    </action>
-    
-    <end name="end"/>
-    
-    <kill name="node_2">
-        <message>nihao a </message>
+    <kill name="kill_node">
+        <message>kill by node(被kill node杀掉了)</message>
     </kill>
+    <join name="join_node" to="end_node"/>
+    <end name="end_node"/>
 </work-flow>
+
+<action name="action_node_4" retry-times="1" interval="1" timeout="500" desc = "这是节点测试">
+    <script>
+        <location>/tmp/tmp.sh</location>
+        <content>
+        	<![CDATA[
+        	#!/bin/bash
+        	echo "你好"
+        	sleep 10
+        	echo "done"
+        	]]>
+        </content>
+    </script>
+    <ok to="join_node"/>
+    <error to="join_node"/>
+</action>

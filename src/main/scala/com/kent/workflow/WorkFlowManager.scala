@@ -20,6 +20,7 @@ import com.kent.main.Master._
 import com.kent.workflow.node.NodeInfo.Status._
 import com.kent.pub.ShareData
 import com.kent.mail.EmailSender.EmailMessage
+import com.kent.db.LogRecorder._
 
 class WorkFlowManager extends Actor with ActorLogging{
   var workflows: Map[String, WorkflowInfo] = Map()
@@ -28,13 +29,12 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   var workflowActors: Map[String,Tuple2[String,ActorRef]] = Map()
   var coordinatorManager: ActorRef = _
-  var persistManager: ActorRef = _
   /**
    * 增
    */
   def add(wf: WorkflowInfo): Boolean = {
-println("添加工作流："+wf.name)
-		persistManager ! Save(wf)
+    ShareData.logRecorder ! Info("WorkflowManager", null, s"添加工作流配置：${wf.name}")
+		ShareData.persistManager ! Save(wf)
     workflows = workflows + (wf.name -> wf)
     true
   }
@@ -42,7 +42,7 @@ println("添加工作流："+wf.name)
    * 删
    */
   def remove(name: String): Boolean = {
-    persistManager ! Delete(workflows(name))
+    ShareData.persistManager ! Delete(workflows(name))
     workflows = workflows.filterNot {x => x._1 == name}.toMap
     true
   }
@@ -50,7 +50,7 @@ println("添加工作流："+wf.name)
    * 改
    */
   def update(wf: WorkflowInfo): Boolean = {
-    persistManager ! Save(wf)
+    ShareData.persistManager ! Save(wf)
     workflows = workflows.map {x => if(x._1 == wf.name) wf.name -> wf else x }.toMap
     true
   }
@@ -64,9 +64,9 @@ println("添加工作流："+wf.name)
    * 生成工作流实例并执行
    */
   def newAndExecute(wfName: String,params: Map[String, String]){
-    log.info("开始生成并执行工作流："+wfName)
     val wfi = workflows(wfName).createInstance()
     wfi.parsedParams = params
+    ShareData.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
     //创建新的workflow actor，并加入到列表中
     val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
     workflowActors = workflowActors + (wfi.actorName -> (wfi.workflow.name,wfActorRef))
@@ -78,11 +78,12 @@ println("添加工作流："+wf.name)
   def handleWorkFlowInstanceReply(wfInstance: WorkflowInstance):Boolean = {
     val (wfname, af) = this.workflowActors.get(wfInstance.actorName).get
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.actorName }.toMap
+    //根据状态发送邮件告警
     if(wfInstance.workflow.mailLevel.contains(wfInstance.status)){
     	ShareData.emailSender ! EmailMessage(wfInstance.workflow.mailReceivers,
-    	                "workflow告警",
-    	                s"任务【${wfInstance.id}】执行状态：${wfInstance.status}")      
+    	                "workflow告警", s"任务【${wfInstance.actorName}】执行状态：${wfInstance.status}")      
     }
+    ShareData.logRecorder ! Info("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
     println("==============================")
     println(wfInstance)
     println("==============================")
@@ -118,7 +119,7 @@ println("添加工作流："+wf.name)
     val wfi = wf.createInstance()
     wfi.id = "b2bdfe0c"
     implicit val timeout = Timeout(20 seconds)
-    val wfiF = (persistManager ? Get(wfi)).mapTo[WorkflowInstance]
+    val wfiF = (ShareData.persistManager ? Get(wfi)).mapTo[WorkflowInstance]
     //重置时间与状态
     wfiF.map { x => 
       x.status = W_PREP
@@ -148,9 +149,8 @@ println("添加工作流："+wf.name)
     case KillWorkFlowInstance(wfActorName) => this.killWorkFlowInstance(wfActorName)
     case KillWorkFlow(wfName) => this.killWorkFlow(wfName)
     case ReRunWorkflowInstance(wfiId: String) => reRun(wfiId)
-    case GetManagers(wfm, cm, pm) => {
+    case GetManagers(wfm, cm) => {
       coordinatorManager = cm
-      persistManager = pm
       context.watch(coordinatorManager)
     }
     case Terminated(arf) => if(coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")

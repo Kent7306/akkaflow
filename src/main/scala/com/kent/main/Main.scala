@@ -142,8 +142,8 @@ object Main extends App{
   val wfm = system.actorOf(Props(WorkFlowManager(List())),"wfm")
   val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root", true)),"pm")
   ShareData.persistManager = pm
-  cm ! GetManagers(wfm,cm,pm)
-  wfm ! GetManagers(wfm,cm,pm)
+  cm ! GetManagers(wfm,cm)
+  wfm ! GetManagers(wfm,cm)
   
   wfm ! AddWorkFlow(wfStr_win_1)
   wfm ! AddWorkFlow(wfStr_win_2)
