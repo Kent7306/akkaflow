@@ -4,6 +4,7 @@ import com.kent.workflow.node.ActionNodeInfo
 import com.kent.workflow.node.NodeInstance
 import com.kent.workflow.node.NodeInfo
 import org.json4s.jackson.JsonMethods
+import com.kent.util.Util
 
 class ScriptActionNodeInfo(name: String) extends ActionNodeInfo(name) {
   var location: String = _
@@ -38,9 +39,9 @@ class ScriptActionNodeInfo(name: String) extends ActionNodeInfo(name) {
   
   override def getContent(): String = {
     val c1 = JsonMethods.parse(super.getContent())
-    val c2 = JsonMethods.parse(s""" {"location":"${location}"}, {"content":"${content}"}""")
-    println(c2)
+    val c2 = JsonMethods.parse(s""" {"location":"${location}","content":"${Util.transformJsonStr(content)}"}""")
     val c3 = c1.merge(c2)
+    println(c3)
     JsonMethods.pretty(JsonMethods.render(c3))
   }
 }
