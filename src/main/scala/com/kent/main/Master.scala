@@ -216,13 +216,13 @@ object Master extends App {
           </action>
           <action name="action_node_3" retry-times="1" interval="1" timeout="500" desc = "这是节点测试">
             <script>
-                <location>/tmp/tmp.sh</location>
+                <location>F:/1.pl</location>
                 <content>
                 	<![CDATA[
-                	#!/bin/bash
-                	echo "你好"
-                	sleep 10
-                	echo "done"
+                	print "1.pl start sleep 3 s\n";
+                	print "1.pl start sleep 3 s\n";
+                	print "1.pl start sleep 3 s\n";
+                	print "1.pl start sleep 3 s\n";
                 	]]>
                 </content>
             </script>
@@ -299,7 +299,7 @@ object Master extends App {
 //    
     master ! AddWorkFlow(wfStr_win_1)
  //   master ! AddWorkFlow(wfStr_win_2)
-//    master ! AddCoor(coorStr_win) 
+    master ! AddCoor(coorStr_win) 
 //    master ! AddCoor(coorStr_win2) 
     
   //  master ! AddWorkFlow(wfStr_mac)

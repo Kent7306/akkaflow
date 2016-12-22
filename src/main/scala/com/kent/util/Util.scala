@@ -103,7 +103,7 @@ object Util {
     val sb = new StringBuffer()
     str.map { x => 
       x match {
-        case '\"' => "\\\\\""
+        case '\"' => "\\\\\\\""
         case '\\' => "\\\\\\\\"
         case '/' => "\\\\/"
         case '\b' => "\\\\b"
@@ -126,8 +126,8 @@ object Util {
       """
     transformJsonStr(content)
     val str = s"""
-      {"location":"/tmp/tmp.sh","content":"\\n                    \\n                    #!\\/bin\\/bash\\n                    echo \\"你好ddd\\"\\n                    sleep 10\\n                    echo \\"done\\"\\n                    \\n                "}
-      """
+      {"location":"/tmp/tmp.sh","content":"\\n                    \\n                    #!\\/bin\\/bash\\n                    echo \\"dde\\"\\n                    sleep 10\\n                    echo \\"done\\"\\n                    \\n                "}
+               """
     
     val json = JsonMethods.parse(str)
     import org.json4s._

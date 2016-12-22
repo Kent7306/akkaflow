@@ -41,7 +41,6 @@ class ScriptActionNodeInfo(name: String) extends ActionNodeInfo(name) {
     val c1 = JsonMethods.parse(super.getContent())
     val c2 = JsonMethods.parse(s""" {"location":"${location}","content":"${Util.transformJsonStr(content)}"}""")
     val c3 = c1.merge(c2)
-    println(c3)
     JsonMethods.pretty(JsonMethods.render(c3))
   }
 }

@@ -6,7 +6,10 @@ import scala.sys.process.ProcessLogger
 import com.kent.pub.ShareData
 import com.kent.db.LogRecorder._
 import com.kent.coordinate.ParamHandler
+import scala.sys.process._
 import java.util.Date
+import java.io.PrintWriter
+import java.io.File
 
 class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) extends ActionNodeInstance(nodeInfo)  {
   var executeResult: Process = _
@@ -22,7 +25,17 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
   }
 
   override def execute(): Boolean = {
-     ???
+    //把文件内容写入文件
+    val writer = new PrintWriter(new File(this.nodeInfo.location))
+    writer.write(nodeInfo.content)
+    writer.flush()
+    writer.close()
+    
+    
+    val pLogger = ProcessLogger(line => ShareData.logRecorder ! Info("NodeInstance", this.id, line),
+                                line => ShareData.logRecorder ! Error("NodeInstance", this.id, line))
+    executeResult = Process(s"perl ${this.nodeInfo.location}").run(pLogger)
+     true
   }
 
   def replaceParam(param: Map[String, String]): Boolean = {

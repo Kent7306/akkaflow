@@ -63,14 +63,20 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * 生成工作流实例并执行
    */
-  def newAndExecute(wfName: String,params: Map[String, String]){
-    val wfi = workflows(wfName).createInstance()
-    wfi.parsedParams = params
-    ShareData.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
-    //创建新的workflow actor，并加入到列表中
-    val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
-    workflowActors = workflowActors + (wfi.actorName -> (wfi.workflow.name,wfActorRef))
-    wfActorRef ! Start()
+  def newAndExecute(wfName: String,params: Map[String, String]): Boolean = {
+    if(workflows.get(wfName).isEmpty){
+      ShareData.logRecorder ! Error("WorkflowManager", null, s"未找到名称为[${wfName}]的工作流")
+      false
+    } else {
+    	val wfi = workflows(wfName).createInstance()
+			wfi.parsedParams = params
+			ShareData.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
+			//创建新的workflow actor，并加入到列表中
+			val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
+			workflowActors = workflowActors + (wfi.actorName -> (wfi.workflow.name,wfActorRef))
+			wfActorRef ! Start()
+			true      
+    }
   }
   /**
    * 工作流实例完成后处理

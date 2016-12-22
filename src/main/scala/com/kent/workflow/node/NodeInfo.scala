@@ -41,7 +41,6 @@ abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with D
       """
      
     if(this.getEntity.isEmpty){
-println(insertStr)
     	executeSql(insertStr)     
     }else{
       executeSql(updateStr)
