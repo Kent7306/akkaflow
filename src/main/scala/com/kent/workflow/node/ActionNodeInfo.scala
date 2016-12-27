@@ -61,14 +61,9 @@ object ActionNodeInfo {
       throw new Exception("[action] "+nameOpt.get.text+":未配置[ok]标签")
     }else if((node \ "ok" \ "@to").size != 1){
        throw new Exception("[action] "+nameOpt.get.text+":-->[ok]:未配置name属性")
-    }/*else if((node \ "error").size != 1){
-      throw new Exception("[action] "+nameOpt.get.text+":未配置[error]标签")
-    }else if((node \ "error" \ "@to").size != 1){
-       throw new Exception("[action] "+nameOpt.get.text+":-->[error]:未配置name属性")
-    }*/
+    }
     
     var actionNode: ActionNodeInfo = null
-    //if((node \ "_").size != 1) throw new Exception(s"该[action:${nameOpt.get}]的子节点不唯一")
 
     val childNode = (node \ "_")(0)
     childNode match {
@@ -76,6 +71,8 @@ object ActionNodeInfo {
         actionNode = ShellActionNodeInfo(nameOpt.get.text, childNode)
       case <script>{content @ _*}</script> => 
         actionNode = ScriptActionNodeInfo(nameOpt.get.text, childNode)
+      case <file-watcher>{content @ _*}</file-watcher> => 
+        actionNode = FileWatcherActionNodeInfo(nameOpt.get.text, childNode)
       case <sub-workflow>{content @ _*}</sub-workflow> => 
         ???
       case _ => 

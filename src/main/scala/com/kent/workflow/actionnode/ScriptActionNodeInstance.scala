@@ -10,10 +10,12 @@ import scala.sys.process._
 import java.util.Date
 import java.io.PrintWriter
 import java.io.File
+import com.kent.util.Util
 
 class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) extends ActionNodeInstance(nodeInfo)  {
+  val defaultLocation = "F:/"
   var executeResult: Process = _
-  def deepClone(): NodeInstance = {
+  def deepClone(): ScriptActionNodeInstance = {
     val sani = ScriptActionNodeInstance(nodeInfo)
     deepCloneAssist(sani)
     sani
@@ -25,16 +27,19 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
   }
 
   override def execute(): Boolean = {
+    var newLocation = if(nodeInfo.location == null || nodeInfo.location == "")
+          ShareData.config.getString("workflow.action.script-location") + "/" + Util.produce8UUID
+          else nodeInfo.location
     //把文件内容写入文件
-    val writer = new PrintWriter(new File(this.nodeInfo.location))
+    val writer = new PrintWriter(new File(newLocation))
     writer.write(nodeInfo.content)
     writer.flush()
     writer.close()
-    
-    
+    ShareData.logRecorder ! Info("NodeInstance", this.id, s"代码写入到文件：${newLocation}")
+    //执行
     val pLogger = ProcessLogger(line => ShareData.logRecorder ! Info("NodeInstance", this.id, line),
                                 line => ShareData.logRecorder ! Error("NodeInstance", this.id, line))
-    executeResult = Process(s"perl ${this.nodeInfo.location}").run(pLogger)
+    executeResult = Process(s"perl ${newLocation}").run(pLogger)
      true
   }
 

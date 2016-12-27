@@ -1,43 +1,61 @@
-<work-flow name="wf_join_1" id="c80c53" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
-  mail-receivers="15018735011@163.com,492005267@qq.com">
-    <start name="start_node_1" to="fork_node" />
-    <fork name="fork_node">
-        <path to="action_node_1" />
-        <path to="action_node_2" />
-    </fork> 
-    <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
-        <shell>
-            <command>D://Strawberry//perl//bin//perl F://test.pl</command>
-        </shell>
-        <ok to="join_node"/>
-        <error to="join_node"/>
-    </action>
-    <action name="action_node_2" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "这是节点测试">
-        <shell>
-            <command>D://Strawberry//perl//bin//perl F://test2.pl</command>
-        </shell>
-        <ok to="join_node"/>
-        <error to="join_node"/>
-    </action>
-    <kill name="kill_node">
-        <message>kill by node(被kill node杀掉了)</message>
-    </kill>
-    <join name="join_node" to="end_node"/>
-    <end name="end_node"/>
-</work-flow>
 
-<action name="action_node_4" retry-times="1" interval="1" timeout="500" desc = "这是节点测试">
-    <script>
-        <location>/tmp/tmp.sh</location>
-        <content>
-        	<![CDATA[
-        	#!/bin/bash
-        	echo "你好"
-        	sleep 10
-        	echo "done"
-        	]]>
-        </content>
-    </script>
+<!-- 
+mail-level: 邮件的发送 级别
+mail-receivers: 收件人
+ -->
+<work-flow name="wf_join_1" id="c80c53" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
+   mail-receivers="15018735011@163.com,492005267@qq.com">
+     <start name="start_node_1" to="fork_node" />
+     <fork name="fork_node">
+         <path to="action_node_1" />
+         <path to="action_node_2" />
+         <path to="action_node_3" />
+     </fork> 
+     <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
+         <shell>
+             <command>D://Strawberry//perl//bin//perl F://test.pl</command>
+         </shell>
+         <ok to="join_node"/>
+         <error to="join_node"/>
+     </action>
+     <action name="action_node_2" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "这是节点测试">
+         <shell>
+             <command>D://Strawberry//perl//bin//perl F://test2.pl</command>
+         </shell>
+         <ok to="join_node"/>
+         <error to="join_node"/>
+     </action>
+     <action name="action_node_3" retry-times="1" interval="1" timeout="500" desc = "这是节点测试">
+       <script>
+           <location>F://1.pl</location>		<!-- 生成文件路径，可选 -->
+           <content>
+           	<![CDATA[
+           	print "1.pl start sleep 3 s\n";
+           	print "1.pl start sleep 3 s\n";
+           	print "1.pl start sleep 3 s\n";
+           	print "1.pl start sleep 3 s\n";
+           	]]>
+           </content>
+       </script>
+       <ok to="join_node"/>
+       <error to="join_node"/>
+     </action>
+     <kill name="kill_node">
+         <message>kill by node(被kill node杀掉了)</message>
+     </kill>
+     <join name="join_node" to="end_node"/>
+     <end name="end_node"/>
+ </work-flow>
+
+<action name="file_watcher_action" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "这是节点测试">
+    <file-watcher>
+        <!-- num-threshold文件个数，默认为1 -->
+        <file dir="hdfs:///home/log/${yestoday}" num-threshold="1">*.tar.gz</file> <!--支持本地文件路径，ftp文件路径， hdfs文件路径 -->
+        <size-warn-message size-threshold="1532MB"> <!--若文件大小小于阈值，则邮件告警-->
+        文件容量小于1532M，请联系xxx进行确认
+        <size-warn-message>  
+    </file-watcher>
     <ok to="join_node"/>
     <error to="join_node"/>
 </action>
+ 

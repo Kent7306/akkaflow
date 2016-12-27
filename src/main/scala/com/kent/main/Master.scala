@@ -208,15 +208,20 @@ object Master extends App {
               <error to="join_node"/>
           </action>
           <action name="action_node_2" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "这是节点测试">
-              <shell>
-                  <command>D://Strawberry//perl//bin//perl F://test2.pl</command>
-              </shell>
+              <file-watcher>
+                <file dir="hdfs:///home/log/${yestoday}" num-threshold="1">*.tar.gz</file>
+                <size-warn-message size-threshold="1532MB">
+                <![CDATA[
+                                                            文件容量小于1532M，请联系xxx进行确认
+                ]]>
+                </size-warn-message>  
+              </file-watcher>
               <ok to="join_node"/>
               <error to="join_node"/>
           </action>
           <action name="action_node_3" retry-times="1" interval="1" timeout="500" desc = "这是节点测试">
             <script>
-                <location>F:/1.pl</location>
+                <!--<location>F:/1.pl</location> -->
                 <content>
                 	<![CDATA[
                 	print "1.pl start sleep 3 s\n";

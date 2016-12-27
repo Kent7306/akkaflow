@@ -12,6 +12,7 @@ class ParamHandler(date:Date){
    * 把字符串中的参数名称代替为函数值，并返回字符串
    */
   def getValue(expr: String, paramMap:  Map[String, String]): String = {
+    if(expr == null) return null
     val pattern = "\\$\\{(.*?)\\}".r
     if(pattern.findFirstIn(expr).isEmpty){
       expr

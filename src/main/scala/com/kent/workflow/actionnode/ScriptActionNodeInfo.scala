@@ -50,11 +50,10 @@ object ScriptActionNodeInfo {
   def apply(name:String, node: scala.xml.Node): ScriptActionNodeInfo = parseXmlNode(name, node)
   
   def parseXmlNode(name: String, node: scala.xml.Node): ScriptActionNodeInfo = {
-    val location = (node \ "location")(0).text
-    val content = (node \ "content")(0).text
 	  val san = ScriptActionNodeInfo(name)
-	  san.location = location
-	  san.content = content
+	  val locaOpt = (node \ "location")
+	  san.location = if(locaOpt.isEmpty) null else locaOpt(0).text
+	  san.content = (node \ "content")(0).text
 	  san
   }
 }

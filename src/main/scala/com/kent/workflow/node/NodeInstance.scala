@@ -156,6 +156,7 @@ object NodeInstance {
     else if(withDollar == ForkNodeInstance.getClass.getName) ForkNodeInfo(name).createInstance(id)
     else if(withDollar == ShellActionNodeInstance.getClass.getName) ShellActionNodeInfo(name).createInstance(id)
     else if(withDollar == ScriptActionNodeInstance.getClass.getName) ScriptActionNodeInfo(name).createInstance(id)
+    else if(withDollar == FileWatcherActionNodeInstance.getClass.getName) FileWatcherActionNodeInfo(name).createInstance(id)
     else null
   }
   

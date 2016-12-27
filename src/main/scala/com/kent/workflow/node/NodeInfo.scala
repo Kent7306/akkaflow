@@ -39,7 +39,6 @@ abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with D
                       description = ${withQuate(desc)})
                       where name = ${withQuate(name)}
       """
-     
     if(this.getEntity.isEmpty){
     	executeSql(insertStr)     
     }else{
@@ -73,6 +72,7 @@ abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with D
             newNode
           }else{
             null
+            
           }
       })
   }

@@ -5,6 +5,7 @@ import java.util.UUID
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import org.json4s.jackson.JsonMethods
+import java.util.regex.Pattern
 
 /**
  * 辅助对象
@@ -62,42 +63,41 @@ object Util {
       s"'${str}'"
     }
   }
+  /**
+   * 把可读容量标识转换byte
+   */
+  def convertHumen2Byte(sizeStr: String): Long = {
+    var kbRegx = "\\s*(.*?)\\s*([Kk]|[Kk][Bb])".r
+    var mbRegx = "\\s*(.*?)\\s*([Mm]|[Mm][Bb])".r
+    var gbRegx = "\\s*(.*?)\\s*([Gg]|[Gg][Bb])".r
+    var bRegx = "\\s*(.*?)\\s*[Bb]".r
+    println(1111)
+     sizeStr match {
+     case gbRegx(n,b) => n.toInt*1024*1024*1024
+     case mbRegx(n,b) => n.toInt*1024*1024
+      case kbRegx(n,b) => n.toInt*1024
+      case bRegx(n) => n.toInt
+      case _ => throw new Exception("容量大小输入有误")
+    }
+  }
+  def convertByte2Humen(size: Long): String = {
+    val kb: Long = 1024;
+    val mb: Long = kb * 1024;
+    val gb: Long = mb * 1024;
+ 
+    if (size >= gb) {
+        String.format("%.1f GB", (size/gb).toFloat);
+    } else if (size >= mb) {
+            float f = (float) size / mb;
+            return String.format(f > 100 ? "%.0f MB" : "%.1f MB", f);
+        } else if (size >= kb) {
+            float f = (float) size / kb;
+            return String.format(f > 100 ? "%.0f KB" : "%.1f KB", f);
+        } else
+            return String.format("%d B", size);
+  }
   
- /* def string2Json(String s) {       
-    val sb = new StringBuffer ();       
-    for (int i=0; i<s.length(); i++) {       
-     
-        char c = s.charAt(i);       
-        switch (c) {       
-        case '\"':       
-            sb.append("\\\"");       
-            break;       
-        case '\\':       
-            sb.append("\\\\");       
-            break;       
-        case '/':       
-            sb.append("\\/");       
-            break;       
-        case '\b':       
-            sb.append("\\b");       
-            break;       
-        case '\f':       
-            sb.append("\\f");       
-            break;       
-        case '\n':       
-            sb.append("\\n");       
-            break;       
-        case '\r':       
-            sb.append("\\r");       
-            break;       
-        case '\t':       
-            sb.append("\\t");       
-            break;       
-        default:       
-            sb.append(c);       
-    ｝  
-    return sb.toString();       
- }  */
+  
         
   def transformJsonStr(str: String): String = {
     val sb = new StringBuffer()
@@ -117,24 +117,7 @@ object Util {
   }
   
   def main(args: Array[String]): Unit = {
-    val content = """
-                	#!/bin/bash
-                	echo "你好"
-                	sleep 10
-                	echo "done"
-                	
-      """
-    transformJsonStr(content)
-    val str = s"""
-      {"location":"/tmp/tmp.sh","content":"\\n                    \\n                    #!\\/bin\\/bash\\n                    echo \\"dde\\"\\n                    sleep 10\\n                    echo \\"done\\"\\n                    \\n                "}
-               """
-    
-    val json = JsonMethods.parse(str)
-    import org.json4s._
-    implicit val formats = DefaultFormats
-    val a = (json \ "content").extract[String]
-    println(a)
-   // println(JsonMethods.pretty(JsonMethods.render()))
+    Util.convertHumen2Byte("30GB")
   }
   
 }
