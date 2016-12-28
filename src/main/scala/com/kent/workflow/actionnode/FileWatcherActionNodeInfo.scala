@@ -67,6 +67,7 @@ object FileWatcherActionNodeInfo {
 	  val sizeWarnMsgOpt = (node \ "size-warn-message")
 	  if(!fileOpt.isEmpty) {
 	    fwan.dir = fileOpt(0).attribute("dir").get.text
+	    fwan.filename = fileOpt(0).text
 	    fwan.numThreshold = if(fileOpt(0).attribute("num-threshold").isEmpty) fwan.numThreshold 
 	                        else fileOpt(0).attribute("num-threshold").get.text.toInt
 	  } else {

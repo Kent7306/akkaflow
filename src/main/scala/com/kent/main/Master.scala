@@ -275,21 +275,18 @@ object Master extends App {
           <start name="start_node" to="fork_node" />
           <fork name="fork_node">
               <path to="action_node_1" />
-              <path to="action_node_2" />
           </fork>
-          <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
-              <shell>
-                  <command>/Users/kent/tmp/test_1.sh ${yestoday}</command>
-              </shell>
+          <action name="action_node_1" retry-times="5" interval="30" timeout="500" host="127.0.0.1" desc = "这是节点测试">
+              <file-watcher>
+                <file dir="/Users/kent/Documents" num-threshold="1">*.tmp</file>
+                <size-warn-message size-threshold="2MB">
+                <![CDATA[
+                  文件容量小于1532M，请联系xxx进行确认
+                ]]>
+                </size-warn-message>  
+              </file-watcher>
               <ok to="join_node"/>
-              <error to="join_node"/>
-          </action>
-          <action name="action_node_2" retry-times="1" interval="3" timeout="500">
-              <shell>
-                  <command>/Users/kent/tmp/test_2.sh ${lastMonth}</command>
-              </shell>
-              <ok to="join_node"/>
-              <error to="join_node"/>
+              <error to="kill-node"/>
           </action>
           <kill name="kill_node">
               <message>kill by node(被kill node杀掉了)</message>
@@ -302,11 +299,11 @@ object Master extends App {
     Thread.sleep(10000)
 //    master ! ReRunWorkflowInstance("b2bdfe0c")
 //    
-    master ! AddWorkFlow(wfStr_win_1)
+  //  master ! AddWorkFlow(wfStr_win_1)
  //   master ! AddWorkFlow(wfStr_win_2)
-    master ! AddCoor(coorStr_win) 
+ //   master ! AddCoor(coorStr_win) 
 //    master ! AddCoor(coorStr_win2) 
     
-  //  master ! AddWorkFlow(wfStr_mac)
-  //  master ! AddCoor(coorStr_mac) 
+    master ! AddWorkFlow(wfStr_mac)
+    master ! AddCoor(coorStr_mac) 
 }

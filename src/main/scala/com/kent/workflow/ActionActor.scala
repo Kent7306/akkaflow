@@ -12,6 +12,7 @@ import akka.actor.ActorRef
 import com.kent.workflow.node.ActionNodeInstance
 import com.kent.pub.ShareData
 import com.kent.db.LogRecorder._
+import com.kent.mail.EmailSender.EmailMessage
 
 class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with ActorLogging {
   var sheduler:Cancellable = null
@@ -26,6 +27,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
    */
   def start(){
     workflowActorRef = sender
+    actionNodeInstance.actionActor = this
     sheduler = context.system.scheduler.scheduleOnce(10 millisecond){
       ShareData.logRecorder ! Info("NodeInstance",actionNodeInstance.id,s"开始执行")
       var executedStatus: Status = FAILED
@@ -59,7 +61,11 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
     		  Thread.sleep(actionNodeInstance.nodeInfo.interval * 1000)
       }
       if(context != null) terminate(actionNodeInstance.status, actionNodeInstance.executedMsg)
+    }
   }
+  
+  def sendMailMsg(toUsers: List[String],subject: String,htmlText: String){
+    workflowActorRef ! EmailMessage(toUsers, subject, htmlText)
   }
   /**
    * 结束

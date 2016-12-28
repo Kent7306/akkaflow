@@ -8,9 +8,11 @@ import com.kent.util.Util
 import java.util.Calendar
 import java.util.Date
 import org.json4s.jackson.JsonMethods
+import com.kent.workflow.ActionActor
 
 abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends NodeInstance(nodeInfo) {
   var hasRetryTimes: Int = 0
+  var actionActor: ActionActor = _
   def kill():Boolean
   
   def deepCloneAssist(ani: ActionNodeInstance): ActionNodeInstance = {

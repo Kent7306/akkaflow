@@ -14,14 +14,14 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
   }
 
   def execute(): Boolean = {
-    val pattern = nodeInfo.filename.r
+    val pattern = fileNameFuzzyMatch(nodeInfo.filename).r
     val filesize = Util.convertHumen2Byte(nodeInfo.sizeThreshold)
     
     if(nodeInfo.dir.toLowerCase().matches("hdfs:")){
       ???
     }else if(nodeInfo.dir.toLowerCase().matches("sftp:")){
       ???
-    }else if(nodeInfo.dir.toLowerCase().matches("sftp:")){
+    }else if(nodeInfo.dir.toLowerCase().matches("ftp:")){
       ???
     }else {
       val file = new File(nodeInfo.dir)
@@ -30,12 +30,22 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
         if(files.size >= nodeInfo.numThreshold){
           val smallerFiles = files.filter { _.length() < filesize }.toList
           if(smallerFiles.size > 0){
-            ???  //邮件告警
+            val msgFile = files.map { x => (x.getAbsolutePath,Util.convertByte2Humen(x.length())) }.toList
+            actionActor.sendMailMsg(null, 
+                "【WARN】workflow数据异常", 
+                s"""工作实例【${this.id}】中节点【${nodeInfo.name}】数据检测低于阈值，阈值为：${nodeInfo.sizeThreshold},异常文件以下：
+                  ${msgFile}""")
           }
           true
         } else false
       } else false
     }
+  }
+  
+  private def fileNameFuzzyMatch(fileName: String): String = {
+    var name = fileName.replaceAll("\\.", "\\\\.")
+    name = name.replaceAll("\\*", "(.\\*?)")
+    "^"+name+"$"
   }
 
   def kill(): Boolean = {

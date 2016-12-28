@@ -32,6 +32,7 @@ import com.kent.main.Worker.CreateAction
 import scala.util.Random
 import com.kent.pub.ShareData
 import com.kent.db.LogRecorder._
+import com.kent.mail.EmailSender.EmailMessage
 
 class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with ActorLogging {
 	import com.kent.workflow.WorkflowActor._
@@ -167,8 +168,12 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
   def receive: Actor.Receive = {
     case Start() => workflowManageAcotrRef = sender;start()
     case Kill() => kill()
+    
     case ActionExecuteRetryTimes(times) => handleActionRetryTimes(times, sender)
     case ActionExecuteResult(status, msg) => handleActionResult(status, msg, sender)
+    case EmailMessage(toUsers, subject, htmlText) => 
+      val users = if(toUsers == null || toUsers.size == 0) workflowInstance.workflow.mailReceivers else toUsers
+        ShareData.emailSender ! EmailMessage(users, subject, htmlText)
   }
 }
 
@@ -177,4 +182,5 @@ object WorkflowActor {
   
   case class Start()
   case class Kill()
+  case class MailMessage(msg: String)
 }
