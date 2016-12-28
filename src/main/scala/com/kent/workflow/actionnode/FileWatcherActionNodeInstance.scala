@@ -4,6 +4,7 @@ import com.kent.workflow.node.ActionNodeInstance
 import java.util.Date
 import com.kent.coordinate.ParamHandler
 import java.io.File
+import com.kent.util.Util
 
 class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNodeInfo)  extends ActionNodeInstance(nodeInfo)  {
   def deepClone(): FileWatcherActionNodeInstance = {
@@ -13,29 +14,27 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
   }
 
   def execute(): Boolean = {
-    val pattern = this.nodeInfo.filename.r
-    //val filesize = this.nodeInfo.sizeThreshold.matches(arg0)
+    val pattern = nodeInfo.filename.r
+    val filesize = Util.convertHumen2Byte(nodeInfo.sizeThreshold)
     
-    if(this.nodeInfo.dir.toLowerCase().matches("hdfs:")){
+    if(nodeInfo.dir.toLowerCase().matches("hdfs:")){
       ???
-    }else if(this.nodeInfo.dir.toLowerCase().matches("sftp:")){
+    }else if(nodeInfo.dir.toLowerCase().matches("sftp:")){
       ???
-    }else if(this.nodeInfo.dir.toLowerCase().matches("sftp:")){
+    }else if(nodeInfo.dir.toLowerCase().matches("sftp:")){
       ???
     }else {
-      val file = new File(this.nodeInfo.dir)
+      val file = new File(nodeInfo.dir)
       if(file.isDirectory() && file.exists()) {
         val files = file.listFiles().filter { x => !pattern.findFirstIn(x.getName).isEmpty}.toList
-        if(files.size >= this.nodeInfo.numThreshold){
-          //files.foreach { x => x. }
+        if(files.size >= nodeInfo.numThreshold){
+          val smallerFiles = files.filter { _.length() < filesize }.toList
+          if(smallerFiles.size > 0){
+            ???  //邮件告警
+          }
           true
-        }else{
-          false
-        }
-      } else {
-        false
-      }
-      
+        } else false
+      } else false
     }
   }
 

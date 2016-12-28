@@ -6,6 +6,7 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import org.json4s.jackson.JsonMethods
 import java.util.regex.Pattern
+import java.text.DecimalFormat
 
 /**
  * 辅助对象
@@ -71,30 +72,30 @@ object Util {
     var mbRegx = "\\s*(.*?)\\s*([Mm]|[Mm][Bb])".r
     var gbRegx = "\\s*(.*?)\\s*([Gg]|[Gg][Bb])".r
     var bRegx = "\\s*(.*?)\\s*[Bb]".r
-    println(1111)
-     sizeStr match {
-     case gbRegx(n,b) => n.toInt*1024*1024*1024
-     case mbRegx(n,b) => n.toInt*1024*1024
-      case kbRegx(n,b) => n.toInt*1024
-      case bRegx(n) => n.toInt
+    sizeStr match {
+      case gbRegx(n,b) => (n.toDouble*1024*1024*1024).toLong
+      case mbRegx(n,b) => (n.toDouble*1024*1024).toLong
+      case kbRegx(n,b) => (n.toDouble*1024).toLong
+      case bRegx(n) => (n.toDouble).toLong
       case _ => throw new Exception("容量大小输入有误")
     }
   }
+  /**
+   * 把byte容量转换为可读标识
+   */
   def convertByte2Humen(size: Long): String = {
     val kb: Long = 1024;
     val mb: Long = kb * 1024;
     val gb: Long = mb * 1024;
- 
+    val df   = new DecimalFormat("######0.00");  
     if (size >= gb) {
-        String.format("%.1f GB", (size/gb).toFloat);
+      df.format(size*1.0/gb) + "GB"
     } else if (size >= mb) {
-            float f = (float) size / mb;
-            return String.format(f > 100 ? "%.0f MB" : "%.1f MB", f);
-        } else if (size >= kb) {
-            float f = (float) size / kb;
-            return String.format(f > 100 ? "%.0f KB" : "%.1f KB", f);
-        } else
-            return String.format("%d B", size);
+      df.format(size*1.0/mb) + "MB"
+    } else if (size >= kb) {
+      df.format(size*1.0/kb) + "KB"
+    } else
+      size + "B"
   }
   
   
@@ -117,7 +118,9 @@ object Util {
   }
   
   def main(args: Array[String]): Unit = {
-    Util.convertHumen2Byte("30GB")
+    val a = Util.convertHumen2Byte("23.927 KB")
+    println(a)
+    println(Util.convertByte2Humen(a))
   }
   
 }
