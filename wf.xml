@@ -51,9 +51,7 @@ mail-receivers: 收件人
     <file-watcher>
         <!-- num-threshold文件个数，默认为1 -->
         <file dir="hdfs:///home/log/${yestoday}" num-threshold="1">*.tar.gz</file> <!--支持本地文件路径，ftp文件路径， hdfs文件路径 -->
-        <size-warn-message size-threshold="1532MB"> <!--若文件大小小于阈值，则邮件告警-->
-        文件容量小于1532M，请联系xxx进行确认
-        <size-warn-message>  
+        <size-warn-message enable="true" size-threshold="1532MB"><size-warn-message> <!--若文件大小小于阈值，则邮件告警，邮件内容可自定义设置；默认空时，系统定义-->
     </file-watcher>
     <ok to="join_node"/>
     <error to="join_node"/>

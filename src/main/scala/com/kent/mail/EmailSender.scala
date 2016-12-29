@@ -19,7 +19,7 @@ class EmailSender(hostName: String, port: Int, account: String, pwd: String, isE
     case _:Any =>
   }
   /**
-   * 取消持久化
+   * 取消
    */
   def passive: Actor.Receive = {
     case _ => //do nothing!!!
@@ -30,6 +30,7 @@ class EmailSender(hostName: String, port: Int, account: String, pwd: String, isE
    */
   private def sendEmailSync(emailMessage: EmailMessage) {
     import com.kent.pub.ShareData._
+    println("开始发送Email")
     val email = new HtmlEmail
     email.setHostName(hostName)
     email.setSmtpPort(port)

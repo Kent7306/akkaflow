@@ -10,6 +10,7 @@ class FileWatcherActionNodeInfo(name: String) extends ActionNodeInfo(name) {
     var filename: String = _
     var sizeThreshold: String = _
     var warnMessage: String = _
+    var isWarnMsgEnable: Boolean = false
   
     def createInstance(workflowInstanceId: String): FileWatcherActionNodeInstance = {
        val fwani = FileWatcherActionNodeInstance(this)
@@ -29,6 +30,7 @@ class FileWatcherActionNodeInfo(name: String) extends ActionNodeInfo(name) {
     fwan.filename = filename
     fwan.sizeThreshold = sizeThreshold
     fwan.warnMessage = warnMessage
+    fwan.isWarnMsgEnable = isWarnMsgEnable
     fwan
   }
   override def setContent(contentStr: String){
@@ -41,6 +43,7 @@ class FileWatcherActionNodeInfo(name: String) extends ActionNodeInfo(name) {
 	  this.filename = (content \ "file" \ "name").extract[String]
 	  this.sizeThreshold = (content \ "size-warn-message" \ "size-threshold").extract[String]
 		this.warnMessage = (content \ "size-warn-message" \ "warn-msg").extract[String]
+	  this.isWarnMsgEnable =  (content \ "size-warn-message" \ "enable").extract[Boolean]
 	  
   }
   
@@ -49,7 +52,7 @@ class FileWatcherActionNodeInfo(name: String) extends ActionNodeInfo(name) {
     val c1 = JsonMethods.parse(contentStr)
     val c2 = JsonMethods.parse(s"""{
          "file":{"dir":"${dir}","num-threshold":${numThreshold},"name":"${filename}"},
-         "size-warn-message":{"size-threshold":"${sizeThreshold}","warn-msg":"${Util.transformJsonStr(warnMessage)}"}
+         "size-warn-message":{"enable":${isWarnMsgEnable},"size-threshold":"${sizeThreshold}","warn-msg":"${Util.transformJsonStr(warnMessage)}"}
        }""")
     val c3 = c1.merge(c2)
     JsonMethods.pretty(JsonMethods.render(c3))
@@ -75,6 +78,7 @@ object FileWatcherActionNodeInfo {
 	  }
 	  if(!sizeWarnMsgOpt.isEmpty) {
 	    fwan.sizeThreshold = sizeWarnMsgOpt(0).attribute("size-threshold").get.text
+	    fwan.isWarnMsgEnable = if(sizeWarnMsgOpt(0).attribute("enable").get.text.toLowerCase == "true") true else false
 	    fwan.warnMessage = sizeWarnMsgOpt(0).text
 	  }
 	  
