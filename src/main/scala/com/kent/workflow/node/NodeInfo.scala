@@ -5,6 +5,8 @@ import com.kent.pub.DeepCloneable
 import com.kent.pub.Daoable
 import java.sql.Connection
 import java.sql.ResultSet
+import com.kent.workflow.controlnode._
+import com.kent.workflow.actionnode._
 
 abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with Daoable[NodeInfo] with Serializable{
   import com.kent.workflow.node.NodeInfo.Status._
@@ -88,6 +90,22 @@ object NodeInfo {
       case <action>{content @ _*}</action> => ActionNodeInfo(node)
       case _ => ControlNodeInfo(node)
     }
+  }
+  
+  def apply(nodeType: String, name: String, workflowId: String): NodeInfo = {
+    val withDollar = nodeType + "$"
+    
+    val node = if(withDollar == StartNodeInfo.getClass.getName.replaceAll("$", "")) StartNodeInfo(name)
+    else if(withDollar == EndNodeInfo.getClass.getName) EndNodeInfo(name)
+    else if(withDollar == JoinNodeInfo.getClass.getName) JoinNodeInfo(name)
+    else if(withDollar == KillNodeInfo.getClass.getName) KillNodeInfo(name)
+    else if(withDollar == ForkNodeInfo.getClass.getName) ForkNodeInfo(name)
+    else if(withDollar == ShellActionNodeInfo.getClass.getName) ShellActionNodeInfo(name)
+    else if(withDollar == ScriptActionNodeInfo.getClass.getName) ScriptActionNodeInfo(name)
+    else if(withDollar == FileWatcherActionNodeInfo.getClass.getName) FileWatcherActionNodeInfo(name)
+    else null
+    if(node != null)node.workflowId = workflowId
+    node
   }
   
   object Status extends Enumeration { 

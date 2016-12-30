@@ -12,7 +12,6 @@ trait Daoable[A] {
    */
   def querySql[A](sql: String, f:(ResultSet) => A)(implicit conn: Connection): Option[A] = {
     val stat = conn.createStatement()
-   // println(sql)
     try{
     	val rs = stat.executeQuery(sql)
     	val obj = f(rs)

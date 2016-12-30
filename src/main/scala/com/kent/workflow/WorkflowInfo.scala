@@ -59,24 +59,51 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   }
 
   def getEntity(implicit conn: Connection): Option[WorkflowInfo] = {
-    val queryStr = """
-         select id,name,description,mail_level,mail_receivers,create_time,last_update_time
-         from workflow where id='"""+id+"""'
+    getEntityWithNodeInfo(conn,true)
+	}  
+  /**
+   * 是否关联查询得到工作流和相关的节点信息
+   */
+  def getEntityWithNodeInfo(implicit conn: Connection, isWithNodeInfo: Boolean): Option[WorkflowInfo] = {
+    import com.kent.util.Util._
+    val wf = this.deepClone()
+    //工作流实例查询sql
+    val queryStr = s"""
+        select id,name,description,mail_level,mail_receivers,create_time,last_update_time
+         from workflow where id=${withQuate(id)}
                     """
-    querySql(queryStr, (rs: ResultSet) =>{
+    //节点实例查询sql
+    val queryNodesStr = s"""
+         select name,type from node 
+         where workflow_id = ${withQuate(id)}
+      """
+    val wfOpt = querySql(queryStr, (rs: ResultSet) =>{
           if(rs.next()){
-            this.desc = rs.getString("description")
-            this.name= rs.getString("name")
+            wf.id = rs.getString("id")
+            wf.desc = rs.getString("description")
+            wf.name = rs.getString("name")
             val levelStr = JsonMethods.parse(rs.getString("mail_level"))
             val receiversStr = JsonMethods.parse(rs.getString("mail_receivers"))
-            this.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
-            this.mailReceivers = (receiversStr \\ classOf[JString]).asInstanceOf[List[String]]
-            this
+            wf.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
+            wf.mailReceivers = (receiversStr \\ classOf[JString]).asInstanceOf[List[String]]
+            wf.createTime = Util.getStandarTimeWithStr(rs.getString("create_time"))
+            wf
           }else{
             null
           }
       })
-	}
+    //关联查询节点实例
+    if(isWithNodeInfo && !wfOpt.isEmpty){
+      querySql(queryNodesStr, (rs: ResultSet) => {
+        var nameTypes = List[(String, String)]()
+        while(rs.next()) nameTypes = nameTypes ::: ((rs.getString("name"), rs.getString("type")) :: Nil)
+        wf.nodeList = nameTypes.map { x => NodeInfo(x._2, x._1, id).getEntity.get }.toList
+        wf
+      })
+    }else{
+      wfOpt
+    }
+  }
 
   def save(implicit conn: Connection): Boolean = {
     var result = false;
@@ -119,6 +146,11 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 object WorkflowInfo {
   def apply(content: String): WorkflowInfo = WorkflowInfo(XML.loadString(content))
   def apply(node: scala.xml.Node): WorkflowInfo = parseXmlNode(node)
+  def apply(id: String, name: String): WorkflowInfo = {
+    val wf = new WorkflowInfo(name)
+    wf.id = id
+    wf
+  }
   /**
    * 解析xml为一个对象
    */

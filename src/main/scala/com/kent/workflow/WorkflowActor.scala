@@ -15,9 +15,7 @@ import akka.pattern.ask
 import akka.actor.Props
 import com.kent.util.Util
 import scala.concurrent.Future
-import akka.util.Timeout
-import scala.util.Success
-import scala.util.Failure
+import akka.util._
 import scala.util.control.NonFatal
 import com.kent.workflow.WorkFlowManager._
 import akka.actor.PoisonPill
@@ -56,12 +54,14 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  log.info(s"[workflow:${this.workflowInstance.actorName}开始启动")
 	  this.workflowInstance.status = W_RUNNING
 	  //节点替换参数
-	   this.workflowInstance.nodeInstanceList.foreach { _.replaceParam(workflowInstance.parsedParams) }
+	  this.workflowInstance.nodeInstanceList.foreach { _.replaceParam(workflowInstance.parsedParams) }
 	  //找到开始节点并加入到等待队列
     val sn = workflowInstance.getStartNode()
     if(!sn.isEmpty && sn.get.ifCanExecuted(workflowInstance)){
     	workflowInstance.startTime = Util.nowDate
     	waitingNodes = waitingNodes.enqueue(sn.get)
+    }else{
+      ShareData.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "找不到开始节点")
     }
     //保存工作流实例
     ShareData.persistManager ! Save(workflowInstance)

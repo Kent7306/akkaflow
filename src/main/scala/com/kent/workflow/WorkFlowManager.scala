@@ -21,6 +21,7 @@ import com.kent.workflow.node.NodeInfo.Status._
 import com.kent.pub.ShareData
 import com.kent.mail.EmailSender.EmailMessage
 import com.kent.db.LogRecorder._
+import scala.util.Success
 
 class WorkFlowManager extends Actor with ActorLogging{
   var workflows: Map[String, WorkflowInfo] = Map()
@@ -29,6 +30,11 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   var workflowActors: Map[String,Tuple2[String,ActorRef]] = Map()
   var coordinatorManager: ActorRef = _
+  implicit val timeout = Timeout(20 seconds)
+  /**
+   * 初始化
+   */
+  init()
   /**
    * 增
    */
@@ -58,7 +64,14 @@ class WorkFlowManager extends Actor with ActorLogging{
    * 初始化
    */
   def init(){
-     ??? 
+    import com.kent.pub.ShareData._
+    val isEnabled = config.getBoolean("workflow.mysql.is-enabled")
+    if(isEnabled){
+       val listF = (ShareData.persistManager ? Query("select id,name from workflow")).mapTo[List[List[String]]]
+       listF.andThen{
+         case Success(list) => list.foreach { x => add(WorkflowInfo(x(0),x(1))) }
+       }
+    }
   }
   /**
    * 生成工作流实例并执行
@@ -120,7 +133,6 @@ class WorkFlowManager extends Actor with ActorLogging{
    * 重跑指定的工作流实例
    */
   def reRun(wfiId: String){
-    
     val wf = new WorkflowInfo(null)
     val wfi = wf.createInstance()
     wfi.id = "b2bdfe0c"

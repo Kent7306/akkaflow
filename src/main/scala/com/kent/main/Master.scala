@@ -268,13 +268,13 @@ object Master extends App {
       """
     
     Thread.sleep(10000)
-//    master ! ReRunWorkflowInstance("b2bdfe0c")
+//  master ! ReRunWorkflowInstance("b2bdfe0c")
 //    
-    master ! AddWorkFlow(wfStr_win_1)
- //   master ! AddWorkFlow(wfStr_win_2)
+//  master ! AddWorkFlow(wfStr_win_1)
+ // master ! AddWorkFlow(wfStr_win_2)
     master ! AddCoor(coorStr_win) 
-//    master ! AddCoor(coorStr_win2) 
-    
-  //  master ! AddWorkFlow(wfStr_mac)
-  //  master ! AddCoor(coorStr_mac) 
+ // master ! AddCoor(coorStr_win2) 
+  
+//  master ! AddWorkFlow(wfStr_mac)
+//  master ! AddCoor(coorStr_mac) 
 }
