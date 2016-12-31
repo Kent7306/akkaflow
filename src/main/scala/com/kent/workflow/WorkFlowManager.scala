@@ -22,6 +22,7 @@ import com.kent.pub.ShareData
 import com.kent.mail.EmailSender.EmailMessage
 import com.kent.db.LogRecorder._
 import scala.util.Success
+import scala.concurrent.Future
 
 class WorkFlowManager extends Actor with ActorLogging{
   var workflows: Map[String, WorkflowInfo] = Map()
@@ -38,9 +39,9 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * 增
    */
-  def add(wf: WorkflowInfo): Boolean = {
+  def add(wf: WorkflowInfo, isPersist: Boolean): Boolean = {
     ShareData.logRecorder ! Info("WorkflowManager", null, s"添加工作流配置：${wf.name}")
-		ShareData.persistManager ! Save(wf)
+		if(isPersist) ShareData.persistManager ! Save(wf)
     workflows = workflows + (wf.name -> wf)
     true
   }
@@ -61,7 +62,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     true
   }
   /**
-   * 初始化
+   * 初始化，从数据库中获取workflows
    */
   def init(){
     import com.kent.pub.ShareData._
@@ -69,7 +70,11 @@ class WorkFlowManager extends Actor with ActorLogging{
     if(isEnabled){
        val listF = (ShareData.persistManager ? Query("select id,name from workflow")).mapTo[List[List[String]]]
        listF.andThen{
-         case Success(list) => list.foreach { x => add(WorkflowInfo(x(0),x(1))) }
+         case Success(list) => list.map { x =>
+           val wf = WorkflowInfo(x(0),x(1))
+           val wfF = (ShareData.persistManager ? Get(wf)).mapTo[WorkflowInfo]
+           wfF.andThen{case Success(wf) => add(wf, false)}
+         }
        }
     }
   }
@@ -159,7 +164,7 @@ class WorkFlowManager extends Actor with ActorLogging{
    * receive方法
    */
   def receive: Actor.Receive = {
-    case AddWorkFlow(content) => this.add(WorkflowInfo(content))
+    case AddWorkFlow(content) => this.add(WorkflowInfo(content), true)
     case RemoveWorkFlow(name) => this.remove(name)
     case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
     case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)

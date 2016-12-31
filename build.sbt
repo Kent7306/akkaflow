@@ -4,12 +4,12 @@ scalaVersion := "2.11.8"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 
 libraryDependencies ++= {
-  val akkaVersion = "2.4.8"
+  val akkaVersion = "2.4.16"
   Seq(
     "com.typesafe.akka" %% "akka-actor"      % akkaVersion,
-    "com.typesafe.akka" %% "akka-http-core"  % akkaVersion, 
-    "com.typesafe.akka" %% "akka-http-experimental"  % akkaVersion, 
-    "com.typesafe.akka" %% "akka-http-spray-json-experimental"  % akkaVersion, 
+   // "com.typesafe.akka" %% "akka-http-core"  % akkaVersion, 
+   // "com.typesafe.akka" %% "akka-http-experimental"  % akkaVersion, 
+   // "com.typesafe.akka" %% "akka-http-spray-json-experimental"  % akkaVersion, 
     "com.typesafe.akka" %% "akka-slf4j"      % akkaVersion,
     "ch.qos.logback"    %  "logback-classic" % "1.1.3",
     "com.typesafe.akka" %% "akka-testkit"    % akkaVersion   % "test",
@@ -23,7 +23,8 @@ libraryDependencies ++= {
     //"io.kamon" % "sigar-loader" % "1.6.6-rev002",
     "com.github.philcali" %% "cronish" % "0.1.3",
     "org.json4s" % "json4s-jackson_2.11" % "3.5.0",
-    "org.apache.commons" % "commons-email" % "1.4"
+    "org.apache.commons" % "commons-email" % "1.4",
+    "com.typesafe.akka" %% "akka-http" % "10.0.1"
   )
 }
 

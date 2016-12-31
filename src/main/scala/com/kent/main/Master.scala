@@ -105,10 +105,6 @@ class Master extends ClusterRole {
                       config.getBoolean("workflow.email.is-enabled")
                     )
                     
-    //创建coordinator管理器
-    coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
-    //创建workflow管理器
-    workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
     //创建持久化管理器
     ShareData.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
     //创建邮件发送器
@@ -116,6 +112,11 @@ class Master extends ClusterRole {
     //创建日志记录器
     ShareData.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
     
+    Thread.sleep(1000)
+    //创建coordinator管理器
+    coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
+    //创建workflow管理器
+    workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
     coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
     workflowManager ! GetManagers(workflowManager,coordinatorManager)
     Thread.sleep(1000)
@@ -144,7 +145,7 @@ object Master extends App {
         <trigger>
             <cron config="* * * * * *"/>
         </trigger>
-        <workflow-list>
+        <workflow-list>   
           <workflow path="wf_join_1"></workflow>
         </workflow-list>
         <param-list>
@@ -241,7 +242,7 @@ object Master extends App {
       </work-flow>
       """
     val wfStr_mac = """
-      <work-flow name="wf_join" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
+      <work-flow name="wf_join" id="a80c53" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
         mail-receivers="15018735011@163.com,492005267@qq.com">
           <start name="start_node" to="fork_node" />
           <fork name="fork_node">
@@ -249,7 +250,7 @@ object Master extends App {
           </fork>
           <action name="action_node_1" retry-times="5" interval="30" timeout="500" host="127.0.0.1" desc = "这是节点测试">
               <file-watcher>
-                <file dir="/Users/kent/Documents" num-threshold="1">*.tmp</file>
+                <file dir="/Users/kent/Documents/tmp" num-threshold="1">*.sh</file>
                 <size-warn-message enable="true" size-threshold="2MB">
                 <![CDATA[
                   文件容量小于1532M，请联系xxx进行确认
@@ -272,9 +273,9 @@ object Master extends App {
 //    
 //  master ! AddWorkFlow(wfStr_win_1)
  // master ! AddWorkFlow(wfStr_win_2)
-    master ! AddCoor(coorStr_win) 
+  //  master ! AddCoor(coorStr_win) 
  // master ! AddCoor(coorStr_win2) 
   
-//  master ! AddWorkFlow(wfStr_mac)
-//  master ! AddCoor(coorStr_mac) 
+ //   master ! AddWorkFlow(wfStr_mac)
+    master ! AddCoor(coorStr_mac) 
 }
