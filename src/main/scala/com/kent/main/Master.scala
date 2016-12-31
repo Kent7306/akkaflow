@@ -128,12 +128,19 @@ object Master extends App {
   case class GetWorker(worker: ActorRef)
   case class AskWorker(host: String)
   def props = Props[Master]
-  val port = "2751"
+  
+  val defaultConf = ConfigFactory.load()
+  val masterConf = defaultConf.getStringList("workflow.nodes.masters").get(0).split(":")
+  val hostConf = "akka.remote.netty.tcp.hostname=" + masterConf(0)
+  val portConf = "akka.remote.netty.tcp.port=" + masterConf(1)
+  
   // 创建一个Config对象
-  val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port)
+  val config = ConfigFactory.parseString(portConf)
+      .withFallback(ConfigFactory.parseString(hostConf))
       .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
-      .withFallback(ConfigFactory.load())
+      .withFallback(defaultConf)
   ShareData.config = config
+  
   // 创建一个ActorSystem实例
   val system = ActorSystem("workflow-system", config)
   val master = system.actorOf(Master.props, name = "master")

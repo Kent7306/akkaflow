@@ -70,12 +70,18 @@ class Worker extends ClusterRole {
 
 object Worker extends App {
   case class CreateAction(ani: ActionNodeInstance)
+  import scala.collection.JavaConverters._
+  val defaultConf = ConfigFactory.load()
+  val workersConf = defaultConf.getStringList("workflow.nodes.workers").asScala.map { x => val y = x.split(":");(y(0),y(1)) }.toList
   
-  Seq("2851","2852").foreach {
-    port =>
-      val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port)
+  workersConf.foreach {
+    info =>
+    val hostConf = "akka.remote.netty.tcp.hostname=" + info._1
+    val portConf = "akka.remote.netty.tcp.port=" + info._2
+      val config = ConfigFactory.parseString(hostConf)
+        .withFallback(ConfigFactory.parseString(portConf))
         .withFallback(ConfigFactory.parseString("akka.cluster.roles = [worker]"))
-        .withFallback(ConfigFactory.load())
+        .withFallback(defaultConf)
       ShareData.config = config
       val system = ActorSystem("workflow-system", config)
       val worker = system.actorOf(Worker.props, name = "worker")
