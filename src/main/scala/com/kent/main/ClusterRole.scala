@@ -15,8 +15,8 @@ import com.kent.main.ClusterRole.Registration
 abstract class ClusterRole extends Actor with ActorLogging {
   // 创建一个Cluster实例
   val cluster = Cluster(context.system) 
-  // 用来缓存下游注册过来的worker
-  var workers = IndexedSeq.empty[ActorRef] 
+  // 用来缓存下游注册过来的roler
+  var roler = IndexedSeq.empty[ActorRef] 
   
   override def preStart(): Unit = {
     // 订阅集群事件

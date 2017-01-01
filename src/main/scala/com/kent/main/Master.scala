@@ -35,13 +35,17 @@ import com.kent.mail.EmailSender
 import com.kent.mail.EmailSender.EmailMessage
 import com.kent.db.LogRecorder._
 import com.kent.db.LogRecorder
+import akka.cluster.Member
+import akka.actor.ActorPath
+import akka.actor.RootActorPath
 
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
   var workflowManager: ActorRef = _
   
-  def receive: Actor.Receive = {
+  def receive: Actor.Receive = { 
     case MemberUp(member) => 
+      register(member, getHttpServerPath)
       log.info("Member is Up: {}", member.address)
     case UnreachableMember(member) =>
       log.info("Member detected as Unreachable: {}", member)
@@ -54,14 +58,14 @@ class Master extends ClusterRole {
     case Registration() => {
       //worker请求注册
       context watch sender
-      workers = workers :+ sender
-      log.info("Interceptor registered: " + sender)
-      log.info("Registered interceptors: " + workers.size)
+      roler = roler :+ sender
+      log.info("Worker registered: " + sender)
+      log.info("Registered workers number: " + roler.size)
     }
     case Start() => this.start()
     case Terminated(workerActorRef) =>
       //worker终止，更新缓存的ActorRef
-      workers = workers.filterNot(_ == workerActorRef)
+      roler = roler.filterNot(_ == workerActorRef)
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
     case AskWorker(host: String) => sender ! GetWorker(askWorker(host: String))
@@ -73,16 +77,30 @@ class Master extends ClusterRole {
   def askWorker(host: String):ActorRef = {
     //host为-1情况下，随机分配
     if(host == "-1") {
-      workers(Random.nextInt(workers.size))
+      roler(Random.nextInt(roler.size))
     }else{ //指定host分配
-    	val list = workers.map { x => x.path.address.host.get }.toList
+    	val list = roler.map { x => x.path.address.host.get }.toList
     	if(list.size > 0){
-    		workers(Random.nextInt(list.size))       	  
+    		roler(Random.nextInt(list.size))       	  
     	}else{
     	  null
     	}
     }
   }
+  
+    /**
+   * 获取http-server的路径
+   */
+  def getHttpServerPath(member: Member):Option[ActorPath] = {
+    if(member.hasRole("http-server")){
+    	Some(RootActorPath(member.address) /"user" / "http-server")    
+    }else{
+      None
+    }
+  }
+  /**
+   * 启动入口
+   */
   def start():Boolean = {
     import com.kent.pub.ShareData._
     //mysql持久化参数配置
@@ -142,7 +160,7 @@ object Master extends App {
   ShareData.config = config
   
   // 创建一个ActorSystem实例
-  val system = ActorSystem("workflow-system", config)
+  val system = ActorSystem("akkaflow", config)
   val master = system.actorOf(Master.props, name = "master")
   
   master ! Start()
@@ -284,5 +302,5 @@ object Master extends App {
  // master ! AddCoor(coorStr_win2) 
   
  //   master ! AddWorkFlow(wfStr_mac)
-    master ! AddCoor(coorStr_mac) 
+ //   master ! AddCoor(coorStr_mac) 
 }

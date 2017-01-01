@@ -83,7 +83,7 @@ object Worker extends App {
         .withFallback(ConfigFactory.parseString("akka.cluster.roles = [worker]"))
         .withFallback(defaultConf)
       ShareData.config = config
-      val system = ActorSystem("workflow-system", config)
+      val system = ActorSystem("akkaflow", config)
       val worker = system.actorOf(Worker.props, name = "worker")
       worker ! Start()
   }

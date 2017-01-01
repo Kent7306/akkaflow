@@ -135,7 +135,7 @@ object Main extends App{
   import com.kent.coordinate.CoordinatorManager._
   import com.kent.workflow.WorkFlowManager._
   val config = ConfigFactory.parseString(conf)
-  val system = ActorSystem("workflow-system", config)
+  val system = ActorSystem("akkaflow", config)
   
   //
   val cm = system.actorOf(Props(CoordinatorManager(List())),"cm")

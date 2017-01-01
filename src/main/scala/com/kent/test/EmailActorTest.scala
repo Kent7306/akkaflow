@@ -20,7 +20,7 @@ object EmailActorTest extends App{
           }
         """
     val config = ConfigFactory.parseString(conf)
-  val system = ActorSystem("workflow-system", config)
+  val system = ActorSystem("akkaflow", config)
   
   //
   //val pm = system.actorOf(Props[])

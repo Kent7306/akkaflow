@@ -62,7 +62,7 @@ object PersistTest extends App{
   import com.kent.coordinate.CoordinatorManager._
   import com.kent.workflow.WorkFlowManager._
   val config = ConfigFactory.parseString(conf)
-  val system = ActorSystem("workflow-system", config)
+  val system = ActorSystem("akkaflow", config)
   
   //
   val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root", true)),"pm")
