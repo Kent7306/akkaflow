@@ -17,7 +17,6 @@ import org.json4s.JsonAST.JString
 
 class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Daoable[WorkflowInfo] {
 	import com.kent.workflow.WorkflowInfo.WStatus._
-  var id: String = _
   var desc: String = _
   var nodeList:List[NodeInfo] = List()
   var createTime: Date = _
@@ -36,7 +35,6 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 	}
 
   def deepCloneAssist(wf: WorkflowInfo): WorkflowInfo = {
-	  wf.id = id
 	  wf.nodeList = this.nodeList.map { _.deepClone() }.toList
 	  wf.createTime = if(createTime == null) null else new Date(this.createTime.getTime)
 	  wf.desc = desc
@@ -49,8 +47,8 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
     var result = false
     try{
       conn.setAutoCommit(false)
-	    result = executeSql(s"delete from workflow where id='${id}'")
-	    executeSql(s"delete from node where workflow_id='${id}'")
+	    result = executeSql(s"delete from workflow where name='${name}'")
+	    executeSql(s"delete from node where workflow_name='${name}'")
 	    conn.commit()
     }catch{
       case e: SQLException => e.printStackTrace();conn.rollback()
@@ -69,17 +67,16 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
     val wf = this.deepClone()
     //工作流实例查询sql
     val queryStr = s"""
-        select id,name,description,mail_level,mail_receivers,create_time,last_update_time
-         from workflow where id=${withQuate(id)}
+        select name,description,mail_level,mail_receivers,create_time,last_update_time
+         from workflow where name=${withQuate(name)}
                     """
     //节点实例查询sql
     val queryNodesStr = s"""
          select name,type from node 
-         where workflow_id = ${withQuate(id)}
+         where workflow_name = ${withQuate(name)}
       """
     val wfOpt = querySql(queryStr, (rs: ResultSet) =>{
           if(rs.next()){
-            wf.id = rs.getString("id")
             wf.desc = rs.getString("description")
             wf.name = rs.getString("name")
             val levelStr = JsonMethods.parse(rs.getString("mail_level"))
@@ -97,7 +94,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
       querySql(queryNodesStr, (rs: ResultSet) => {
         var nameTypes = List[(String, String)]()
         while(rs.next()) nameTypes = nameTypes ::: ((rs.getString("name"), rs.getString("type")) :: Nil)
-        wf.nodeList = nameTypes.map { x => NodeInfo(x._2, x._1, id).getEntity.get }.toList
+        wf.nodeList = nameTypes.map { x => NodeInfo(x._2, x._1, name).getEntity.get }.toList
         wf
       })
     }else{
@@ -117,23 +114,23 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
     try{
       conn.setAutoCommit(false)
   	  val insertSql = s"""
-  	     insert into workflow values(${withQuate(id)},${withQuate(name)},${withQuate(desc)},${withQuate(levelStr)},${withQuate(receiversStr)},
+  	     insert into workflow values(${withQuate(name)},${withQuate(desc)},
+  	     ${withQuate(levelStr)},${withQuate(receiversStr)},
   	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))})
   	    """
   	  val updateSql = s"""
-  	    update workflow set name = ${withQuate(name)}, 
-  	                        description = ${withQuate(desc)}, 
+  	    update workflow set description = ${withQuate(desc)}, 
   	                        mail_level = ${withQuate(levelStr)}, 
   	                        mail_receivers = ${withQuate(receiversStr)}, 
   	                        last_update_time = ${withQuate(formatStandarTime(nowDate))}
-  	    where id = '${id}'
+  	    where name = '${name}'
   	    """
   	  if(this.getEntity.isEmpty){
       	result = executeSql(insertSql)     
       }else{
         result = executeSql(updateSql)
       }
-  	  executeSql(s"delete from node where workflow_id='${id}'")
+  	  executeSql(s"delete from node where workflow_name='${name}'")
   	  this.nodeList.foreach { _.save }
   	  conn.commit()
     }catch{
@@ -146,29 +143,21 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 object WorkflowInfo {
   def apply(content: String): WorkflowInfo = WorkflowInfo(XML.loadString(content))
   def apply(node: scala.xml.Node): WorkflowInfo = parseXmlNode(node)
-  def apply(id: String, name: String): WorkflowInfo = {
-    val wf = new WorkflowInfo(name)
-    wf.id = id
-    wf
-  }
   /**
    * 解析xml为一个对象
    */
   def parseXmlNode(node: scala.xml.Node): WorkflowInfo = {
       val a = WStatus.withName("W_FAILED")
       val nameOpt = node.attribute("name")
-      val idOpt = node.attribute("id")
       val descOpt = node.attribute("desc")
       val createTimeOpt = node.attribute("create-time")
       val mailLevelOpt = node.attribute("mail-level")
       val mailReceiversOpt = node.attribute("mail-receivers")
       
       if(nameOpt == None) throw new Exception("节点<work-flow/>未配置name属性")
-      val id = if(idOpt == None) Util.produce6UUID else idOpt.get.text
       val wf = new WorkflowInfo(nameOpt.get.text)
-      wf.id = id
       if(descOpt != None) wf.desc = descOpt.get.text
-    	wf.nodeList = (node \ "_").map{x => val n = NodeInfo(x); n.workflowId = id; n }.toList
+    	wf.nodeList = (node \ "_").map{x => val n = NodeInfo(x); n.workflowName = nameOpt.get.text; n }.toList
     	wf.createTime = if(createTimeOpt != None) Util.getStandarTimeWithStr(createTimeOpt.get.text) else Util.nowDate
     	if(!mailLevelOpt.isEmpty){
     	  val levels = mailLevelOpt.get.text.split(",")

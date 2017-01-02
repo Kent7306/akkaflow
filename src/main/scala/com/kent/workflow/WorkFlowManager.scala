@@ -25,6 +25,9 @@ import scala.util.Success
 import scala.concurrent.Future
 
 class WorkFlowManager extends Actor with ActorLogging{
+  /**
+   * [wfName, workflowInfo]
+   */
   var workflows: Map[String, WorkflowInfo] = Map()
   /**
    * Map[wfActorName, [wfName, workflowActorRef]]
@@ -54,24 +57,16 @@ class WorkFlowManager extends Actor with ActorLogging{
     true
   }
   /**
-   * 改
-   */
-  def update(wf: WorkflowInfo): Boolean = {
-    ShareData.persistManager ! Save(wf)
-    workflows = workflows.map {x => if(x._1 == wf.name) wf.name -> wf else x }.toMap
-    true
-  }
-  /**
    * 初始化，从数据库中获取workflows
    */
   def init(){
     import com.kent.pub.ShareData._
     val isEnabled = config.getBoolean("workflow.mysql.is-enabled")
     if(isEnabled){
-       val listF = (ShareData.persistManager ? Query("select id,name from workflow")).mapTo[List[List[String]]]
+       val listF = (ShareData.persistManager ? Query("select name from workflow")).mapTo[List[List[String]]]
        listF.andThen{
          case Success(list) => list.map { x =>
-           val wf = WorkflowInfo(x(0),x(1))
+           val wf = new WorkflowInfo(x(0))
            val wfF = (ShareData.persistManager ? Get(wf)).mapTo[WorkflowInfo]
            wfF.andThen{case Success(wf) => add(wf, false)}
          }
@@ -105,7 +100,8 @@ class WorkFlowManager extends Actor with ActorLogging{
     //根据状态发送邮件告警
     if(wfInstance.workflow.mailLevel.contains(wfInstance.status)){
     	ShareData.emailSender ! EmailMessage(wfInstance.workflow.mailReceivers,
-    	                "workflow告警", s"任务【${wfInstance.actorName}】执行状态：${wfInstance.status}")      
+    	                "workflow告警", 
+    	                s"任务【${wfInstance.actorName}】执行状态：${wfInstance.status}")      
     }
     ShareData.logRecorder ! Info("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
     println("==============================")
@@ -166,7 +162,7 @@ class WorkFlowManager extends Actor with ActorLogging{
   def receive: Actor.Receive = {
     case AddWorkFlow(content) => this.add(WorkflowInfo(content), true)
     case RemoveWorkFlow(name) => this.remove(name)
-    case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
+    //case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
     case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
     case KillWorkFlowInstance(wfActorName) => this.killWorkFlowInstance(wfActorName)
@@ -197,7 +193,6 @@ object WorkFlowManager{
   case class KillWorkFlowInstance(wfActorName: String)
   case class AddWorkFlow(content: String)
   case class RemoveWorkFlow(wfName: String)
-  case class UpdateWorkFlow(content: String)
   case class ReRunWorkflowInstance(worflowInstanceId: String)
   case class WorkFlowInstanceExecuteResult(workflowInstance: WorkflowInstance)
   case class WorkFlowExecuteResult(wfName: String, status: WStatus)

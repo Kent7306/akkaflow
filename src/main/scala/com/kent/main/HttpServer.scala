@@ -1,5 +1,8 @@
 package com.kent.main
 
+//import scala.concurrent.ExecutionContext.Implicits.global
+import akka.pattern.ask
+import akka.pattern.pipe
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
@@ -12,28 +15,53 @@ import akka.actor.Actor
 import akka.cluster.ClusterEvent._
 import com.kent.main.ClusterRole.Registration
 import akka.actor.Props
+import com.kent.workflow.WorkFlowManager._
+import akka.actor.RootActorPath
+import com.kent.main.HttpServer.ResponseData
+import akka.util.Timeout
+import scala.concurrent.duration._
 
 class HttpServer extends ClusterRole {
+  def getWorkflow(name: String): ResponseData = {
+    ???
+  }
+  
+  def addWorkflow(content: String): ResponseData = {
+    val wfm = context.actorSelection(roler(0).path / "wfm")
+    wfm ! AddWorkFlow(content)
+    ResponseData("success","成功执行指令", null)
+  }
+  
+  def removeWorkflow(name: String): ResponseData = {
+    val wfm = context.actorSelection(roler(0).path / "wfm")
+    wfm ! RemoveWorkFlow(name)
+    ResponseData("success","成功执行指令", null)
+  }
+  
   def receive: Actor.Receive = {
     case MemberUp(member) => 
-      log.info("Member is Up: {}", member.address)
     case UnreachableMember(member) =>
-      log.info("Member detected as Unreachable: {}", member)
     case MemberRemoved(member, previousStatus) =>
-      log.info("Member is Removed: {} after {}", member.address, previousStatus)
     case state: CurrentClusterState =>
-    
     case _:MemberEvent => // ignore 
-      
     case Registration() => {
       //worker请求注册
       context watch sender
       roler = roler :+ sender
       log.info("Master registered: " + sender)
     }
+    case RemoveWorkFlow(name) => sender ! removeWorkflow(name)
+    case AddWorkFlow(content) => sender ! addWorkflow(content)
+      
   }
 }
 object HttpServer extends App{
+  import org.json4s._
+  import org.json4s.jackson.Serialization
+  import org.json4s.jackson.Serialization.{read, write}
+  implicit val formats = Serialization.formats(NoTypeHints)
+  implicit val timeout = Timeout(20 seconds)
+  case class ResponseData(result:String, msg: String, data: String)
   def props = Props[HttpServer]
   val defaultConf = ConfigFactory.load()
   val httpConf = defaultConf.getStringList("workflow.nodes.http-servers").get(0).split(":")
@@ -52,16 +80,63 @@ object HttpServer extends App{
   val httpServer = system.actorOf(HttpServer.props,"http-server")
   
   
-  val route =
-    get {
-      pathPrefix("item" / LongNumber){ id =>
-        
-          complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>Say hello to akka-http${id}</h1>"))
-      } ~
-      path("hello2") {
-          complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, "<h1>Say hello to akka-http</h1>"))
+  val wfRoute =  path("akkaflow" / "workflow" / Segment){  //workflow
+      name => parameter('action){
+        action => {
+          if(action == "del"){
+            val data = (httpServer ? RemoveWorkFlow(name)).mapTo[ResponseData] 
+        	  onSuccess(data){ x =>
+        	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
+            }
+          }else if(action == "get"){
+        	  complete(HttpEntity(ContentTypes.`application/json`, s"<h1>workflow get ${name}</h1>"))                      
+          }else{
+        	  complete(HttpEntity(ContentTypes.`application/json`, s"<h1>error</h1>"))                      
+          }
         }
       }
+    } ~ path("akkaflow" / "workflow"){
+      parameter('action){
+        action => {
+        	complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>add workflow</h1>"))          
+        }
+      }
+    }
+    val coorRoute = path("akkaflow" / "coor" / Segment){            //coordinator
+      id => parameter('action){
+        action => {
+          if(action == "del"){
+        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>coor delete ${id}</h1>"))                      
+          }else if(action == "get"){
+        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>coor get ${id}</h1>"))                      
+          }else{
+        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>error</h1>"))                      
+          }
+        }
+      }
+    } ~ path("akkaflow" / "coor"){
+      parameter('action){
+        action => {
+        	complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>add coor</h1>"))          
+        }
+      }
+    }
+    
+    val wfiRoute = path("akkaflow" / "workflow" / "instance" / Segment){            //workflow instance
+      id => parameter('action){
+        action => {
+          if(action == "rerun"){
+        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>workflow instance rerun ${id}</h1>"))                      
+          }else if(action == "kill"){
+        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>workflow instance kill ${id}</h1>"))                      
+          }else{
+        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>error</h1>"))                      
+          }
+        }
+      }
+    }
+    
+    val route = wfRoute ~ coorRoute ~ wfiRoute
   
    val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)
 

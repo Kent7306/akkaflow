@@ -10,7 +10,7 @@ import com.kent.workflow.actionnode._
 
 abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with Daoable[NodeInfo] with Serializable{
   import com.kent.workflow.node.NodeInfo.Status._
-  var workflowId: String = _
+  var workflowName: String = _
   var desc: String = _
   /**
    * 由该节点信息创建属于某工作流实例的节点实例
@@ -18,7 +18,7 @@ abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with D
   def createInstance(workflowInstanceId: String): NodeInstance
   def deepClone(): NodeInfo
   override def deepCloneAssist(e: NodeInfo): NodeInfo = {
-    e.workflowId = workflowId
+    e.workflowName = workflowName
     e.desc = desc
     e
 	}
@@ -31,13 +31,13 @@ abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with D
 	  val insertStr = s"""
       insert into node 
       values(${withQuate(name)},${isAction},${withQuate(this.getClass.getName)},
-      ${withQuate(getContent())},${withQuate(workflowId)},${withQuate(desc)})
+      ${withQuate(getContent())},${withQuate(workflowName)},${withQuate(desc)})
       """
     val updateStr = s"""
       update node set type = ${withQuate(this.getClass.getName)},
                       is_action = ${isAction},
                       content = ${withQuate(getContent())}, 
-                      workflow_id = ${withQuate(workflowId)},
+                      workflow_name = ${withQuate(workflowName)},
                       description = ${withQuate(desc)})
                       where name = ${withQuate(name)}
       """
@@ -53,7 +53,7 @@ abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with D
    */
   def delete(implicit conn: Connection): Boolean = {
     import com.kent.util.Util._
-    executeSql(s"delete from node where name = ${withQuate(name)} and workflow_id = ${withQuate(workflowId)}")
+    executeSql(s"delete from node where name = ${withQuate(name)} and workflow_name = ${withQuate(workflowName)}")
   }
     /**
    * 获取对象
@@ -62,14 +62,14 @@ abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with D
     import com.kent.util.Util._
     val newNode = this.deepClone()
     val queryStr = s"""
-     select name,type,is_action,workflow_id,description,content
+     select name,type,is_action,workflow_name,description,content
      from node 
-     where name=${withQuate(name)} and workflow_id = ${withQuate(workflowId)}
+     where name=${withQuate(name)} and workflow_name = ${withQuate(workflowName)}
                     """
     querySql(queryStr, (rs: ResultSet) =>{
           if(rs.next()){
             newNode.desc = rs.getString("description")
-            newNode.workflowId = rs.getString("workflow_id")
+            newNode.workflowName = rs.getString("workflow_name")
             newNode.setContent(rs.getString("content"))
             newNode
           }else{
@@ -92,7 +92,7 @@ object NodeInfo {
     }
   }
   
-  def apply(nodeType: String, name: String, workflowId: String): NodeInfo = {
+  def apply(nodeType: String, name: String, workflowName: String): NodeInfo = {
     val withDollar = nodeType + "$"
     
     val node = if(withDollar == StartNodeInfo.getClass.getName.replaceAll("$", "")) StartNodeInfo(name)
@@ -104,7 +104,7 @@ object NodeInfo {
     else if(withDollar == ScriptActionNodeInfo.getClass.getName) ScriptActionNodeInfo(name)
     else if(withDollar == FileWatcherActionNodeInfo.getClass.getName) FileWatcherActionNodeInfo(name)
     else null
-    if(node != null)node.workflowId = workflowId
+    if(node != null)node.workflowName = workflowName
     node
   }
   

@@ -56,9 +56,10 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
     			ShareData.logRecorder ! Info("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg)    		  
     		}
     		//执行失败后，再次执行前间隔
-    		if(executedStatus == FAILED && actionNodeInstance.nodeInfo.retryTimes > 0) 
-    		  ShareData.logRecorder ! Warn("NodeInstance",actionNodeInstance.id,s"等待${actionNodeInstance.nodeInfo.interval}秒...")
-    		  Thread.sleep(actionNodeInstance.nodeInfo.interval * 1000)
+    		if(executedStatus == FAILED && actionNodeInstance.nodeInfo.retryTimes > actionNodeInstance.hasRetryTimes) {
+    			ShareData.logRecorder ! Warn("NodeInstance",actionNodeInstance.id,s"等待${actionNodeInstance.nodeInfo.interval}秒...")
+    			Thread.sleep(actionNodeInstance.nodeInfo.interval * 1000)
+    		}
       }
       if(context != null) terminate(actionNodeInstance.status, actionNodeInstance.executedMsg)
     }

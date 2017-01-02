@@ -67,6 +67,7 @@ class Master extends ClusterRole {
       //worker终止，更新缓存的ActorRef
       roler = roler.filterNot(_ == workerActorRef)
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
+    case RemoveWorkFlow(wfId) => workflowManager ! RemoveWorkFlow(wfId)
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
     case AskWorker(host: String) => sender ! GetWorker(askWorker(host: String))
     case ReRunWorkflowInstance(id: String) => workflowManager ! ReRunWorkflowInstance(id)
@@ -301,6 +302,6 @@ object Master extends App {
   //  master ! AddCoor(coorStr_win) 
  // master ! AddCoor(coorStr_win2) 
   
- //   master ! AddWorkFlow(wfStr_mac)
- //   master ! AddCoor(coorStr_mac) 
+    master ! AddWorkFlow(wfStr_mac)
+    master ! AddCoor(coorStr_mac) 
 }
