@@ -1,12 +1,11 @@
 set character_set_server = utf8;
 set character_set_database = utf8;
 
-1、workflow信息表
+--1、workflow信息表
 use wf;
 drop table workflow;
 create table workflow(
-id varchar(8) primary key not null,
-name varchar(128) not null,
+name varchar(128) primary key  not null,
 description varchar(128),
 mail_level JSON,
 mail_receivers JSON,
@@ -14,7 +13,7 @@ create_time datetime,
 last_update_time datetime
 );
 
-3、coordinator配置表
+--3、coordinator配置表
 drop table coordinator;
 create table coordinator (
 id varchar(8) primary key not null,
@@ -31,14 +30,14 @@ create_time datetime,
 last_update_time datetime
 );
 
-新node配置表
+--新node配置表
 drop table node;
 create table node (
 name varchar(128) not null,
 is_action int(1) comment '是否为action节点',
 type varchar(100) comment '节点类型',
 content JSON comment '节点存放内容',
-workflow_id varchar(8) comment '外键->workflow_info:id',
+workflow_name varchar(128) comment '外键->workflow_info:name',
 description varchar(1024)
 )	
 
@@ -46,7 +45,6 @@ description varchar(1024)
 drop table workflow_instance;
 create table workflow_instance(
 id varchar(8) primary key not null,
-workflow_id varchar(6) not null,
 name varchar(128) not null,
 param JSON,
 status int(1),
