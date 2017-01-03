@@ -23,6 +23,8 @@ import com.kent.mail.EmailSender.EmailMessage
 import com.kent.db.LogRecorder._
 import scala.util.Success
 import scala.concurrent.Future
+import com.kent.main.HttpServer.ResponseData
+import scala.concurrent.Await
 
 class WorkFlowManager extends Actor with ActorLogging{
   /**
@@ -42,19 +44,39 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * 增
    */
-  def add(wf: WorkflowInfo, isPersist: Boolean): Boolean = {
+  def add(content: String, isPersist: Boolean): ResponseData = {
+    var wf:WorkflowInfo = null
+    try {
+    	wf = WorkflowInfo(content)      
+    } catch{
+      case e: Exception => e.printStackTrace()
+      return ResponseData("fail","content解析错误", null)
+    }
+    add(wf, isPersist)
+  }
+  def add(wf: WorkflowInfo, isPersist: Boolean): ResponseData = {
     ShareData.logRecorder ! Info("WorkflowManager", null, s"添加工作流配置：${wf.name}")
 		if(isPersist) ShareData.persistManager ! Save(wf)
-    workflows = workflows + (wf.name -> wf)
-    true
+		
+		if(workflows.get(wf.name).isEmpty){
+			workflows = workflows + (wf.name -> wf)
+		  ResponseData("success",s"成功添加工作流${wf.name}", null)
+		}else{
+		  workflows = workflows + (wf.name -> wf)
+		  ResponseData("success",s"成功替换工作流${wf.name}", null)
+		}
   }
   /**
    * 删
    */
-  def remove(name: String): Boolean = {
-    ShareData.persistManager ! Delete(workflows(name))
-    workflows = workflows.filterNot {x => x._1 == name}.toMap
-    true
+  def remove(name: String): ResponseData = {
+    if(!workflows.get(name).isEmpty){
+    	ShareData.persistManager ! Delete(workflows(name))
+    	workflows = workflows.filterNot {x => x._1 == name}.toMap
+      ResponseData("success",s"成功删除工作流${name}", null)
+    }else{
+      ResponseData("fail",s"工作流${name}不存在", null)
+    }
   }
   /**
    * 初始化，从数据库中获取workflows
@@ -113,61 +135,62 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * 手动kill掉工作流实例
    */
-  def killWorkFlowInstance(wfaName: String): Boolean = {
+  def killWorkFlowInstance(wfaName: String): ResponseData = {
     import com.kent.workflow.WorkflowActor.Kill
     if(!workflowActors.get(wfaName).isEmpty){
     	val wfaRef = workflowActors(wfaName)._2
     	wfaRef ! Kill()
+    	ResponseData("success",s"开始执行杀掉工作流[${wfaName}]", null)
     }else{
-    	println(s"[WorkFlowActor：${wfaName}]不存在，不能kill掉")      
+      ResponseData("fail",s"[工作流实例：${wfaName}]不存在，不能kill掉", null)
     }
-    true
   }
   /**
    * 手动kill掉工作流（包含其所有的实例）
    */
-  def killWorkFlow(wfName: String): Boolean = {
+  def killWorkFlow(wfName: String): ResponseData = {
     workflowActors.foreach(x => if(x._2._1 == wfName){killWorkFlowInstance(x._1)})
-    true
+    ResponseData("success",s"开始执行杀掉工作流[wfName]的所有实例", null)
   }
   /**
    * 重跑指定的工作流实例
    */
-  def reRun(wfiId: String){
+  def reRun(wfiId: String): ResponseData = {
     val wf = new WorkflowInfo(null)
     val wfi = wf.createInstance()
-    wfi.id = "b2bdfe0c"
+    wfi.id = wfiId
     implicit val timeout = Timeout(20 seconds)
     val wfiF = (ShareData.persistManager ? Get(wfi)).mapTo[WorkflowInstance]
-    //重置时间与状态
-    wfiF.map { x => 
-      x.status = W_PREP
-      x.startTime = null
-      x.endTime = null
-      x.nodeInstanceList.foreach { y => 
-        y.status = PREP
-        y.startTime = null
-        y.endTime = null}
-      x }.map {
-         z =>
-          //创建新的workflow actor，并加入到列表中
-          val wfActorRef = context.actorOf(Props(WorkflowActor(z)), z.actorName)
-          workflowActors = workflowActors + (z.actorName -> (z.workflow.name,wfActorRef))
-          wfActorRef ! Start()
-      }
+    //该工作流实例不存在, 这里用了阻塞
+    val wfi2 = Await.result(wfiF, 20 second)
+    if(wfi2 == null){
+      ResponseData("fail", s"工作流实例[${wfiId}]不存在", null)
+    }else{
+      //重置时间与状态
+      wfi2.status = W_PREP
+      wfi2.startTime = null
+      wfi2.endTime = null
+      wfi2.nodeInstanceList.foreach { y =>  y.status = PREP; y.startTime = null; y.endTime = null}
+      
+      //创建新的workflow actor，并加入到列表中
+      val wfActorRef = context.actorOf(Props(WorkflowActor(wfi2)), wfi2.actorName)
+      workflowActors = workflowActors + (wfi2.actorName -> (wfi2.workflow.name,wfActorRef))
+      wfActorRef ! Start()
+      ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)
+    }
   }
   /**
    * receive方法
    */
   def receive: Actor.Receive = {
-    case AddWorkFlow(content) => this.add(WorkflowInfo(content), true)
-    case RemoveWorkFlow(name) => this.remove(name)
+    case AddWorkFlow(content) => sender ! this.add(content, true)
+    case RemoveWorkFlow(name) => sender ! this.remove(name)
     //case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
     case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
-    case KillWorkFlowInstance(wfActorName) => this.killWorkFlowInstance(wfActorName)
-    case KillWorkFlow(wfName) => this.killWorkFlow(wfName)
-    case ReRunWorkflowInstance(wfiId: String) => reRun(wfiId)
+    case KillWorkFlowInstance(wfActorName) => sender ! this.killWorkFlowInstance(wfActorName)
+    case KillWorkFlow(wfName) => sender ! this.killWorkFlow(wfName)
+    case ReRunWorkflowInstance(wfiId: String) => sender ! reRun(wfiId)
     case GetManagers(wfm, cm) => {
       coordinatorManager = cm
       context.watch(coordinatorManager)

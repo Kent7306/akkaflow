@@ -20,22 +20,26 @@ import akka.actor.RootActorPath
 import com.kent.main.HttpServer.ResponseData
 import akka.util.Timeout
 import scala.concurrent.duration._
+import scala.concurrent.Await
 
 class HttpServer extends ClusterRole {
+  implicit val timeout = Timeout(20 seconds)
   def getWorkflow(name: String): ResponseData = {
     ???
   }
   
-  def addWorkflow(content: String): ResponseData = {
+  def addWorkflow(content: String): ResponseData = { 
     val wfm = context.actorSelection(roler(0).path / "wfm")
-    wfm ! AddWorkFlow(content)
-    ResponseData("success","成功执行指令", null)
+    val rdF = (wfm ? AddWorkFlow(content)).mapTo[ResponseData]
+    val rd = Await.result(rdF, 20 second)
+    rd
   }
   
   def removeWorkflow(name: String): ResponseData = {
     val wfm = context.actorSelection(roler(0).path / "wfm")
-    wfm ! RemoveWorkFlow(name)
-    ResponseData("success","成功执行指令", null)
+    val rdF = (wfm ? RemoveWorkFlow(name)).mapTo[ResponseData]
+    val rd = Await.result(rdF, 20 second)
+    rd
   }
   
   def receive: Actor.Receive = {
@@ -89,16 +93,23 @@ object HttpServer extends App{
         	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
             }
           }else if(action == "get"){
-        	  complete(HttpEntity(ContentTypes.`application/json`, s"<h1>workflow get ${name}</h1>"))                      
+            ???
           }else{
-        	  complete(HttpEntity(ContentTypes.`application/json`, s"<h1>error</h1>"))                      
+        	  complete(HttpEntity(ContentTypes.`application/json`, write(ResponseData("fail","action参数有误",null))))                      
           }
         }
       }
     } ~ path("akkaflow" / "workflow"){
-      parameter('action){
-        action => {
-        	complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>add workflow</h1>"))          
+      parameter('action, 'content){
+        (action, content) => {
+        	if(action == "add" && content != null && content.trim() != ""){
+        	  val data = (httpServer ? AddWorkFlow(content)).mapTo[ResponseData] 
+        		onSuccess(data){ x =>
+        	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
+            }       	  
+        	}else{
+        	  complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(ResponseData("fail","action参数有误",null))))    
+        	}
         }
       }
     }

@@ -1,7 +1,7 @@
 set character_set_server = utf8;
 set character_set_database = utf8;
 
---1、workflow信息表
+--workflow信息表
 use wf;
 drop table workflow;
 create table workflow(
@@ -13,7 +13,7 @@ create_time datetime,
 last_update_time datetime
 );
 
---3、coordinator配置表
+--coordinator配置表
 drop table coordinator;
 create table coordinator (
 id varchar(8) primary key not null,
@@ -39,9 +39,9 @@ type varchar(100) comment '节点类型',
 content JSON comment '节点存放内容',
 workflow_name varchar(128) comment '外键->workflow_info:name',
 description varchar(1024)
-)	
+);	
 
-2、workflow实例表
+--workflow实例表
 drop table workflow_instance;
 create table workflow_instance(
 id varchar(8) primary key not null,
@@ -55,21 +55,22 @@ stime datetime,
 etime datetime,
 create_time datetime,
 last_update_time datetime
-)
+);
 
 
 
-4、coordinator触发记录表
-create table wf.coordinator_trigger_record (
-id varchar(8) primavite key, --自增
-param varchar(1024), -- json
+--coordinator触发记录表
+drop table coordinator_trigger_record;
+create table coordinator_trigger_record (
+id varchar(8) primary key comment '自增',
+param JSON,
 trigger_time datetime,
-coordinator_info_id varchar(8), --forger key
-)
+coordinator_info_id varchar(8) comment 'foreign key'
+);
 
 
 
-6、node实例表
+--node实例表
 drop table node_instance;
 create table node_instance (
 workflow_instance_id varchar(8) not null,
@@ -82,9 +83,10 @@ status int(1),
 stime datetime,
 etime datetime,
 msg varchar(1024)
-)
+);
 
-7、日志表
+--日志表
+drop table log_record;
 create table log_record (
 id int(10) primary key auto_increment,
 sid varchar(20),
@@ -92,4 +94,4 @@ level varchar(10),
 ctype varchar(60),
 stime datetime,
 content varchar(1024)
-)
+);
