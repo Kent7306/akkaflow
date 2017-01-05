@@ -32,7 +32,7 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   var workflows: Map[String, WorkflowInfo] = Map()
   /**
-   * Map[wfActorName, [wfName, workflowActorRef]]
+   * Map[WorflowInstance.id, [wfname, workflowActorRef]]
    */
   var workflowActors: Map[String,Tuple2[String,ActorRef]] = Map()
   var coordinatorManager: ActorRef = _
@@ -108,7 +108,7 @@ class WorkFlowManager extends Actor with ActorLogging{
 			ShareData.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
 			//创建新的workflow actor，并加入到列表中
 			val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
-			workflowActors = workflowActors + (wfi.actorName -> (wfi.workflow.name,wfActorRef))
+			workflowActors = workflowActors + (wfi.id -> (wfi.workflow.name,wfActorRef))
 			wfActorRef ! Start()
 			true      
     }
@@ -117,8 +117,8 @@ class WorkFlowManager extends Actor with ActorLogging{
    * 工作流实例完成后处理
    */
   def handleWorkFlowInstanceReply(wfInstance: WorkflowInstance):Boolean = {
-    val (wfname, af) = this.workflowActors.get(wfInstance.actorName).get
-    this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.actorName }.toMap
+    val (wfname, af) = this.workflowActors.get(wfInstance.id).get
+    this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.id }.toMap
     //根据状态发送邮件告警
     if(wfInstance.workflow.mailLevel.contains(wfInstance.status)){
     	ShareData.emailSender ! EmailMessage(wfInstance.workflow.mailReceivers,
@@ -135,14 +135,14 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * 手动kill掉工作流实例
    */
-  def killWorkFlowInstance(wfaName: String): ResponseData = {
+  def killWorkFlowInstance(id: String): ResponseData = {
     import com.kent.workflow.WorkflowActor.Kill
-    if(!workflowActors.get(wfaName).isEmpty){
-    	val wfaRef = workflowActors(wfaName)._2
+    if(!workflowActors.get(id).isEmpty){
+    	val wfaRef = workflowActors(id)._2
     	wfaRef ! Kill()
-    	ResponseData("success",s"开始执行杀掉工作流[${wfaName}]", null)
+    	ResponseData("success",s"开始执行杀掉工作流[${id}]", null)
     }else{
-      ResponseData("fail",s"[工作流实例：${wfaName}]不存在，不能kill掉", null)
+      ResponseData("fail",s"[工作流实例：${id}]不存在，不能kill掉", null)
     }
   }
   /**
@@ -174,7 +174,7 @@ class WorkFlowManager extends Actor with ActorLogging{
       
       //创建新的workflow actor，并加入到列表中
       val wfActorRef = context.actorOf(Props(WorkflowActor(wfi2)), wfi2.actorName)
-      workflowActors = workflowActors + (wfi2.actorName -> (wfi2.workflow.name,wfActorRef))
+      workflowActors = workflowActors + (wfi2.id -> (wfi2.workflow.name,wfActorRef))
       wfActorRef ! Start()
       ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)
     }
@@ -188,7 +188,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     //case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
     case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
-    case KillWorkFlowInstance(wfActorName) => sender ! this.killWorkFlowInstance(wfActorName)
+    case KillWorkFlowInstance(id) => sender ! this.killWorkFlowInstance(id)
     case KillWorkFlow(wfName) => sender ! this.killWorkFlow(wfName)
     case ReRunWorkflowInstance(wfiId: String) => sender ! reRun(wfiId)
     case GetManagers(wfm, cm) => {
@@ -213,7 +213,7 @@ object WorkFlowManager{
   
   case class NewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
   case class KillWorkFlow(wfName: String)
-  case class KillWorkFlowInstance(wfActorName: String)
+  case class KillWorkFlowInstance(id: String)
   case class AddWorkFlow(content: String)
   case class RemoveWorkFlow(wfName: String)
   case class ReRunWorkflowInstance(worflowInstanceId: String)

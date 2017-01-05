@@ -50,6 +50,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
     	  executedStatus = if(result) SUCCESSED else FAILED
     	  actionNodeInstance.status = executedStatus
     		actionNodeInstance.executedMsg = if(executedStatus == FAILED) "节点执行失败" else "节点执行成功"
+    		//日志记录
     		if(executedStatus == FAILED){
     		  ShareData.logRecorder ! Error("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg) 
     		}else{
@@ -64,7 +65,9 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
       if(context != null) terminate(actionNodeInstance.status, actionNodeInstance.executedMsg)
     }
   }
-  
+  /**
+   * 发送邮件
+   */
   def sendMailMsg(toUsers: List[String],subject: String,htmlText: String){
     workflowActorRef ! EmailMessage(toUsers, subject, htmlText)
   }
@@ -72,9 +75,9 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
    * 结束
    */
   def terminate(status: Status, msg: String){
+		sheduler.cancel()
 		workflowActorRef ! ActionExecuteResult(status, msg) 
 		ShareData.logRecorder ! Info("NodeInstance",actionNodeInstance.id,s"执行完毕")
-		sheduler.cancel()
 		context.stop(self) 
   }
 }

@@ -28,6 +28,7 @@ abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
     implicit val formats = DefaultFormats
     this.host = (content \ "host").extract[String]
     this.retryTimes = (content \ "retry-times").extract[Int]
+    this.interval = (content \ "interval").extract[Int]
     this.timeout = (content \ "timeout").extract[Int]
     this.ok = (content \ "ok").extract[String]
 		this.error = (content \ "error").extract[String]

@@ -102,19 +102,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
    ShareData.persistManager ! Save(ni)
  }
  
-	/**
-	 * 终止
-	 */
-	def terminate(){
-		scheduler.cancel()
-	  runningActors = Map()
-	  this.waitingNodes = Queue()
-	  this.workflowInstance.endTime = Util.nowDate
-	  workflowManageAcotrRef ! WorkFlowInstanceExecuteResult(workflowInstance)
-	  //保存工作流实例
-	  ShareData.persistManager ! Save(workflowInstance)
-	  context.stop(self)
-	}
+
 	/**
 	 * 创建并开始actor节点
 	 */
@@ -128,18 +116,12 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  actionNodeAF.map { x => if(x!=null){runningActors += (x -> actionNodeInstance);x ! Start()} }
 		true
 	}
-	/*def createAndStartActionActor(actionNodeInstance: ActionNodeInstance):Boolean = {
-	  val props = Props(ActionActor(actionNodeInstance)) 
-		val actionActorRef = context.actorOf(props, actionNodeInstance.nodeInfo.name)
-		runningActors += (actionActorRef -> actionNodeInstance)
-		actionActorRef ! Start()
-		true
-	}*/
 	/**
 	 * kill掉所有子actor
 	 */
   def killRunningNodeActors(callback: (WorkflowActor) => Unit){
-	  implicit val timeout = Timeout(10 seconds)
+	  implicit val timeout = Timeout(20 seconds)
+	  
 	  //kill掉所有运行的actionactor
 	  val futures = runningActors.map(x => {
 	    val result = ask(x._1, Kill())
@@ -159,9 +141,23 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  val futuresSeq = Future.sequence(futures).onComplete {x => callback(this)}
 	}
   /**
+	 * 终止
+	 */
+	def terminate(){
+		scheduler.cancel()
+	  runningActors = Map()
+	  this.waitingNodes = Queue()
+	  this.workflowInstance.endTime = Util.nowDate
+	  workflowManageAcotrRef ! WorkFlowInstanceExecuteResult(workflowInstance)
+	  //保存工作流实例
+	  ShareData.persistManager ! Save(workflowInstance)
+	  context.stop(self)
+	}
+  /**
    * 手动kill
    */
   def kill(){
+    this.workflowInstance.status = W_KILLED
     killRunningNodeActors(_.terminate())
   }
   

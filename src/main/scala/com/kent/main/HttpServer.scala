@@ -30,17 +30,30 @@ class HttpServer extends ClusterRole {
   
   def addWorkflow(content: String): ResponseData = { 
     val wfm = context.actorSelection(roler(0).path / "wfm")
-    val rdF = (wfm ? AddWorkFlow(content)).mapTo[ResponseData]
-    val rd = Await.result(rdF, 20 second)
-    rd
+    val resultF = (wfm ? AddWorkFlow(content)).mapTo[ResponseData]
+    val result = Await.result(resultF, 20 second)
+    result
   }
   
   def removeWorkflow(name: String): ResponseData = {
     val wfm = context.actorSelection(roler(0).path / "wfm")
-    val rdF = (wfm ? RemoveWorkFlow(name)).mapTo[ResponseData]
-    val rd = Await.result(rdF, 20 second)
-    rd
+    val resultF = (wfm ? RemoveWorkFlow(name)).mapTo[ResponseData]
+    val result = Await.result(resultF, 20 second)
+    result
   }
+  def rerunWorkflowInstance(id: String): ResponseData = {
+    val wfm = context.actorSelection(roler(0).path / "wfm")
+    val resultF = (wfm ? ReRunWorkflowInstance(id)).mapTo[ResponseData]
+    val result = Await.result(resultF, 20 second)
+    result
+  }
+  def killWorkflowInstance(id: String): ResponseData = {
+    val wfm = context.actorSelection(roler(0).path / "wfm")
+    val resultF = (wfm ? KillWorkFlowInstance(id)).mapTo[ResponseData]
+    val result = Await.result(resultF, 20 second)
+    result
+  }
+  
   
   def receive: Actor.Receive = {
     case MemberUp(member) => 
@@ -56,6 +69,8 @@ class HttpServer extends ClusterRole {
     }
     case RemoveWorkFlow(name) => sender ! removeWorkflow(name)
     case AddWorkFlow(content) => sender ! addWorkflow(content)
+    case ReRunWorkflowInstance(id) => sender ! rerunWorkflowInstance(id)
+    case KillWorkFlowInstance(id) => sender ! killWorkflowInstance(id)
       
   }
 }
@@ -83,9 +98,10 @@ object HttpServer extends App{
   implicit val executionContext = system.dispatcher
   val httpServer = system.actorOf(HttpServer.props,"http-server")
   
-  
-  val wfRoute =  path("akkaflow" / "workflow" / Segment){  //workflow
-      name => parameter('action){
+   //workflow
+  val wfRoute =  path("akkaflow" / "workflow" / Segment){ 
+      name => 
+        parameter('action){
         action => {
           if(action == "del"){
             val data = (httpServer ? RemoveWorkFlow(name)).mapTo[ResponseData] 
@@ -93,33 +109,38 @@ object HttpServer extends App{
         	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
             }
           }else if(action == "get"){
-            ???
+            complete(HttpEntity(ContentTypes.`application/json`, write(ResponseData("fail","暂时还没get方法",null))))   
           }else{
         	  complete(HttpEntity(ContentTypes.`application/json`, write(ResponseData("fail","action参数有误",null))))                      
           }
         }
       }
     } ~ path("akkaflow" / "workflow"){
-      parameter('action, 'content){
-        (action, content) => {
-        	if(action == "add" && content != null && content.trim() != ""){
-        	  val data = (httpServer ? AddWorkFlow(content)).mapTo[ResponseData] 
-        		onSuccess(data){ x =>
-        	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
-            }       	  
-        	}else{
-        	  complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(ResponseData("fail","action参数有误",null))))    
-        	}
+      post {
+        formField('content){ content =>
+          parameter('action){ action => {
+            	if(action == "add" && content != null && content.trim() != ""){
+            	  val data = (httpServer ? AddWorkFlow(content)).mapTo[ResponseData] 
+            		onSuccess(data){ x =>
+            	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
+                }       	  
+            	}else{
+            	  complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(ResponseData("fail","action参数有误",null))))    
+            	}
+            }
+          }
         }
       }
     }
-    val coorRoute = path("akkaflow" / "coor" / Segment){            //coordinator
-      id => parameter('action){
+    //coordinator
+    val coorRoute = path("akkaflow" / "coor" / Segment){           
+      name => parameter('action){
         action => {
           if(action == "del"){
-        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>coor delete ${id}</h1>"))                      
+            val data = (httpServer ? RemoveWorkFlow(name)).mapTo[ResponseData]
+        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>coor delete ${name}</h1>"))                      
           }else if(action == "get"){
-        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>coor get ${id}</h1>"))                      
+        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>coor get ${name}</h1>"))                      
           }else{
         	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>error</h1>"))                      
           }
@@ -132,16 +153,22 @@ object HttpServer extends App{
         }
       }
     }
-    
-    val wfiRoute = path("akkaflow" / "workflow" / "instance" / Segment){            //workflow instance
+    //workflow instance
+    val wfiRoute = path("akkaflow" / "workflow" / "instance" / Segment){            
       id => parameter('action){
         action => {
           if(action == "rerun"){
-        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>workflow instance rerun ${id}</h1>"))                      
+        	  val data = (httpServer ? ReRunWorkflowInstance(id)).mapTo[ResponseData] 
+        		onSuccess(data){ x =>
+        	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
+            }                 
           }else if(action == "kill"){
-        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>workflow instance kill ${id}</h1>"))                      
+        	  val data = (httpServer ? KillWorkFlowInstance(id)).mapTo[ResponseData] 
+        		onSuccess(data){ x =>
+        	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
+            }                      
           }else{
-        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>error</h1>"))                      
+        	  complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(ResponseData("fail","action参数有误",null))))                      
           }
         }
       }

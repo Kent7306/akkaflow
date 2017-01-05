@@ -80,9 +80,11 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
     name = name.replaceAll("\\*", "(.\\*?)")
     "^"+name+"$"
   }
-
+  /**
+   * 该节点被kill执行的方法
+   */
   def kill(): Boolean = {
-    ???
+    true
   }
 
   def replaceParam(param: Map[String, String]): Boolean = {

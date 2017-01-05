@@ -217,7 +217,7 @@ object Master extends App {
     </coordinator>
 	    """
     
-    val wfStr_win_1 = """
+    val wfStr_win_1 = """ 
       <work-flow name="wf_join_1" id="c80c53" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
         mail-receivers="15018735011@163.com,492005267@qq.com">
           <start name="start_node_1" to="fork_node" />
@@ -297,10 +297,10 @@ object Master extends App {
     Thread.sleep(10000)
 //  master ! ReRunWorkflowInstance("b2bdfe0c")
 //    
-    master ! AddWorkFlow(wfStr_win_1)
+ //   master ! AddWorkFlow(wfStr_win_1)
  // master ! AddWorkFlow(wfStr_win_2)
- //   master ! AddCoor(coorStr_win) 
- // master ! AddCoor(coorStr_win2) 
+    master ! AddCoor(coorStr_win) 
+ //   master ! AddCoor(coorStr_win2) 
   
   //  master ! AddWorkFlow(wfStr_mac)
   //  master ! AddCoor(coorStr_mac) 

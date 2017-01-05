@@ -27,7 +27,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
   def active: Actor.Receive = {
     case Save(obj) => obj.save
     case Delete(obj) => obj.delete
-    case Get(obj) => sender ! obj.getEntity.get
+    case Get(obj) =>  val resultObj = if(obj.getEntity.isEmpty) null else obj.getEntity.get; sender ! resultObj
     case Query(str) => sender ! queryList(str)
   }
   /**
