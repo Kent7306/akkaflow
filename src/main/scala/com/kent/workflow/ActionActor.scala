@@ -17,10 +17,11 @@ import com.kent.mail.EmailSender.EmailMessage
 class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with ActorLogging {
   var sheduler:Cancellable = null
   var workflowActorRef: ActorRef = _
+  var isKilled = false
   def receive: Actor.Receive = {
     case Start() => start()
         
-    case Kill() => actionNodeInstance.kill();terminate(KILLED, "节点被kill掉了")
+    case Kill() => actionNodeInstance.kill(); isKilled = true; terminate(KILLED, "节点被kill掉了")
   }
   /**
    * 启动
@@ -35,7 +36,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
       for(i <- 0 to actionNodeInstance.nodeInfo.retryTimes; if executedStatus == FAILED)
       {
         //汇报执行重试
-        if(i > 0){
+        if(i > 0 && !isKilled){
           workflowActorRef ! ActionExecuteRetryTimes(i)
           ShareData.logRecorder ! Warn("NodeInstance",actionNodeInstance.id,s"第${i}次重试")
         }
@@ -51,18 +52,25 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
     	  actionNodeInstance.status = executedStatus
     		actionNodeInstance.executedMsg = if(executedStatus == FAILED) "节点执行失败" else "节点执行成功"
     		//日志记录
-    		if(executedStatus == FAILED){
+    		if(executedStatus == FAILED && !isKilled){
     		  ShareData.logRecorder ! Error("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg) 
-    		}else{
+    		}else if(executedStatus == SUCCESSED && !isKilled){
     			ShareData.logRecorder ! Info("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg)    		  
     		}
     		//执行失败后，再次执行前间隔
-    		if(executedStatus == FAILED && actionNodeInstance.nodeInfo.retryTimes > actionNodeInstance.hasRetryTimes) {
+    		if(executedStatus == FAILED && actionNodeInstance.nodeInfo.retryTimes > actionNodeInstance.hasRetryTimes && !isKilled) {
     			ShareData.logRecorder ! Warn("NodeInstance",actionNodeInstance.id,s"等待${actionNodeInstance.nodeInfo.interval}秒...")
-    			Thread.sleep(actionNodeInstance.nodeInfo.interval * 1000)
+    			for(n <- 0 to actionNodeInstance.nodeInfo.interval; if !isKilled){
+    				Thread.sleep(1000)    			  
+    			}
     		}
+    		//执行kill
+    		if(isKilled){
+          return
+        }
+    		
       }
-      if(context != null) terminate(actionNodeInstance.status, actionNodeInstance.executedMsg)
+      if(context != null && !isKilled) terminate(actionNodeInstance.status, actionNodeInstance.executedMsg)
     }
   }
   /**

@@ -151,6 +151,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  workflowManageAcotrRef ! WorkFlowInstanceExecuteResult(workflowInstance)
 	  //保存工作流实例
 	  ShareData.persistManager ! Save(workflowInstance)
+	  println(context+"******************")
 	  context.stop(self)
 	}
   /**
