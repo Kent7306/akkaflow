@@ -49,9 +49,11 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     import com.kent.coordinate.Coordinator.Status._
     import com.kent.workflow.WorkFlowManager._
     if(isSatisfyTrigger()) {
-      this.workflows.foreach { x => ShareData.logRecorder ! Info("Coordinator",this.name,s"开始触发工作流: ${x}") }
       this.status = ACTIVE
-      this.workflows.foreach ( wfManager ! NewAndExecuteWorkFlowInstance(_, this.paramMap) )
+      this.workflows.foreach { x => 
+        ShareData.logRecorder ! Info("Coordinator",this.name,s"开始触发工作流: ${x}")
+        wfManager ! NewAndExecuteWorkFlowInstance(x, this.paramMap) 
+      }
       this.resetTrigger()
       true
     } else {

@@ -31,7 +31,7 @@ create_time datetime,
 last_update_time datetime
 );
 
---新node配置表
+--node配置表
 drop table node;
 create table node (
 name varchar(128) not null,

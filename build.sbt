@@ -32,7 +32,8 @@ libraryDependencies ++= {
 import NativePackagerHelper._
 enablePlugins(JavaServerAppPackaging)
 //mainClass in Compile := Some("com.kent.main.Master")
-mainClass in Compile := Some("com.kent.main.Worker")
+//mainClass in Compile := Some("com.kent.main.Worker")
+mainClass in Compile := Some("com.kent.main.HttpServer")
 mappings in Universal ++= {
   // optional example illustrating how to copy additional directory
   directory("scripts") ++
