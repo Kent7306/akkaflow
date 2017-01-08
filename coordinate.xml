@@ -1,4 +1,4 @@
-<coordinator name="coor1_2" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" id="0002">    
+<coordinator name="coor1_2" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" is-enabled="true">    
     <trigger>
         <cron config="* * * * * *"/>
         <depend-list>

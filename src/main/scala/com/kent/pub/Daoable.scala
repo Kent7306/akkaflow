@@ -27,7 +27,7 @@ trait Daoable[A] {
    * 执行sql
    */
   def executeSql(sql: String)(implicit conn: Connection): Boolean = {
-	 // println(sql)
+	  //println(sql)
     val stat = conn.createStatement()
     var result:Boolean = false
     try{

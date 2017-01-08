@@ -44,7 +44,7 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * 增
    */
-  def add(content: String, isPersist: Boolean): ResponseData = {
+  def add(content: String, isSaved: Boolean): ResponseData = {
     var wf:WorkflowInfo = null
     try {
     	wf = WorkflowInfo(content)      
@@ -52,11 +52,11 @@ class WorkFlowManager extends Actor with ActorLogging{
       case e: Exception => e.printStackTrace()
       return ResponseData("fail","content解析错误", null)
     }
-    add(wf, isPersist)
+    add(wf, isSaved)
   }
-  def add(wf: WorkflowInfo, isPersist: Boolean): ResponseData = {
+  def add(wf: WorkflowInfo, isSaved: Boolean): ResponseData = {
     ShareData.logRecorder ! Info("WorkflowManager", null, s"添加工作流配置：${wf.name}")
-		if(isPersist) ShareData.persistManager ! Save(wf)
+		if(isSaved) ShareData.persistManager ! Save(wf)
 		
 		if(workflows.get(wf.name).isEmpty){
 			workflows = workflows + (wf.name -> wf)
@@ -71,6 +71,7 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   def remove(name: String): ResponseData = {
     if(!workflows.get(name).isEmpty){
+      ShareData.logRecorder ! Info("WorkflowManager", null, s"删除工作流：${name}")
     	ShareData.persistManager ! Delete(workflows(name))
     	workflows = workflows.filterNot {x => x._1 == name}.toMap
       ResponseData("success",s"成功删除工作流${name}", null)
@@ -89,8 +90,11 @@ class WorkFlowManager extends Actor with ActorLogging{
        listF.andThen{
          case Success(list) => list.map { x =>
            val wf = new WorkflowInfo(x(0))
-           val wfF = (ShareData.persistManager ? Get(wf)).mapTo[WorkflowInfo]
-           wfF.andThen{case Success(wf) => add(wf, false)}
+           val wfF = (ShareData.persistManager ? Get(wf)).mapTo[Option[WorkflowInfo]]
+           wfF.andThen{
+             case Success(wfOpt) => 
+             if(!wfOpt.isEmpty) add(wfOpt.get, false)
+           }
          }
        }
     }
@@ -160,13 +164,14 @@ class WorkFlowManager extends Actor with ActorLogging{
     val wfi = wf.createInstance()
     wfi.id = wfiId
     implicit val timeout = Timeout(20 seconds)
-    val wfiF = (ShareData.persistManager ? Get(wfi)).mapTo[WorkflowInstance]
+    val wfiF = (ShareData.persistManager ? Get(wfi)).mapTo[Option[WorkflowInstance]]
     //该工作流实例不存在, 这里用了阻塞
-    val wfi2 = Await.result(wfiF, 20 second)
-    if(wfi2 == null){
+    val wfiOpt = Await.result(wfiF, 20 second)
+    if(wfiOpt.isEmpty){
       ResponseData("fail", s"工作流实例[${wfiId}]不存在", null)
     }else{
       //重置时间与状态
+    	val wfi2 = wfiOpt.get
       wfi2.status = W_PREP
       wfi2.startTime = null
       wfi2.endTime = null

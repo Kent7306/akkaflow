@@ -21,7 +21,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
   def receive: Actor.Receive = {
     case Start() => start()
         
-    case Kill() => actionNodeInstance.kill(); isKilled = true; terminate(KILLED, "节点被kill掉了")
+    case Kill() => actionNodeInstance.kill(); isKilled = true; terminate(sender, KILLED, "节点被kill掉了")
   }
   /**
    * 启动
@@ -70,7 +70,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
         }
     		
       }
-      if(context != null && !isKilled) terminate(actionNodeInstance.status, actionNodeInstance.executedMsg)
+      if(context != null && !isKilled) terminate(workflowActorRef, actionNodeInstance.status, actionNodeInstance.executedMsg)
     }
   }
   /**
@@ -82,9 +82,9 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
   /**
    * 结束
    */
-  def terminate(status: Status, msg: String){
+  def terminate(worflowActor: ActorRef, status: Status, msg: String){
 		sheduler.cancel()
-		workflowActorRef ! ActionExecuteResult(status, msg) 
+		worflowActor ! ActionExecuteResult(status, msg) 
 		ShareData.logRecorder ! Info("NodeInstance",actionNodeInstance.id,s"执行完毕")
 		context.stop(self) 
   }

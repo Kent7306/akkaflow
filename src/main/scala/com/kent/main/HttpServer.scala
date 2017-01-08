@@ -21,10 +21,12 @@ import com.kent.main.HttpServer.ResponseData
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.concurrent.Await
+import com.kent.coordinate.CoordinatorManager._
+import akka.http.scaladsl.server.Route
 
 class HttpServer extends ClusterRole {
   implicit val timeout = Timeout(20 seconds)
-  def getWorkflow(name: String): ResponseData = {
+  /*def getWorkflow(name: String): ResponseData = {
     ???
   }
   
@@ -52,8 +54,20 @@ class HttpServer extends ClusterRole {
     val resultF = (wfm ? KillWorkFlowInstance(id)).mapTo[ResponseData]
     val result = Await.result(resultF, 20 second)
     result
-  }
+  }*/
   
+  private def getResponseFromWorkflowManager(event: Any): ResponseData = {
+    val wfm = context.actorSelection(roler(0).path / "wfm")
+    val resultF = (wfm ? event).mapTo[ResponseData]
+    val result = Await.result(resultF, 20 second)
+    result
+  }
+  private def getResponseFromCoordinatorManager(event: Any): ResponseData = {
+    val cm = context.actorSelection(roler(0).path / "cm")
+    val resultF = (cm ? event).mapTo[ResponseData]
+    val result = Await.result(resultF, 20 second)
+    result
+  }
   
   def receive: Actor.Receive = {
     case MemberUp(member) => 
@@ -67,10 +81,12 @@ class HttpServer extends ClusterRole {
       roler = roler :+ sender
       log.info("Master registered: " + sender)
     }
-    case RemoveWorkFlow(name) => sender ! removeWorkflow(name)
-    case AddWorkFlow(content) => sender ! addWorkflow(content)
-    case ReRunWorkflowInstance(id) => sender ! rerunWorkflowInstance(id)
-    case KillWorkFlowInstance(id) => sender ! killWorkflowInstance(id)
+    case RemoveWorkFlow(name) => sender ! getResponseFromWorkflowManager(RemoveWorkFlow(name))
+    case AddWorkFlow(content) => sender ! getResponseFromWorkflowManager(AddWorkFlow(content))
+    case ReRunWorkflowInstance(id) => sender ! getResponseFromWorkflowManager(ReRunWorkflowInstance(id))
+    case KillWorkFlowInstance(id) => sender ! getResponseFromWorkflowManager(KillWorkFlowInstance(id))
+    case AddCoor(content) => sender ! getResponseFromCoordinatorManager(AddCoor(content))
+    case RemoveCoor(name) => sender ! getResponseFromCoordinatorManager(RemoveCoor(name))
       
   }
 }
@@ -98,20 +114,27 @@ object HttpServer extends App{
   implicit val executionContext = system.dispatcher
   val httpServer = system.actorOf(HttpServer.props,"http-server")
   
+  private def handleRequestWithActor(event: Any): Route = {
+    val data = (httpServer ? event).mapTo[ResponseData] 
+	  onSuccess(data){ x =>
+	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
+    }
+  }
+  private def handleRequestWithResponseData(result: String, msg: String, data: String): Route = {
+     complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(ResponseData(result,msg,data))))   
+  }
+  
    //workflow
   val wfRoute =  path("akkaflow" / "workflow" / Segment){ 
       name => 
         parameter('action){
         action => {
           if(action == "del"){
-            val data = (httpServer ? RemoveWorkFlow(name)).mapTo[ResponseData] 
-        	  onSuccess(data){ x =>
-        	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
-            }
+            handleRequestWithActor(RemoveWorkFlow(name))
           }else if(action == "get"){
-            complete(HttpEntity(ContentTypes.`application/json`, write(ResponseData("fail","暂时还没get方法",null))))   
+            handleRequestWithResponseData("fail","暂时还没get方法",null)   
           }else{
-        	  complete(HttpEntity(ContentTypes.`application/json`, write(ResponseData("fail","action参数有误",null))))                      
+        	  handleRequestWithResponseData("fail","action参数有误",null)                      
           }
         }
       }
@@ -120,12 +143,9 @@ object HttpServer extends App{
         formField('content){ content =>
           parameter('action){ action => {
             	if(action == "add" && content != null && content.trim() != ""){
-            	  val data = (httpServer ? AddWorkFlow(content)).mapTo[ResponseData] 
-            		onSuccess(data){ x =>
-            	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
-                }       	  
+            	  handleRequestWithActor(AddWorkFlow(content))  
             	}else{
-            	  complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(ResponseData("fail","action参数有误",null))))    
+            	 handleRequestWithResponseData("fail","action参数有误",null)    
             	}
             }
           }
@@ -137,19 +157,26 @@ object HttpServer extends App{
       name => parameter('action){
         action => {
           if(action == "del"){
-            val data = (httpServer ? RemoveWorkFlow(name)).mapTo[ResponseData]
-        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>coor delete ${name}</h1>"))                      
+           handleRequestWithActor(RemoveCoor(name))                    
           }else if(action == "get"){
-        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>coor get ${name}</h1>"))                      
+        	  handleRequestWithResponseData("fail","暂时还没get方法",null)                      
           }else{
-        	  complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>error</h1>"))                      
+        	  handleRequestWithResponseData("fail","action参数有误",null)                     
           }
         }
       }
     } ~ path("akkaflow" / "coor"){
-      parameter('action){
-        action => {
-        	complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, s"<h1>add coor</h1>"))          
+      post{
+        formField('content){ content =>
+          parameter('action){
+            action => {
+              if(action == "add" && content != null && content.trim() != ""){
+            	  handleRequestWithActor(AddCoor(content)) 	  
+            	}else{
+            	  handleRequestWithResponseData("fail","action参数有误",null)    
+            	}
+            }
+          }
         }
       }
     }
@@ -158,17 +185,11 @@ object HttpServer extends App{
       id => parameter('action){
         action => {
           if(action == "rerun"){
-        	  val data = (httpServer ? ReRunWorkflowInstance(id)).mapTo[ResponseData] 
-        		onSuccess(data){ x =>
-        	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
-            }                 
+            handleRequestWithActor(ReRunWorkflowInstance(id))
           }else if(action == "kill"){
-        	  val data = (httpServer ? KillWorkFlowInstance(id)).mapTo[ResponseData] 
-        		onSuccess(data){ x =>
-        	    complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(x)))
-            }                      
+        	  handleRequestWithActor(KillWorkFlowInstance(id))                     
           }else{
-        	  complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, write(ResponseData("fail","action参数有误",null))))                      
+        	  handleRequestWithActor("fail","action参数有误",null)                     
           }
         }
       }

@@ -5,10 +5,10 @@ import cronish._
 import cronish.dsl._
 import scalendar.Scalendar
 import scalendar.toDate
+import com.kent.pub.DeepCloneable
 
-class CronComponent(private var _cronStr: String,private var _sdate: Date,private var _edate: Date) {
-  private var _nextExecuteTime: Date = null;
-  def nextExecuteTime = _nextExecuteTime
+class CronComponent(private var _cronStr: String, private var _sdate: Date, private var _edate: Date) extends DeepCloneable[CronComponent] {
+  var nextExecuteTime: Date = null;
   def cronStr = _cronStr
   def sdate = _sdate
   def edate = _edate
@@ -29,7 +29,7 @@ class CronComponent(private var _cronStr: String,private var _sdate: Date,privat
   def setNextExecuteTime(): Boolean = {
     val now = new Date()
     if(now.getTime > _sdate.getTime && now.getTime < _edate.getTime){
-    	this._nextExecuteTime = cron.nextTime.date
+    	this.nextExecuteTime = cron.nextTime.date
     	true
     }else{
       false
@@ -54,7 +54,17 @@ class CronComponent(private var _cronStr: String,private var _sdate: Date,privat
    */
   def isAfterExecuteTime: Boolean = {
     val now = new Date()
-    if(now.getTime > this._nextExecuteTime.getTime)true else false
+    if(now.getTime > this.nextExecuteTime.getTime)true else false
+  }
+
+  def deepClone(): CronComponent = {
+    val tmp = new CronComponent(cronStr, sdate, edate)
+    tmp.nextExecuteTime = nextExecuteTime
+    tmp
+  }
+
+  def deepCloneAssist(e: CronComponent): CronComponent = {
+    ???
   }
 }
 

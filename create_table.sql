@@ -16,14 +16,15 @@ last_update_time datetime
 --coordinator配置表
 drop table coordinator;
 create table coordinator (
-id varchar(8) primary key not null,
-name varchar(128) unique,
+name varchar(128) primary key,
 param JSON,
+content varchar(10240),
 cron varchar(128),
 depends JSON comment '工作流依赖id集合，例：[xxxx,xxxx]',
 workflow_names JSON comment '触发工作流name集合，例：[xxxx，xxxx]',
 stime datetime,
 etime datetime,
+is_enabled int,
 status int(1),
 description varchar(1024),
 create_time datetime,
@@ -57,18 +58,15 @@ create_time datetime,
 last_update_time datetime
 );
 
-
-
 --coordinator触发记录表
 drop table coordinator_trigger_record;
 create table coordinator_trigger_record (
-id varchar(8) primary key comment '自增',
+id varchar(8) primary key comment '标识',
+coordinator_name varchar(128),
+workflow_name varchar(128),
 param JSON,
-trigger_time datetime,
-coordinator_info_id varchar(8) comment 'foreign key'
+trigger_time datetime
 );
-
-
 
 --node实例表
 drop table node_instance;

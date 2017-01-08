@@ -268,13 +268,13 @@ object Master extends App {
       </work-flow>
       """
     val wfStr_mac = """
-      <work-flow name="wf_join" id="a80c53" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
+      <work-flow name="wf_join" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
         mail-receivers="15018735011@163.com,492005267@qq.com">
           <start name="start_node" to="fork_node" />
           <fork name="fork_node">
               <path to="action_node_1" />
           </fork>
-          <action name="action_node_1" retry-times="5" interval="30" timeout="500" host="127.0.0.1" desc = "这是节点测试">
+          <action name="action_node_1" retry-times="5" interval="10" timeout="500" host="127.0.0.1" desc = "这是节点测试">
               <file-watcher>
                 <file dir="/Users/kent/Documents/tmp" num-threshold="1">*.sh</file>
                 <size-warn-message enable="true" size-threshold="2MB">
@@ -284,7 +284,7 @@ object Master extends App {
                 </size-warn-message>  
               </file-watcher>
               <ok to="join_node"/>
-              <error to="kill-node"/>
+              <error to="kill_node"/>
           </action>
           <kill name="kill_node">
               <message>kill by node(被kill node杀掉了)</message>
@@ -299,9 +299,9 @@ object Master extends App {
 //    
  //   master ! AddWorkFlow(wfStr_win_1)
  // master ! AddWorkFlow(wfStr_win_2)
-    master ! AddCoor(coorStr_win) 
+  //  master ! AddCoor(coorStr_win) 
  //   master ! AddCoor(coorStr_win2) 
   
-  //  master ! AddWorkFlow(wfStr_mac)
-  //  master ! AddCoor(coorStr_mac) 
+    //master ! AddWorkFlow(wfStr_mac)
+    //master ! AddCoor(coorStr_mac) 
 }

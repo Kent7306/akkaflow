@@ -27,14 +27,14 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
   def active: Actor.Receive = {
     case Save(obj) => obj.save
     case Delete(obj) => obj.delete
-    case Get(obj) =>  val resultObj = if(obj.getEntity.isEmpty) null else obj.getEntity.get; sender ! resultObj
+    case Get(obj) =>  val resultObj = if(obj.getEntity.isEmpty) null else obj.getEntity.get; sender ! obj.getEntity
     case Query(str) => sender ! queryList(str)
   }
   /**
    * 取消持久化
    */
   def passive: Actor.Receive = {
-    case Get(obj) => sender ! null
+    case Get(obj) => sender ! None
     case _ => //do nothing!!!
   }
   /**
