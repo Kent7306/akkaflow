@@ -1,0 +1,156 @@
+## Short Introduce
+This is a distributed ETL dispatching system based on akka, it has three roles(http-server, master, worker) which can be deployed alone on various machines. But high availability has not yet been developed </br>
+So far several modules are contained as follows: coordinator module, dispatch module, warning module, log module, persistence module. In some case it likes oozie, but more lightweight and easier. You can configure workflows and coordinator with xml file, eg. `wf.xml` and `coordinate.xml`.</br>
+This project is just a back-end system, and is still under coding frequently, the document of how to deploy will be provided later. The GUI based on browser will be provided later soon (it has not been developed yet).</br>
+
+工作流的定义
+```xml
+<work-flow name="wf_join_1" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" mail-receivers="15018735011@163.com,492005267@qq.com">
+     <start name="start_node_1" to="fork_node" />
+     <fork name="fork_node">
+         <path to="action_node_1" />
+         <path to="action_node_2" />
+     </fork> 
+     <action name="action_node_1" retry-times="3" interval="10" timeout="500" host="127.0.0.1" desc = "this is action_node_1 desc">
+         <shell>
+             <command>cd /tmp; rm -f xxxx</command>
+         </shell>
+         <ok to="join_node"/>
+         <error to="kill_node"/>
+     </action>
+     <action name="action_node_2" retry-times="1" interval="1" timeout="500" desc = "这是节点测试">
+       <script>
+           <content>
+            <![CDATA[
+            cd /home/kent/tmp
+            echo "begin sleep 3 s"
+            sleep 3
+            echo "sleep finished"
+            ]]>
+           </content>
+       </script>
+       <ok to="join_node"/>
+       <error to="kill_node"/>
+     </action>
+     <kill name="kill_node">
+         <message>kill by node(被kill node杀掉了)</message>
+     </kill>
+     <join name="join_node" to="end_node"/>
+     <end name="end_node"/>
+ </work-flow>
+ ```
+
+
+workflow
+属性
+name：必填，工作流名称，用来标识唯一的工作流
+mail-level: 可选，无。工作流邮件级别，当工作流实例执行完毕后，根据执行后状态来决定是否发送邮件，
+目前工作流实例执行完毕后有三种状态（杀死，失败，成功），对应值为W_SUCCESSED,W_FAILED,W_KILLED
+mail-receivers： 可选，无。工作流邮件接受者，指定哪些邮箱可接收该工作流执行情况反馈
+
+节点分为两种类型，控制节点与动作节点
+
+控制节点（Control Node）
+
+<start> 开始节点，工作流开始的地方，每个工作流只能有一个start节点。
+属性
+name: 必填，该节点名称，唯一标识
+to：必填，指定下一个执行节点
+
+<fork> 分发节点，分发出多个节点并行执行
+属性
+name: 必填，节点名称，唯一标识
+内容
+子标签<path>, 指定多个并行执行的节点
+    属性：to： 必填，指定下一个执行节点
+
+<kill>，kill节点，用来杀死当前工作流实例
+属性
+name: 必填，该节点名称，唯一标识
+内容：
+子标签message，返回节点杀死附带信息
+
+<join> 把多个分支节点合并为一个分支
+各个节点中的下一个节点指向join节点，都会被合并
+属性
+name: 必填，节点名称，唯一标识
+to；必填，指定下一个执行节点，当所有分支节点完成后，才会开始执行to指定的节点
+
+<end>结束节点，工作流结束的地方，每个工作流之恩给你有一个end节点
+属性
+name: 必填，节点名称，唯一标识
+
+行动节点（Action Node）
+
+<action>, 执行特定任务的节点，
+content: 可以指定不同类型的子标签，目前有<command>,<script>,<file-watcher>, 子标签类型说明详见下文
+属性
+name: 必填，节点名称，唯一标识
+host：可选，指定该动作节点在某台机器运行，默认为空，随机选定一个节点执行。
+retry-times：可选，默认为0，节点执行失败后重试次数
+interval：可选，默认为0，节点执行失败后等待重新执行的时间间隔（秒）
+timeout：可选，默认为-1，即不会超时，timeout是整个节点生命周期的超时限定，包括重试执行的时间。
+desc：节点描述
+
+
+子标签
+具有不同行为的行动节点
+
+
+<command>
+远程shell命令执行，可以执行指定所部署机器的脚本文件，也可以执行某些脚本命令
+内容：填写执行命令
+
+<action name="action_node_1" desc="执行hdfs命令，删除某集群目录">
+    <shell>
+        <command>hdfs dfs -rm -r /xxx/xxx/xxxx</command>
+    </shell>
+</action>
+<action name="action_node_1" host="127.0.0.1" desc="执行指定服务器上的脚本文件">
+    <shell>
+        <command>/home/tmp/run_data.sh ${time.yestoday|yyyy-MM-dd}</command>
+    </shell>
+</action>
+
+<script>
+内容
+远程脚本代码执行的行动节点，
+子标签<content>：
+         内容： 存放执行的脚步代码
+子标签<location>:
+          内容： 生成的文件路径，可选，默认文件会放在application.conf中参数指定的目录中，并且文件名为八位的UID
+<script>
+   <content><![CDATA[
+    #!/bin/perl
+    print "hello\n";
+    print "end\n";
+    ]]></content>
+</script>
+
+<script>
+   <location>/tmp/akkaflow/test.sh</location>
+   <content><![CDATA[
+    #!/bin/bash
+    cd /home/kent/tmp
+    echo "begin sleep 3 s"
+    sleep 3
+    echo "sleep finished"
+    ]]></content>
+</script>
+
+文件监控行动节点
+子标签<file>， 必填
+    属性：dir，监控目录
+          num-threshold, 文件个数阈值，默认为1，要高于阈值才通过
+子标签<size-warn-message>， 可选，检测监控的文件大小是否高于指定阈值，若低于，则邮件告警
+    属性：enable，是否可用，默认为不可用
+          size-threshold,  文件大小阈值，可用1GB，1kb直观的写法，若存在文件大小低于阈值，则告警处理
+    内容：告警邮件内容，若无配置（留空），则告警邮件内容由系统生成（更为详细）
+<file-watcher>
+    <file dir="/Users/kent/Documents/tmp" num-threshold="1">*.sh</file>
+    <size-warn-message enable="true" size-threshold="2MB">
+    <![CDATA[
+      文件容量小于1532M，请联系xxx进行确认
+    ]]>
+    </size-warn-message>  
+</file-watcher>
