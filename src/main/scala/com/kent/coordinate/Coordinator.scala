@@ -15,6 +15,7 @@ import java.sql.ResultSet
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import com.kent.coordinate.Coordinator.Depend
+import com.kent.pub.Directory
 
 class Coordinator(val name: String) extends Daoable[Coordinator] with DeepCloneable[Coordinator] {
   //存放参数转化后的信息
@@ -28,6 +29,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   private var startDate: Date = _
   private var isEnabled: Boolean = true
   private var endDate: Date = _
+  private var dir: Directory = _
   var depends: List[Depend] = List()
   private var workflows: List[String] = List()
   var status: Status = SUSPENDED
@@ -140,6 +142,8 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     val dependsStr = compact(depends.map(_.workFlowName).toList)
     val workflowsStr = compact(workflows)
     val enabledStr = if(isEnabled)1 else 0
+    //保存父目录
+    dir.newLeafNode(name)
     //${withQuate(transformJsonStr(content))}  // xml content has not yet been saved
     val insertSql = s"""insert into coordinator values(
                     ${withQuate(name)},${withQuate(paramStr)},
@@ -182,6 +186,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     newCoor.isEnabled = isEnabled
     newCoor.status = status
     newCoor.desc = desc
+    newCoor.dir = if(dir != null) Directory(dir.dirname, 0) else null
     newCoor
   }
 
@@ -204,6 +209,7 @@ object Coordinator {
                     else isEnabledOpt.get.text.toBoolean
     val startDateOpt = node.attribute("start")
     val endDateOpt = node.attribute("end")
+    val dirOpt = node.attribute("dir")
     val descOpt = node.attribute("desc")
     var cronConfig:String = null;
     if((node \ "trigger" \ "cron").size > 0){
@@ -220,6 +226,7 @@ object Coordinator {
     
     val coor = new Coordinator(nameOpt.get.text)
     coor.desc = if(descOpt.isEmpty) null else descOpt.get.text
+    coor.dir = if(dirOpt.isEmpty) Directory("/tmp",0) else Directory(dirOpt.get.text,0)
     coor.startDate = sdate
     coor.endDate = edate
     coor.cron = cron

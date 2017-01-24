@@ -26,35 +26,6 @@ import akka.http.scaladsl.server.Route
 
 class HttpServer extends ClusterRole {
   implicit val timeout = Timeout(20 seconds)
-  /*def getWorkflow(name: String): ResponseData = {
-    ???
-  }
-  
-  def addWorkflow(content: String): ResponseData = { 
-    val wfm = context.actorSelection(roler(0).path / "wfm")
-    val resultF = (wfm ? AddWorkFlow(content)).mapTo[ResponseData]
-    val result = Await.result(resultF, 20 second)
-    result
-  }
-  
-  def removeWorkflow(name: String): ResponseData = {
-    val wfm = context.actorSelection(roler(0).path / "wfm")
-    val resultF = (wfm ? RemoveWorkFlow(name)).mapTo[ResponseData]
-    val result = Await.result(resultF, 20 second)
-    result
-  }
-  def rerunWorkflowInstance(id: String): ResponseData = {
-    val wfm = context.actorSelection(roler(0).path / "wfm")
-    val resultF = (wfm ? ReRunWorkflowInstance(id)).mapTo[ResponseData]
-    val result = Await.result(resultF, 20 second)
-    result
-  }
-  def killWorkflowInstance(id: String): ResponseData = {
-    val wfm = context.actorSelection(roler(0).path / "wfm")
-    val resultF = (wfm ? KillWorkFlowInstance(id)).mapTo[ResponseData]
-    val result = Await.result(resultF, 20 second)
-    result
-  }*/
   
   private def getResponseFromWorkflowManager(event: Any): ResponseData = {
     val wfm = context.actorSelection(roler(0).path / "wfm")
