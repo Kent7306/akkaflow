@@ -30,6 +30,7 @@ drop table coordinator;
 create table coordinator (
     name varchar(128) primary key,
     param JSON,
+    dir varchar(128),
     content varchar(10240),
     cron varchar(128),
     depends JSON comment '工作流依赖id集合，例：[xxxx,xxxx]',
@@ -134,7 +135,8 @@ create table directory_info(
     is_leaf int(1) not null comment '1: 叶子节点，0: 目录',
     dtype int(1) not null comment '0: coordinator目录, 1: workflow目录',
     name varchar(128) not null,
-    related_name varchar(128),
     description varchar(1024)
 );
 ```
+
+

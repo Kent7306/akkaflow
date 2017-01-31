@@ -64,7 +64,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
       ShareData.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "找不到开始节点")
     }
     //保存工作流实例
-    ShareData.persistManager ! Save(workflowInstance)
+    ShareData.persistManager ! Save(workflowInstance.deepClone())
     
     //启动队列
 	  this.scheduler = context.system.scheduler.schedule(0 millis, 100 millis){
@@ -99,7 +99,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
  private def handleActionRetryTimes(times: Int, actionSender: ActorRef){
    val ni = runningActors(actionSender).asInstanceOf[ActionNodeInstance]
    ni.hasRetryTimes = times
-   ShareData.persistManager ! Save(ni)
+   ShareData.persistManager ! Save(ni.deepClone())
  }
  
 
@@ -150,8 +150,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  this.workflowInstance.endTime = Util.nowDate
 	  workflowManageAcotrRef ! WorkFlowInstanceExecuteResult(workflowInstance)
 	  //保存工作流实例
-	  ShareData.persistManager ! Save(workflowInstance)
-	  println(context+"******************")
+	  ShareData.persistManager ! Save(workflowInstance.deepClone())
 	  context.stop(self)
 	}
   /**

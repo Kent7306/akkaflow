@@ -37,7 +37,8 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     wfi.parsedParams = this.parsedParams.map(x => (x._1,x._2)).toMap
     wfi.startTime = startTime
     wfi.endTime = endTime
-    wfi.status = status
+    wfi.status = getWstatusWithId(status.id)
+    wfi.nodeInstanceList = nodeInstanceList.map { _.deepClone() }.toList
     wfi.id = id
     wfi
   }
@@ -102,12 +103,14 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   	    """
   	  if(this.getEntity.isEmpty){
       	result = executeSql(insertSql)     
-  			executeSql(s"delete from node_instance where workflow_instance_id='${id}'")
-  			this.nodeInstanceList.foreach { _.save }
       }else{
         result = executeSql(updateSql)
       }
+  	  //覆盖实例的节点
+  	  executeSql(s"delete from node_instance where workflow_instance_id='${id}'")
+  		this.nodeInstanceList.foreach { _.save }
   	  conn.commit()
+  	  conn.setAutoCommit(true)
     }catch{
       case e: SQLException => e.printStackTrace(); conn.rollback()
     }

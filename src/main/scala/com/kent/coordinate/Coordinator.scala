@@ -91,6 +91,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   def delete(implicit conn: Connection): Boolean = {
     import com.kent.util.Util._
     executeSql(s"delete from coordinator where name = ${withQuate(name)}")
+    executeSql(s"delete from directory_info where name = ${withQuate(name)}")
   }
 
   def getEntity(implicit conn: Connection): Option[Coordinator] = {
@@ -100,7 +101,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     val newCoor = this.deepClone()
     
     val queryStr = s"""
-      select name,param,content,cron,depends,workflow_names,stime,etime,is_enabled,
+      select name,param,dir,content,cron,depends,workflow_names,stime,etime,is_enabled,
 	    status,description,create_time,last_update_time from coordinator
 	    where name = ${withQuate(name)}
 	                  """
@@ -124,6 +125,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
         newCoor.isEnabled = if (rs.getString("is_enabled") == "1") true else false
         newCoor.status = Coordinator.Status.getStatusWithId(rs.getInt("status"))
         newCoor.desc = rs.getString("description")
+        newCoor.dir = Directory(rs.getString("dir"),0)
         newCoor.init()
         newCoor
       }else{
@@ -147,6 +149,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     //${withQuate(transformJsonStr(content))}  // xml content has not yet been saved
     val insertSql = s"""insert into coordinator values(
                     ${withQuate(name)},${withQuate(paramStr)},
+                    ${withQuate(dir.dirname)},
                     null,
                     ${withQuate(cron.cronStr)},${withQuate(dependsStr)},
                     ${withQuate(workflowsStr)},${withQuate(formatStandarTime(startDate))},
@@ -157,6 +160,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     val updateSql = s"""
           update coordinator set
                         param = ${withQuate(paramStr)},
+                        dir = ${withQuate(dir.dirname)},
                         cron = ${withQuate(cron.cronStr)},
                         depends = ${withQuate(dependsStr)},
                         workflow_names = ${withQuate(workflowsStr)},
@@ -285,13 +289,6 @@ object Coordinator {
     </coordinator>
 	    """
 	  val coor = Coordinator(content)
-	  
-	  //val a = new ParamHandler(new Date())
-	  //val param = Map("name" -> "kent","dir" -> "/home/kent", "today" -> "${time.today|yyyyMMdd|-7 day}","tmp" -> "${today}+1");
-	  //val list = param.map(x => Tuple2(x._1,x._2)).toList;
-	  //println(coor.initParam(list))
-	  //println(a.getVaule("${name}-${time.today|323YY}-${time-cur_month}", param))
-	  
 	}
 }
 

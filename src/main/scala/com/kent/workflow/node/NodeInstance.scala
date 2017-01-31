@@ -39,7 +39,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
   def preExecute():Boolean = {
     this.startTime = Util.nowDate 
     this.status = RUNNING 
-    ShareData.persistManager ! Save(this)
+    ShareData.persistManager ! Save(this.deepClone())
     true
   }
   /**
@@ -54,7 +54,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
    * 执行结束后回调方法
    */
   def postTerminate():Boolean = {
-    ShareData.persistManager ! Save(this)
+    ShareData.persistManager ! Save(this.deepClone())
     true
   }
   /**
@@ -73,7 +73,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
   def deepClone(): NodeInstance
   def deepCloneAssist(e: NodeInstance): NodeInstance = {
     e.id = id
-    e.status = status
+    e.status = getStatusWithId(status.id)
     e.executedMsg = executedMsg
     e.startTime = if(startTime == null) null else new Date(startTime.getTime)
     e.endTime = if(endTime == null) null else new Date(endTime.getTime)
@@ -112,7 +112,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
                       where name = ${withQuate(nodeInfo.name)} and workflow_instance_id = ${withQuate(id)}
       """
     if(this.getEntity.isEmpty){
-    	executeSql(insertStr)     
+    	executeSql(insertStr) 
     }else{
       executeSql(updateStr)
     }

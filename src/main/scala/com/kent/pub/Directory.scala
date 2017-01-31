@@ -5,6 +5,8 @@ import java.sql.DriverManager
 
 /**
  * coordinator或workflow的目录类
+ * dirname: 目录
+ * dtype: 0 -> coordinator, 1 -> workflow
  */
 class Directory(val dirname: String,val dtype: Int) extends Daoable[Directory] {
   val dirLevels = dirname.split("/").filter { x => x.trim() != "" }.toList
@@ -71,6 +73,7 @@ class Directory(val dirname: String,val dtype: Int) extends Daoable[Directory] {
   private def saveFolder(name: String, pid: Int)(implicit conn: Connection):Boolean = {
     import com.kent.util.Util._
     val insertSql = s"insert into directory_info values(null,${pid},0,${dtype},${withQuate(name)},null)"
+    //println(insertSql);
     executeSql(insertSql)
   }
   private def saveLeafNode(name: String, pid: Int)(implicit conn: Connection):Boolean = {
