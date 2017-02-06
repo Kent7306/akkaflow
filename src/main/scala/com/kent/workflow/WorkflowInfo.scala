@@ -14,6 +14,7 @@ import java.sql.SQLException
 import org.json4s.jackson.JsonMethods
 import com.kent.workflow.WorkflowInfo.WStatus
 import org.json4s.JsonAST.JString
+import com.kent.pub.Directory
 
 class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Daoable[WorkflowInfo] {
 	import com.kent.workflow.WorkflowInfo.WStatus._
@@ -22,6 +23,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   var createTime: Date = _
   var mailLevel = List[WStatus]()
   var mailReceivers = List[String]()
+  var dir: Directory = null
   
   /**
    * 由该工作流信息创建属于某工作流实例
@@ -40,6 +42,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 	  wf.desc = desc
 	  wf.mailLevel = mailLevel.map { x => x }.toList
 	  wf.mailReceivers = mailReceivers.map { x => x }.toList
+	  wf.dir = if(this.dir != null) Directory(this.dir.dirname, 1) else null
 	  wf
 	}
 
@@ -49,6 +52,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
       conn.setAutoCommit(false)
 	    result = executeSql(s"delete from workflow where name='${name}'")
 	    executeSql(s"delete from node where workflow_name='${name}'")
+	    executeSql(s"delete from directory_info where name = '${name}' and dtype = '1'")
 	    conn.commit()
     }catch{
       case e: SQLException => e.printStackTrace();conn.rollback()
@@ -67,7 +71,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
     val wf = this.deepClone()
     //工作流实例查询sql
     val queryStr = s"""
-        select name,description,mail_level,mail_receivers,create_time,last_update_time
+        select name,dir,description,mail_level,mail_receivers,create_time,last_update_time
          from workflow where name=${withQuate(name)}
                     """
     //节点实例查询sql
@@ -79,6 +83,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
           if(rs.next()){
             wf.desc = rs.getString("description")
             wf.name = rs.getString("name")
+            wf.dir = Directory(rs.getString("dir"), 1)
             val levelStr = JsonMethods.parse(rs.getString("mail_level"))
             val receiversStr = JsonMethods.parse(rs.getString("mail_receivers"))
             wf.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
@@ -113,13 +118,16 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
     
     try{
       conn.setAutoCommit(false)
+      //保存父目录
+     dir.newLeafNode(name)
   	  val insertSql = s"""
-  	     insert into workflow values(${withQuate(name)},${withQuate(desc)},
+  	     insert into workflow values(${withQuate(name)},${withQuate(dir.dirname)},${withQuate(desc)},
   	     ${withQuate(levelStr)},${withQuate(receiversStr)},
   	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))})
   	    """
   	  val updateSql = s"""
   	    update workflow set description = ${withQuate(desc)}, 
+  	                        dir = ${withQuate(dir.dirname)},
   	                        mail_level = ${withQuate(levelStr)}, 
   	                        mail_receivers = ${withQuate(receiversStr)}, 
   	                        last_update_time = ${withQuate(formatStandarTime(nowDate))}
@@ -153,7 +161,7 @@ object WorkflowInfo {
       val createTimeOpt = node.attribute("create-time")
       val mailLevelOpt = node.attribute("mail-level")
       val mailReceiversOpt = node.attribute("mail-receivers")
-      
+      val dirOpt = node.attribute("dir")
       if(nameOpt == None) throw new Exception("节点<work-flow/>未配置name属性")
       val wf = new WorkflowInfo(nameOpt.get.text)
       if(descOpt != None) wf.desc = descOpt.get.text
@@ -166,6 +174,7 @@ object WorkflowInfo {
     	if(!mailReceiversOpt.isEmpty){
     	  wf.mailReceivers = mailReceiversOpt.get.text.split(",").toList
     	}
+    	wf.dir = if(dirOpt.isEmpty) Directory("/tmp",1) else Directory(dirOpt.get.text,1)
     	wf
   }
   

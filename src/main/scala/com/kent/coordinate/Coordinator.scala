@@ -65,7 +65,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   /**
    * 重置触发器
    */
-  def resetTrigger(): Boolean = {
+  private def resetTrigger(): Boolean = {
     if(this.cron == null || this.cron.setNextExecuteTime()){
     	this.depends.foreach { _.isReady = false}
     	true      
@@ -76,8 +76,10 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   def init(){
     this.paramMap = initParam(this.paramList)
   }
-  
-  def initParam(paramList: List[Tuple2[String,String]]): Map[String, String] = {
+  /**
+   * 初始化参数
+   */
+  private def initParam(paramList: List[Tuple2[String,String]]): Map[String, String] = {
 		val paramHandler = new ParamHandler(new Date())
 		var paramMap:Map[String, String] = Map()
 	  //系统变量
@@ -91,7 +93,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   def delete(implicit conn: Connection): Boolean = {
     import com.kent.util.Util._
     executeSql(s"delete from coordinator where name = ${withQuate(name)}")
-    executeSql(s"delete from directory_info where name = ${withQuate(name)}")
+    executeSql(s"delete from directory_info where name = ${withQuate(name)} and dtype = '1'")
   }
 
   def getEntity(implicit conn: Connection): Option[Coordinator] = {
@@ -151,7 +153,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
                     ${withQuate(name)},${withQuate(paramStr)},
                     ${withQuate(dir.dirname)},
                     null,
-                    ${withQuate(cron.cronStr)},${withQuate(dependsStr)},
+                    ${withQuate(if(cron == null) null else cron.cronStr)},${withQuate(dependsStr)},
                     ${withQuate(workflowsStr)},${withQuate(formatStandarTime(startDate))},
                     ${withQuate(formatStandarTime(endDate))},${enabledStr},
                     ${status.id},${withQuate(desc)},${withQuate(formatStandarTime(nowDate))},
@@ -161,7 +163,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
           update coordinator set
                         param = ${withQuate(paramStr)},
                         dir = ${withQuate(dir.dirname)},
-                        cron = ${withQuate(cron.cronStr)},
+                        cron = ${withQuate(if(cron == null) null else cron.cronStr)},
                         depends = ${withQuate(dependsStr)},
                         workflow_names = ${withQuate(workflowsStr)},
                         stime = ${withQuate(formatStandarTime(startDate))},

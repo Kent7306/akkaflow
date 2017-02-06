@@ -18,6 +18,7 @@ import com.kent.workflow.WorkflowInfo.WStatus
 import akka.actor.ActorRef
 import com.kent.db.PersistManager.Save
 import com.kent.db.PersistManager
+import com.kent.pub.Directory
 
 class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[WorkflowInstance] with Daoable[WorkflowInstance] {
   var id: String = Util.produce8UUID
@@ -64,11 +65,6 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
 	  val sn = nodeInstanceList.filter { _.isInstanceOf[StartNodeInstance] }.toList
 	  if(sn.size == 1) Some(sn(0)) else None
   }
-
-  
-  
-  
-  
   
   def save(implicit conn: Connection): Boolean = {
     var result = false;
@@ -82,7 +78,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     try{
       conn.setAutoCommit(false)
   	  val insertSql = s"""
-  	     insert into workflow_instance values(${withQuate(id)},${withQuate(workflow.name)},
+  	     insert into workflow_instance values(${withQuate(id)},${withQuate(workflow.name)},${withQuate(workflow.dir.dirname)},
   	                                          ${withQuate(paramStr)},'${status.id}',${withQuate(workflow.desc)},
   	                                          ${withQuate(levelStr)},${withQuate(receiversStr)},
   	                                          ${withQuate(formatStandarTime(startTime))},${withQuate(formatStandarTime(endTime))},
@@ -91,6 +87,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   	  val updateSql = s"""
   	    update workflow_instance set
   	                        name = ${withQuate(workflow.name)}, 
+  	                        dir = ${withQuate(workflow.dir.dirname)},
   	                        param = ${withQuate(paramStr)}, 
   	                        status = '${status.id}',
   	                        description = ${withQuate(workflow.desc)},
@@ -128,7 +125,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     val wfi = this.deepClone()
     //工作流实例查询sql
     val queryStr = s"""
-         select id,name,param,status,description,mail_level,
+         select id,name,dir,param,status,description,mail_level,
                 mail_receivers,stime,etime,create_time,last_update_time
          from workflow_instance 
          where id=${withQuate(id)}
@@ -143,6 +140,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
             wfi.id = rs.getString("id")
             wfi.workflow.desc = rs.getString("description")
             wfi.workflow.name = rs.getString("name")
+            wfi.workflow.dir = Directory(rs.getString("dir"),1)
             val levelStr = JsonMethods.parse(rs.getString("mail_level"))
             val receiversStr = JsonMethods.parse(rs.getString("mail_receivers"))
             wfi.workflow.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
@@ -181,6 +179,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
 	    result = executeSql(s"delete from workflow_instance where id='${id}'")
 	    executeSql(s"delete from node_instance where workflow_instance_id='${id}'")
 	    conn.commit()
+	    conn.setAutoCommit(true)
     }catch{
       case e: SQLException => e.printStackTrace();conn.rollback()
     }

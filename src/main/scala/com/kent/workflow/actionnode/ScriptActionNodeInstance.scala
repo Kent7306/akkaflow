@@ -13,7 +13,6 @@ import java.io.File
 import com.kent.util.Util
 
 class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) extends ActionNodeInstance(nodeInfo)  {
-  val defaultLocation = "F:/"
   var executeResult: Process = _
   def deepClone(): ScriptActionNodeInstance = {
     val sani = ScriptActionNodeInstance(nodeInfo)
@@ -39,7 +38,8 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
     //执行
     val pLogger = ProcessLogger(line => ShareData.logRecorder ! Info("NodeInstance", this.id, line),
                                 line => ShareData.logRecorder ! Error("NodeInstance", this.id, line))
-    executeResult = Process(s"perl ${newLocation}").run(pLogger)
+     executeResult = Process(s"sh ${newLocation}").run(pLogger)
+     if(executeResult.exitValue() == 0) true else false
      true
   }
 

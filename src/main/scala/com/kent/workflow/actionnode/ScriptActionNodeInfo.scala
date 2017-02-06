@@ -52,7 +52,7 @@ object ScriptActionNodeInfo {
   def parseXmlNode(name: String, node: scala.xml.Node): ScriptActionNodeInfo = {
 	  val san = ScriptActionNodeInfo(name)
 	  val locaOpt = (node \ "location")
-	  san.location = if(locaOpt.isEmpty) null else locaOpt(0).text
+	  san.location = if(locaOpt.isEmpty) "" else locaOpt(0).text
 	  san.content = (node \ "content")(0).text
 	  san
   }

@@ -15,6 +15,7 @@ use wf;
 drop table workflow;
 create table workflow(
     name varchar(128) primary key  not null,
+    dir varchar(128),
     description varchar(128),
     mail_level JSON,
     mail_receivers JSON,
@@ -66,6 +67,7 @@ drop table workflow_instance;
 create table workflow_instance(
     id varchar(8) primary key not null,
     name varchar(128) not null,
+    dir varchar(128),
     param JSON,
     status int(1),
     description varchar(128),

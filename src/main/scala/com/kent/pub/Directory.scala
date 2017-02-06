@@ -9,7 +9,7 @@ import java.sql.DriverManager
  * dtype: 0 -> coordinator, 1 -> workflow
  */
 class Directory(val dirname: String,val dtype: Int) extends Daoable[Directory] {
-  val dirLevels = dirname.split("/").filter { x => x.trim() != "" }.toList
+  private val dirLevels = dirname.split("/").filter { x => x.trim() != "" }.toList
   def delete(implicit conn: Connection): Boolean = {
     ???
   }
