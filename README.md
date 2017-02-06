@@ -5,6 +5,8 @@
 整个`akkaflow`架构目前包含有三个节点角色：Master、Worker、Http-Server，每个角色可以独立部署于不同机器上，高可用性`Hight Available(HA)`在未来的开发计划当中，节点中包含以下模块：调度模块，执行模块，告警模块，日志模块，持久化模块。工作流定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)，调度器定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/coordinator_definition.md)</br>
 </br>
 `akkaflow`工程只是一个后端运行的架构，目前也在不停开发完善中，基于浏览器的可视化界面后续会开发，提供工作流实例的执行情况查看，基于界面的工作流调度器拖拉配置生成，分组管理各类信息。</br>
+工作流实例详情页面</br>
+![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/%E5%B7%A5%E4%BD%9C%E6%B5%81%E5%AE%9E%E4%BE%8B%E8%AF%A6%E6%83%85%E9%A1%B5.png)
 </br>
 ###部署
 后续补上</br>
