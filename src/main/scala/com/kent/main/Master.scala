@@ -294,7 +294,7 @@ object Master extends App {
       </work-flow>
       """
     
-    Thread.sleep(10000)
+ //   Thread.sleep(10000)
 //  master ! ReRunWorkflowInstance("b2bdfe0c")
 //    
  //   master ! AddWorkFlow(wfStr_win_1)

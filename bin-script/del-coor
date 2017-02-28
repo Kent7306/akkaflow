@@ -1,0 +1,17 @@
+#!/bin/bash
+
+user_dir=`pwd`
+bin_dir=`dirname $user_dir/$0`
+
+host="localhost"
+port="8090"
+
+cd $bin_dir
+if [ $# -ne 1 ];then
+echo -e "[Usage]: $0 [coor_name]\n删除调度器"
+exit 1
+fi
+coor_name=$1
+result=`curl -s -XGET "http://$host:$port/akkaflow/coor/$coor_name?action=del"`
+
+echo $result

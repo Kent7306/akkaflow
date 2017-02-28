@@ -40,7 +40,16 @@ mappings in Universal ++= {
   // copy configuration files to config directory
   contentOf("src/main/resources").toMap.mapValues("config/" + _)
 }
+
 // add 'config' directory first in the classpath of the start script,
 // an alternative is to set the config file locations via CLI parameters
 // when starting the application
 scriptClasspath := Seq("../config/") ++ scriptClasspath.value
+
+
+
+mappings in Universal ++= {
+  directory("scripts") ++
+  contentOf("bin-script").toMap.mapValues("bin/" + _)
+}
+scriptClasspath := Seq("../bin-script/") ++ scriptClasspath.value
