@@ -99,11 +99,14 @@ object Util {
   }
   
   
-        
+ /**
+  * 转化json字符串，使之能保存在数据库中   
+  */
   def transformJsonStr(str: String): String = {
     val sb = new StringBuffer()
     str.map { x => 
       x match {
+        case '\'' => "\'\'"
         case '\"' => "\\\\\\\""
         case '\\' => "\\\\\\\\"
         case '/' => "\\\\/"

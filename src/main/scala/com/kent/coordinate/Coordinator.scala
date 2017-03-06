@@ -93,7 +93,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   def delete(implicit conn: Connection): Boolean = {
     import com.kent.util.Util._
     executeSql(s"delete from coordinator where name = ${withQuate(name)}")
-    executeSql(s"delete from directory_info where name = ${withQuate(name)} and dtype = '1'")
+    executeSql(s"delete from directory_info where name = ${withQuate(name)} and dtype = '0'")
   }
 
   def getEntity(implicit conn: Connection): Option[Coordinator] = {

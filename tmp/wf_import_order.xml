@@ -1,0 +1,79 @@
+<work-flow name="wf_import_order" 
+	mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
+	mail-receivers="15018735011@163.com,492005267@qq.com" dir="/ogn_test">
+
+	<start name="start" to="watch_log" />
+
+	<action name="watch_log" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "监测日志文件">
+	    <file-watcher>
+	        <file dir="/Users/kent/tmp/akka_test/log/${stadate}">order.out</file> 
+	        <size-warn-message enable="true" size-threshold="2MB"></size-warn-message> 
+	    </file-watcher>
+	    <ok to="fork"/>
+	</action>
+
+	<fork name="fork">
+         <path to="clean_log" />
+         <path to="sleep" />
+    </fork> 
+
+
+	<action name="clean_log" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
+		<script>
+	    	<content>
+           	<![CDATA[
+	           	#!/usr/bin/perl
+				$date="${stadate}";
+				$file="/Users/kent/tmp/akka_test/log/$date/order.out";
+				$result="/Users/kent/tmp/akka_test/log/$date/order.result";
+				open(FH,'<',$file) or die("no such file");
+				open(FR,'>',$result) or die("no such file");
+				while(<FH>){
+				chomp $_;
+				@cols = split(/-/,$_);
+				$str = join(",",@cols);
+				print FR $date.",".$str."\n";
+				}
+				close FH;
+				close FR;
+           	]]>
+           </content>
+        </script>
+	    <ok to="join_node"/>
+	</action>
+
+	<action name="sleep" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
+	    <script>
+		    <content>
+	           	<![CDATA[
+	           	for i in `seq 1 10`
+	           	do sleep 2;echo $i
+	           	done
+	           	]]>
+           </content>
+        </script>
+	    <ok to="join_node"/>
+	</action>
+
+	<join name="join_node" to="import_2_mysql"/>
+
+	<action name="import_2_mysql" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
+		<script>
+		    <content>
+	           	<![CDATA[
+	           	#!/bin/bash
+				sdate="${stadate}"
+				mysql -uroot -proot -Dtest -e "delete from t_order where ds = '$sdate'"
+				while read line
+				do
+				    str="'"${line//,/\',\'}"'"
+				    mysql -uroot -proot -Dtest -e "insert into t_order values ($str)"
+				done <  /Users/kent/tmp/akka_test/log/$sdate/order.result
+	           	]]>
+           </content>
+        </script>
+	    <ok to="end"/>
+	</action>
+
+	<end name="end"/>
+</work-flow>

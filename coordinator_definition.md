@@ -3,7 +3,7 @@
 
 #####一个调度器文件定义示例
 ```xml
-<coordinator name="coor1_2" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00">    
+<coordinator name="coor1_2" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" dir="/tmp/test">    
     <trigger>
         <cron config="* * * * * *"/>
         <depend-list>
@@ -28,13 +28,14 @@
 ####* 属性
 `name`：必填，名称，用来标识唯一的`coordinator`.</br>
 `start`：可选，调度器的开始生效时间，默认从很久以前开始，格式为，yyyy-MM-dd HH:mm:ss</br>
-`end`：可选，调度器的开始失效时间，默认从很久以前开始，格式为，yyyy-MM-dd HH:mm:ss</br>
+`end`：可选，调度器的开始失效时间，默认从很久以后结束，格式为，yyyy-MM-dd HH:mm:ss</br>
 `is-enabled`：可选，是否生效，默认为true。</br>
 `desc`：可选，调度器描述。</br>
+`dir`：可选，该coordinator的存放目录，默认为/tmp。</br>
 ####* 示例
 ```xml
 <!-- example 1 -->
-<coordinator name="coor1_2" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" desc="this is a coordinator"> 
+<coordinator name="coor1_2" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" desc="this is a coordinator" dir="/tmp/test"> 
 	...
 </coordinator>
 

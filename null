@@ -1,1 +1,0 @@
-                             cd /Users/kent/tmp ;             echo "begin sleep 3 s";             sleep 3;             echo "sleep finished" > /Users/kent/tmp/aa.txt;                          

@@ -12,7 +12,7 @@ exit 1
 fi
 file=$1
 con=`cat $file |./url-encode|awk '{str=str$0} END{print str}'`
-result=`curl -s -XPOST -d "content=$con" "http://$host:$port/akkaflow/coor?action=add"`
+result=`curl -s  -XPOST -d "content=$con" "http://$host:$port/akkaflow/coor?action=add"`
 
 echo $result
 cd $user_dir

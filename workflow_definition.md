@@ -4,7 +4,8 @@
 
 #####一个工作流文件定义示例
 ```xml
-<work-flow name="wf_join_1" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" mail-receivers="15018735011@163.com,492005267@qq.com">
+<work-flow name="wf_join_1" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" mail-receivers="15018735011@163.com,492005267@qq.com"
+dir="/tmp/test">
      <start name="start_node_1" to="fork_node" />
      <fork name="fork_node">
          <path to="action_node_1" />
@@ -43,6 +44,7 @@
 `name`：必填，工作流名称，用来标识唯一的工作流</br>
 `mail-level`：可选，无。工作流邮件级别，当工作流实例执行完毕后，根据执行后状态来决定是否发送邮件，目前工作流实例执行完毕后有三种状态（杀死，失败，成功），对应值为`W_SUCCESSED`, `W_FAILED`, `W_KILLED`。</br>
 `mail-receivers`： 可选，默认无。工作流邮件接受者，指定哪些邮箱可接收该工作流执行情况反馈</br>
+`dir`：可选，该工作流的存放目录，默认为/tmp。</br>
 #### * 标签内容
 `workflow`标签中包含各定义的节点，节点类型分为两大类，控制节点与动作节点。</br>
 ####* 示例
@@ -51,7 +53,8 @@
 <workflow name="wf_join_1" 
   mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
   mail-receivers="15018735011@163.com,492005267@qq.com"
-  desc="这是一个测试工作流">
+  desc="这是一个测试工作流"
+  dir="/tmp">
 ...
 </workflow>
 
