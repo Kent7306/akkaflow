@@ -13,18 +13,23 @@ class ParamHandler(date:Date){
    */
   def getValue(expr: String, paramMap:  Map[String, String]): String = {
     if(expr == null) return null
+    //这里有个问题，目前测试了解，scala正则表达式只能单行匹配，所以先把\n替换成#@@#
+    val expr2 = expr.replace("\n", "#@@#")
     val pattern = "\\$\\{(.*?)\\}".r
-    if(pattern.findFirstIn(expr).isEmpty){
+    if(pattern.findFirstIn(expr2).isEmpty){
       expr
     }else{
     	val pattern2 = "(.*?)\\$\\{(.*?)\\}(.*)".r
-    	val pattern2(pre, mid, end) = expr
+    	val pattern2(pre, mid, end) = expr2
     	if(!paramMap.get(mid).isEmpty){  //该参数可在paramMap中找到
-    	  pre+paramMap.get(mid).get + this.getValue(end, paramMap)
+    	  val result = pre+paramMap.get(mid).get + this.getValue(end, paramMap)
+    	  result.replace("#@@#", "\n")
     	}else if(!"time\\.".r.findFirstIn(mid).isEmpty){  //时间参数
-    	  pre + handleTimeParam(mid) + this.getValue(end, paramMap)
+    	  val result = pre + handleTimeParam(mid) + this.getValue(end, paramMap)
+    	  result.replace("#@@#", "\n")
     	}else{  //未找到，定义为undefined
-    	  pre + "undedfined" + end
+    	  val result = pre + "undedfined" + end
+    	  result.replace("#@@#", "\n")
     	}
     }
   }
