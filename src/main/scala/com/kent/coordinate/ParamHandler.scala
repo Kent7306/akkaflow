@@ -27,8 +27,8 @@ class ParamHandler(date:Date){
     	}else if(!"time\\.".r.findFirstIn(mid).isEmpty){  //时间参数
     	  val result = pre + handleTimeParam(mid) + this.getValue(end, paramMap)
     	  result.replace("#@@#", "\n")
-    	}else{  //未找到，定义为undefined
-    	  val result = pre + "undedfined" + end
+    	}else{  //未找到，就不进行替换了
+    	  val result = pre + "${"+mid+"}" + end
     	  result.replace("#@@#", "\n")
     	}
     }

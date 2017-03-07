@@ -26,21 +26,35 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
   }
 
   override def execute(): Boolean = {
-    var newLocation = if(nodeInfo.location == null || nodeInfo.location == "")
-          ShareData.config.getString("workflow.action.script-location") + "/" + Util.produce8UUID
-          else nodeInfo.location
-    //把文件内容写入文件
-    val writer = new PrintWriter(new File(newLocation))
-    writer.write(nodeInfo.content)
-    writer.flush()
-    writer.close()
-    ShareData.logRecorder ! Info("NodeInstance", this.id, s"代码写入到文件：${newLocation}")
-    //执行
-    val pLogger = ProcessLogger(line => ShareData.logRecorder ! Info("NodeInstance", this.id, line),
-                                line => ShareData.logRecorder ! Error("NodeInstance", this.id, line))
-     executeResult = Process(s"sh ${newLocation}").run(pLogger)
-     if(executeResult.exitValue() == 0) true else false
-     true
+    try {
+      var newLocation = if(nodeInfo.location == null || nodeInfo.location == "")
+            ShareData.config.getString("workflow.action.script-location") + "/" + Util.produce8UUID
+            else nodeInfo.location
+      //把文件内容写入文件
+      val writer = new PrintWriter(new File(newLocation))
+      //删除前置空格
+      val lines = nodeInfo.content.split("\n").map { x => 
+        if(x.trim() != "")x.trim() else null
+      }.filter { _ != null }
+      val trimContent = lines.mkString("\n")
+      writer.write(trimContent)
+      writer.flush()
+      writer.close()
+      ShareData.logRecorder ! Info("NodeInstance", this.id, s"代码写入到文件：${newLocation}")
+      //执行
+      var cmd = "sh";
+      if(lines.size > 0){  //选择用哪个执行解析器
+        if(lines(0).toLowerCase().contains("perl")) cmd = "perl"
+        else if(lines(0).toLowerCase().contains("python")) cmd = "python"
+      }
+      
+      val pLogger = ProcessLogger(line => ShareData.logRecorder ! Info("NodeInstance", this.id, line),
+                                  line => ShareData.logRecorder ! Error("NodeInstance", this.id, line))
+       executeResult = Process(s"${cmd} ${newLocation}").run(pLogger)
+       if(executeResult.exitValue() == 0) true else false
+    }catch{
+      case e:Exception => ShareData.logRecorder ! Error("NodeInstance", this.id, e.getMessage);false
+    }
   }
 
   def replaceParam(param: Map[String, String]): Boolean = {

@@ -5,6 +5,7 @@ import akka.actor.Actor
 import java.sql.Connection
 import java.sql.DriverManager
 import com.kent.db.LogRecorder._
+import com.kent.util.Util
 
 class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging{
   implicit var connection: Connection = null
@@ -20,9 +21,10 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
    * 开启打印到数据库
    */
   def print2DB: Actor.Receive = {
-    case Info(ctype, sid, content) => logging("INFO", ctype, sid, content)
-    case Warn(ctype, sid, content) => logging("WARN", ctype, sid, content)
-    case Error(ctype, sid, content) => logging("ERROR", ctype, sid, content)
+    case Info(ctype, sid, content) => logging("INFO", ctype, sid, Util.escapeStr(content))
+    case Warn(ctype, sid, content) => logging("WARN", ctype, sid, Util.escapeStr(content))
+    case Error(ctype, sid, content) => 
+        logging("ERROR", ctype, sid, Util.escapeStr(content))
   }
   private def logging(level: String,ctype: String, sid: String, content: String):Boolean = {
     import com.kent.util.Util._
