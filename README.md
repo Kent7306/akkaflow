@@ -1,5 +1,5 @@
-##akkaflow
-###简介
+##akkaflow</br>
+###简介</br>
 `akkaflow`是一个基于`akka`架构上构建的分布式ETL调度工具，可以把任务拆分在集群中不同的节点上运行，高效利用集群资源，可监控文件数据情况，对数据及任务进行监控告警，异常处理。其中工作流定义参考`Oozie`，相对简洁轻量级，可作为构建数据仓库、或大数据平台上的调度工具。</br>
 </br>
 整个`akkaflow`架构目前包含有三个节点角色：Master、Worker、Http-Server，每个角色可以独立部署于不同机器上，高可用性`Hight Available(HA)`在未来的开发计划当中，节点中包含以下模块：调度模块，执行模块，告警模块，日志模块，持久化模块。工作流定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)，调度器定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/coordinator_definition.md)</br>
@@ -12,7 +12,31 @@
 后续补上</br>
 </br>
 ###使用
-后续补上</br>
+####基于命令行操作
+* 节点启动命令</br>
+ master节点启动：`./master-startup`</br>
+ worker节点启动：`./worker-startup`</br>
+ http_server节点启动：`./httpserver-startup`</br>
+* 增加工作流 `submit-workflow [file]`</br>
+示例： `./submit-workflow /tmp/wf_import_order.xml`</br>
+* 增加coordinator`submit-coor [file]`</br>
+示例： `./submit-coor /tmp/coor_import_order.xml`</br>
+* 删除工作流`del-workflow [wf_name]`</br>
+示例： `del-workflow wf_import_order`</br>
+* 删除coordintor `del-coor [coor_name]`</br>
+示例：`./del-workflow coor_import_order`</br>
+* 杀死工作流实例`kill-wf-instance [instance_id]`</br>
+./kill-wf-instance ac733154<br>
+* 重跑工作流实例`rerun-wf-instance [instance_id]`</br>
+示例：`./rerun-wf-instance ac733154`</br>
+
+####akkaflow-ui可视化界面
+* 首页
+![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/%E5%B7%A5%E4%BD%9C%E6%B5%81%E5%AE%9E%E4%BE%8B%E8%AF%A6%E6%83%85%E9%A1%B5.png)
+* 
+(3)
+![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/%E5%B7%A5%E4%BD%9C%E6%B5%81%E5%AE%9E%E4%BE%8B%E8%AF%A6%E6%83%85%E9%A1%B5.png)
+</br>
 </br>
 
 
