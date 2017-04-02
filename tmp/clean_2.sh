@@ -1,7 +1,7 @@
 #!/bin/bash
 
-sdate='2017-03-04'
-cd "/Users/kent/tmp/akka_test/log/$sdate"
+sdate=$1
+cd "/tmp/log_test/$sdate"
 rm -f item.result
 cat item*.out|while read line
 do

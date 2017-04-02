@@ -19,10 +19,14 @@ class ShellActionNodeInstance(override val nodeInfo: ShellActionNodeInfo) extend
   }
 
   override def execute(): Boolean = {
-    val pLogger = ProcessLogger(line => ShareData.logRecorder ! Info("NodeInstance", this.id, line),
-                                line => ShareData.logRecorder ! Error("NodeInstance", this.id, line))
-    executeResult = Process(this.nodeInfo.command).run(pLogger)
-    if(executeResult.exitValue() == 0) true else false
+    try {
+      val pLogger = ProcessLogger(line => ShareData.logRecorder ! Info("NodeInstance", this.id, line),
+                                  line => ShareData.logRecorder ! Error("NodeInstance", this.id, line))
+      executeResult = Process(this.nodeInfo.command).run(pLogger)
+      if(executeResult.exitValue() == 0) true else false
+    }catch{
+      case e:Exception => ShareData.logRecorder ! Error("NodeInstance", this.id, e.getMessage);false
+    }
   }
 
   def replaceParam(param: Map[String, String]): Boolean = {

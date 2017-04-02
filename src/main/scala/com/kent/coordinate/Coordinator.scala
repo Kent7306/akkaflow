@@ -92,8 +92,13 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
 
   def delete(implicit conn: Connection): Boolean = {
     import com.kent.util.Util._
+    conn.setAutoCommit(false)
     executeSql(s"delete from coordinator where name = ${withQuate(name)}")
-    executeSql(s"delete from directory_info where name = ${withQuate(name)} and dtype = '0'")
+    println(s"delete from coordinator where name = ${withQuate(name)}");
+    val result = executeSql(s"delete from directory_info where name = ${withQuate(name)} and dtype = '0'")
+    conn.commit()
+    conn.setAutoCommit(true)
+    result
   }
 
   def getEntity(implicit conn: Connection): Option[Coordinator] = {
@@ -146,6 +151,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     val dependsStr = compact(depends.map(_.workFlowName).toList)
     val workflowsStr = compact(workflows)
     val enabledStr = if(isEnabled)1 else 0
+    conn.setAutoCommit(false)
     //保存父目录
     dir.newLeafNode(name)
     //${withQuate(transformJsonStr(content))}  // xml content has not yet been saved
@@ -176,6 +182,8 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
       """
     val result = if(this.getEntity.isEmpty) executeSql(insertSql)
              else executeSql(updateSql)
+    conn.commit()
+    conn.setAutoCommit(true)
     result
   }
 

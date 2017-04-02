@@ -1,0 +1,17 @@
+<coordinator name="coor_join_order_and_item" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" 
+    is-enabled="true" dir="/ogn_test"
+    desc="每分钟启动">    
+    <trigger>
+       <depend-list>
+          <depend wf="wf_import_item" />
+          <depend wf="wf_import_order" />
+        </depend-list>
+    </trigger>
+    <workflow-list>
+      <workflow path="wf_join_order_and_item"></workflow>
+    </workflow-list>
+    <param-list>
+        <param name="yestoday" value="${time.today|yyyy-MM-dd|-1 day}"/>
+        <param name="stadate" value="2017-03-04"/>
+    </param-list>
+</coordinator>
