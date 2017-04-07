@@ -28,11 +28,6 @@ abstract class ControlNodeInstance(override val nodeInfo: ControlNodeInfo) exten
 	  }
 
   def replaceParam(param: Map[String, String]): Boolean = true
-
-  def deepCloneAssist(e: ControlNodeInstance): ControlNodeInstance = {
-    super.deepCloneAssist(e)
-    e
-  }
   
   override def setContent(contentStr: String){
     if(contentStr != null){

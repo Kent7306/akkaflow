@@ -11,19 +11,8 @@ import org.json4s.jackson.JsonMethods
 class ShellActionNodeInfo(name: String) extends ActionNodeInfo(name) {
   var command: String = _
 
-  def deepClone(): ShellActionNodeInfo = {
-    val fn = ShellActionNodeInfo(name)
-    deepCloneAssist(fn)
-    fn
-  }
-  def deepCloneAssist(hn: ShellActionNodeInfo): ShellActionNodeInfo = {
-    super.deepCloneAssist(hn)
-    hn.command = command
-    hn
-  }
-
   def createInstance(workflowInstanceId: String): ShellActionNodeInstance = {
-    val hsani = ShellActionNodeInstance(this)
+    val hsani = ShellActionNodeInstance(this.deepClone[ShellActionNodeInfo])
     hsani.id = workflowInstanceId
     hsani
   }

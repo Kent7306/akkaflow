@@ -11,24 +11,12 @@ class ScriptActionNodeInfo(name: String) extends ActionNodeInfo(name) {
   var content: String = _
   
   def createInstance(workflowInstanceId: String): ScriptActionNodeInstance = {
-    val sani = ScriptActionNodeInstance(this) 
+    val sani = ScriptActionNodeInstance(this.deepClone[ScriptActionNodeInfo]) 
     sani.id = workflowInstanceId
     sani
   }
-
-  def deepClone(): ScriptActionNodeInfo = {
-    val fn = ScriptActionNodeInfo(name)
-    deepCloneAssist(fn)
-    fn
-  }
-  def deepCloneAssist(san: ScriptActionNodeInfo): ScriptActionNodeInfo = {
-    super.deepCloneAssist(san)
-    san.location = location
-    san.content = content
-    san
-  }
   
-    override def setContent(contentStr: String){
+  override def setContent(contentStr: String){
 	  super.setContent(contentStr)
     val content = JsonMethods.parse(contentStr)
     import org.json4s._

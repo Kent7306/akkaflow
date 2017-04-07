@@ -14,16 +14,6 @@ import com.kent.util.Util
 
 class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) extends ActionNodeInstance(nodeInfo)  {
   var executeResult: Process = _
-  def deepClone(): ScriptActionNodeInstance = {
-    val sani = ScriptActionNodeInstance(nodeInfo)
-    deepCloneAssist(sani)
-    sani
-  }
-  def deepCloneAssist(hsni: ScriptActionNodeInstance): ScriptActionNodeInstance = {
-    super.deepCloneAssist(hsni)
-    hsni.executeResult = executeResult
-    hsni
-  }
 
   override def execute(): Boolean = {
     try {

@@ -7,14 +7,9 @@ import com.kent.workflow.node.NodeInfo
 import java.sql.ResultSet
 
 class EndNodeInfo(name: String) extends ControlNodeInfo(name){
-  def deepClone(): EndNodeInfo = {
-    val en = EndNodeInfo(name)
-    this.deepCloneAssist(en)
-    en
-  }
 
   override def createInstance(workflowInstanceId: String): EndNodeInstance = {
-    val eni = EndNodeInstance(this)
+    val eni = EndNodeInstance(this.deepClone[EndNodeInfo])
     eni.id = workflowInstanceId: String
     eni
   }

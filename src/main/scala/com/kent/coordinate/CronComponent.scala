@@ -57,14 +57,10 @@ class CronComponent(private var _cronStr: String, private var _sdate: Date, priv
     if(now.getTime > this.nextExecuteTime.getTime)true else false
   }
 
-  def deepClone(): CronComponent = {
+  override def deepClone: CronComponent = {
     val tmp = new CronComponent(cronStr, sdate, edate)
     tmp.nextExecuteTime = nextExecuteTime
     tmp
-  }
-
-  def deepCloneAssist(e: CronComponent): CronComponent = {
-    ???
   }
 }
 

@@ -11,15 +11,6 @@ import java.util.Date
 import org.json4s.jackson.JsonMethods
 
 class KillNodeInstance (override val nodeInfo: KillNodeInfo) extends ControlNodeInstance(nodeInfo){
-  def deepClone(): KillNodeInstance = {
-    val kni = KillNodeInstance(nodeInfo)
-    deepCloneAssist(kni)
-    kni
-  }
-  def deepCloneAssist(kni: StartNodeInstance): StartNodeInstance = {
-     super.deepCloneAssist(kni)
-     kni
-  }
 
   def getNextNodes(wfi: WorkflowInstance): List[NodeInstance] = List()
   
@@ -50,9 +41,5 @@ class KillNodeInstance (override val nodeInfo: KillNodeInfo) extends ControlNode
 }
 
 object KillNodeInstance {
-  def apply(killNode: KillNodeInfo): KillNodeInstance = {
-    val kn = killNode.deepClone()
-    val kni = new KillNodeInstance(kn)
-    kni
-  }
+  def apply(killNode: KillNodeInfo): KillNodeInstance = new KillNodeInstance(killNode)
 }

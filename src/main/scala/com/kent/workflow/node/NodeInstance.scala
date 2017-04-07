@@ -16,7 +16,7 @@ import com.kent.workflow.actionnode._
 import com.kent.workflow.controlnode._
 import com.kent.pub.ShareData
 
-abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeInstance] with Daoable[NodeInstance] with Serializable{
+abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance] with DeepCloneable[NodeInstance]{
   var id: String = _
   var status: Status = PREP
   var executedMsg: String = _
@@ -33,6 +33,10 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
 		this.terminate(wfa)
 		this.postTerminate()
   }
+  
+  
+  
+  
   /**
    * 执行前方法
    */
@@ -69,16 +73,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
    * 替换该节点参数
    */
   def replaceParam(param: Map[String, String]): Boolean
-
-  def deepClone(): NodeInstance
-  def deepCloneAssist(e: NodeInstance): NodeInstance = {
-    e.id = id
-    e.status = getStatusWithId(status.id)
-    e.executedMsg = executedMsg
-    e.startTime = if(startTime == null) null else new Date(startTime.getTime)
-    e.endTime = if(endTime == null) null else new Date(endTime.getTime)
-    e
-  }
+  
   /**
    * 删除
    */
@@ -122,7 +117,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends DeepCloneable[NodeIn
    */
   def getEntity(implicit conn: Connection): Option[NodeInstance] = {
     import com.kent.util.Util._
-    val newNodeInstance = this.deepClone()
+    val newNodeInstance = this.deepClone[NodeInstance]()
     val queryStr = s"""
          select workflow_instance_id,name,is_action,type,content,description,status,stime,etime,msg
          from node_instance 

@@ -12,15 +12,8 @@ import org.json4s.JsonAST.JString
 class ForkNodeInfo(name: String) extends ControlNodeInfo(name){
   var pathList: List[String] = List()
 
-  def deepClone(): ForkNodeInfo = {
-    val fn = ForkNodeInfo(name)
-    fn.pathList = pathList.map (_.toString()).toList
-    this.deepCloneAssist(fn)
-    fn
-  }
-
   override def createInstance(workflowInstanceId: String): ForkNodeInstance = {
-    val fni = ForkNodeInstance(this)
+    val fni = ForkNodeInstance(this.deepClone[ForkNodeInfo])
     fni.id = workflowInstanceId
     fni
   }

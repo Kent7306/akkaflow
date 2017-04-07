@@ -10,16 +10,6 @@ import com.kent.workflow.WorkflowInfo.WStatus._
 import com.kent.util.Util
 
 class EndNodeInstance(override val nodeInfo: EndNodeInfo) extends ControlNodeInstance(nodeInfo) {
-  
-  def deepClone(): EndNodeInstance = {
-    val eni = EndNodeInstance(this.nodeInfo)
-    deepCloneAssist(eni)
-    eni
-  }
-  def deepCloneAssist(eni: StartNodeInstance): StartNodeInstance = {
-     super.deepCloneAssist(eni)
-     eni
-  }
 
   def getNextNodes(wfi: WorkflowInstance): List[NodeInstance] = List()
   
@@ -34,9 +24,5 @@ class EndNodeInstance(override val nodeInfo: EndNodeInfo) extends ControlNodeIns
 }
 
 object EndNodeInstance {
-  def apply(endNode: EndNodeInfo): EndNodeInstance = {
-    val en = endNode.deepClone()
-    val eni = new EndNodeInstance(en)
-    eni
-  }
+  def apply(endNode: EndNodeInfo): EndNodeInstance = new EndNodeInstance(endNode)
 }

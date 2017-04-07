@@ -29,20 +29,6 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   var status: WStatus = W_PREP     
   var nodeInstanceList:List[NodeInstance] = List()
   
-  def deepClone(): WorkflowInstance = {
-    val wfi = WorkflowInstance(workflow)
-    this.deepCloneAssist(wfi)
-    wfi
-  }
-  def deepCloneAssist(wfi: WorkflowInstance): WorkflowInstance = {
-    wfi.parsedParams = this.parsedParams.map(x => (x._1,x._2)).toMap
-    wfi.startTime = startTime
-    wfi.endTime = endTime
-    wfi.status = getWstatusWithId(status.id)
-    wfi.nodeInstanceList = nodeInstanceList.map { _.deepClone() }.toList
-    wfi.id = id
-    wfi
-  }
   override def toString: String = {
     var str = this.getClass().getName + "(\n"
     str = str + s"  id = ${id},\n"
@@ -122,7 +108,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
    */
   def getEntityWithNodeInstance(implicit conn: Connection, isWithNodeInstance: Boolean): Option[WorkflowInstance] = {
     import com.kent.util.Util._
-    val wfi = this.deepClone()
+    val wfi = this.deepClone[WorkflowInstance]
     //工作流实例查询sql
     val queryStr = s"""
          select id,name,dir,param,status,description,mail_level,

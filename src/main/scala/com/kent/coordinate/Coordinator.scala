@@ -187,7 +187,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     result
   }
 
-  def deepClone(): Coordinator = {
+/*  def deepClone(): Coordinator = {
     val newCoor = new Coordinator(name)
     newCoor.paramMap = paramMap.map(x => (x._1, x._2)).toMap
     newCoor.paramList = paramList.map(x => (x._1, x._2)).toList
@@ -206,7 +206,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
 
   def deepCloneAssist(e: Coordinator): Coordinator = {
     ???
-  }
+  }*/
   
 }
 object Coordinator {
@@ -272,33 +272,6 @@ object Coordinator {
 	  def workFlowName = _workFlowName
 	  def isReady = _isReady
 	  def isReady_=(isReady: Boolean) = _isReady = isReady
-
-	  def deepClone(): Depend = {
-		  val tmp = new Depend(workFlowName)
-		  tmp.isReady = isReady
-		  tmp
-		}
-	  def deepCloneAssist(e: Depend): Depend = null
-	}
-	def main(args: Array[String]): Unit = {
-	  val content = """
-	     <coordinator name="coor" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00">    
-        <trigger>
-            <cron config="0 1 * * * 2"/>
-            <depend-list>
-                <depend wf="wf_1" />
-                <depend wf="wf_2" />
-            </depend-list>
-        </trigger>
-        <workflow path="wf_3"/>
-        <param-list>
-            <param name="yestoday" value="${time.today|yyyy-MM-dd|-1 day}"/>
-            <param name="lastMonth" value="${time.today|yyyyMM|-1 month}"/>
-            <param name="yestoday2" value="${time.yestoday}"/>
-        </param-list>
-    </coordinator>
-	    """
-	  val coor = Coordinator(content)
 	}
 }
 

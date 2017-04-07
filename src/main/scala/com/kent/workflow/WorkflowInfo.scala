@@ -30,22 +30,6 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
    */
   def createInstance(): WorkflowInstance = WorkflowInstance(this)
 
-  def deepClone(): WorkflowInfo = {
-	  val wf = new WorkflowInfo(name)
-	  this.deepCloneAssist(wf)
-	  wf
-	}
-
-  def deepCloneAssist(wf: WorkflowInfo): WorkflowInfo = {
-	  wf.nodeList = this.nodeList.map { _.deepClone() }.toList
-	  wf.createTime = if(createTime == null) null else new Date(this.createTime.getTime)
-	  wf.desc = desc
-	  wf.mailLevel = mailLevel.map { x => x }.toList
-	  wf.mailReceivers = mailReceivers.map { x => x }.toList
-	  wf.dir = if(this.dir != null) Directory(this.dir.dirname, 1) else null
-	  wf
-	}
-
   def delete(implicit conn: Connection): Boolean = {
     var result = false
     try{
@@ -68,7 +52,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
    */
   def getEntityWithNodeInfo(implicit conn: Connection, isWithNodeInfo: Boolean): Option[WorkflowInfo] = {
     import com.kent.util.Util._
-    val wf = this.deepClone()
+    val wf = this.deepClone[WorkflowInfo]
     //工作流实例查询sql
     val queryStr = s"""
         select name,dir,description,mail_level,mail_receivers,create_time,last_update_time

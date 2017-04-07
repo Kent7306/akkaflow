@@ -13,26 +13,11 @@ class FileWatcherActionNodeInfo(name: String) extends ActionNodeInfo(name) {
     var isWarnMsgEnable: Boolean = false
   
     def createInstance(workflowInstanceId: String): FileWatcherActionNodeInstance = {
-       val fwani = FileWatcherActionNodeInstance(this)
+       val fwani = FileWatcherActionNodeInstance(this.deepClone[FileWatcherActionNodeInfo])
         fwani.id = workflowInstanceId
         fwani
     }
 
-  def deepClone(): FileWatcherActionNodeInfo = {
-    val fwan = FileWatcherActionNodeInfo(name)
-    deepCloneAssist(fwan)
-    fwan
-  }
-  def deepCloneAssist(fwan: FileWatcherActionNodeInfo): FileWatcherActionNodeInfo = {
-    super.deepCloneAssist(fwan)
-    fwan.dir = dir
-    fwan.numThreshold = numThreshold
-    fwan.filename = filename
-    fwan.sizeThreshold = sizeThreshold
-    fwan.warnMessage = warnMessage
-    fwan.isWarnMsgEnable = isWarnMsgEnable
-    fwan
-  }
   override def setContent(contentStr: String){
 	  super.setContent(contentStr)
     val content = JsonMethods.parse(contentStr)

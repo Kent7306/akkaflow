@@ -11,15 +11,8 @@ import org.json4s.jackson.JsonMethods
 class KillNodeInfo(name: String) extends ControlNodeInfo(name) {
   var msg: String = _
 
-  def deepClone(): KillNodeInfo = {
-    val kn = KillNodeInfo(this.name)
-    kn.msg = msg
-    this.deepCloneAssist(kn)
-    kn
-  }
-
   override def createInstance(workflowInstanceId: String): KillNodeInstance = {
-    val kni = KillNodeInstance(this)
+    val kni = KillNodeInstance(this.deepClone[KillNodeInfo])
     kni.id = workflowInstanceId
     kni
   }

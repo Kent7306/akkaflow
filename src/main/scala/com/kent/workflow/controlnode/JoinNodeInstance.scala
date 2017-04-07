@@ -11,15 +11,6 @@ import com.kent.workflow.node.NodeInstance
 import org.json4s.jackson.JsonMethods
 
 class JoinNodeInstance(override val nodeInfo: JoinNodeInfo) extends ControlNodeInstance(nodeInfo) {
-  def deepClone(): JoinNodeInstance = {
-    val jni = JoinNodeInstance(nodeInfo)
-    deepCloneAssist(jni)
-    jni
-  }
-  def deepCloneAssist(jni: JoinNodeInstance): JoinNodeInstance = {
-     super.deepCloneAssist(jni)
-     jni
-  }
   
   override def ifCanExecuted(wfi: WorkflowInstance): Boolean = {
 		var isExcecuted = true
@@ -50,9 +41,5 @@ class JoinNodeInstance(override val nodeInfo: JoinNodeInfo) extends ControlNodeI
 }
 
 object JoinNodeInstance {
-  def apply(joinNode: JoinNodeInfo): JoinNodeInstance = {
-    val jn = joinNode.deepClone()
-    val jni = new JoinNodeInstance(jn)
-    jni
-  }
+  def apply(joinNode: JoinNodeInfo): JoinNodeInstance = new JoinNodeInstance(joinNode)
 }

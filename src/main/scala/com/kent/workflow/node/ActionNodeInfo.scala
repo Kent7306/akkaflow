@@ -11,17 +11,6 @@ abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
   var ok: String = _
   var error: String = _ 
   
-  def deepCloneAssist(an: ActionNodeInfo): ActionNodeInfo = {
-	  super.deepCloneAssist(an)
-    an.retryTimes = retryTimes
-    an.interval = interval
-    an.timeout = timeout
-    an.host = host
-    an.ok = ok
-    an.error = error
-    an
-  }
-  
   override def setContent(contentStr: String){
     val content = JsonMethods.parse(contentStr)
     import org.json4s._

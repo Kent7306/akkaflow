@@ -7,11 +7,6 @@ import java.io.File
 import com.kent.util.Util
 
 class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNodeInfo)  extends ActionNodeInstance(nodeInfo)  {
-  def deepClone(): FileWatcherActionNodeInstance = {
-    val hsani = FileWatcherActionNodeInstance(nodeInfo)
-    deepCloneAssist(hsani)
-    hsani
-  }
 
   def execute(): Boolean = {
     if(nodeInfo.dir.toLowerCase().matches("hdfs:")){
@@ -96,9 +91,5 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
 }
 
 object FileWatcherActionNodeInstance {
-  def apply(fwan: FileWatcherActionNodeInfo): FileWatcherActionNodeInstance = {
-    val cfwan = fwan.deepClone()
-    val fwani = new FileWatcherActionNodeInstance(cfwan)
-    fwani
-  }
+  def apply(fwan: FileWatcherActionNodeInfo): FileWatcherActionNodeInstance = FileWatcherActionNodeInstance(fwan)
 }

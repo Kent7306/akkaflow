@@ -7,10 +7,7 @@ import com.kent.workflow.controlnode.JoinNodeInfo
 import com.kent.workflow.controlnode.KillNodeInfo
 
 abstract class ControlNodeInfo(name: String) extends NodeInfo(name) {
-  def deepCloneAssist(cn: ControlNodeInfo): ControlNodeInfo = {
-    super.deepCloneAssist(cn)
-    cn
-  }
+  
 }
 
 object ControlNodeInfo{

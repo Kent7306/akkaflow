@@ -11,15 +11,8 @@ import org.json4s.jackson.JsonMethods
 class JoinNodeInfo(name: String) extends ControlNodeInfo(name)  {
   var to: String = _
 
-  override def deepClone(): JoinNodeInfo = {
-    val jn = JoinNodeInfo(name)
-    jn.to = to
-    this.deepCloneAssist(jn)
-    jn
-  }
-
   override def createInstance(workflowInstanceId: String): JoinNodeInstance = {
-    val jni = JoinNodeInstance(this)
+    val jni = JoinNodeInstance(this.deepClone[JoinNodeInfo])
     jni.id = workflowInstanceId
     jni
   }

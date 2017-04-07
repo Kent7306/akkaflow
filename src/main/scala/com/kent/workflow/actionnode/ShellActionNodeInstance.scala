@@ -12,12 +12,6 @@ import com.kent.db.LogRecorder._
 class ShellActionNodeInstance(override val nodeInfo: ShellActionNodeInfo) extends ActionNodeInstance(nodeInfo)  {
   var executeResult: Process = _
 
-  def deepClone(): ShellActionNodeInstance = {
-    val hsani = ShellActionNodeInstance(nodeInfo)
-    deepCloneAssist(hsani)
-    hsani
-  }
-
   override def execute(): Boolean = {
     try {
       val pLogger = ProcessLogger(line => ShareData.logRecorder ! Info("NodeInstance", this.id, line),
@@ -38,18 +32,8 @@ class ShellActionNodeInstance(override val nodeInfo: ShellActionNodeInfo) extend
     executeResult.destroy()
     true
   }
-
-  def deepCloneAssist(hsni: ShellActionNodeInstance): ShellActionNodeInstance = {
-    super.deepCloneAssist(hsni)
-    hsni.executeResult = executeResult
-    hsni
-  }
 }
 
 object ShellActionNodeInstance {
-  def apply(hsan: ShellActionNodeInfo): ShellActionNodeInstance = {
-    val hs = hsan.deepClone()
-    val hsani = new ShellActionNodeInstance(hs)
-    hsani
-  }
+  def apply(hsan: ShellActionNodeInfo): ShellActionNodeInstance = new ShellActionNodeInstance(hsan)
 }

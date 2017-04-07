@@ -7,8 +7,13 @@ import java.sql.Connection
 import java.sql.ResultSet
 import com.kent.workflow.controlnode._
 import com.kent.workflow.actionnode._
+import java.io.ByteArrayOutputStream
+import java.io.ObjectOutputStream
+import java.io.ByteArrayInputStream
+import java.io.ObjectInputStream
+import java.io.IOException
 
-abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with Daoable[NodeInfo] with Serializable{
+abstract class NodeInfo(var name: String) extends Daoable[NodeInfo] with DeepCloneable[NodeInfo]{
   import com.kent.workflow.node.NodeInfo.Status._
   var workflowName: String = _
   var desc: String = _
@@ -16,12 +21,7 @@ abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with D
    * 由该节点信息创建属于某工作流实例的节点实例
    */
   def createInstance(workflowInstanceId: String): NodeInstance
-  def deepClone(): NodeInfo
-  override def deepCloneAssist(e: NodeInfo): NodeInfo = {
-    e.workflowName = workflowName
-    e.desc = desc
-    e
-	}
+  
   /**
    * merge
    */
@@ -60,7 +60,7 @@ abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with D
    */
   def getEntity(implicit conn: Connection): Option[NodeInfo] = {
     import com.kent.util.Util._
-    val newNode = this.deepClone()
+    val newNode = this.deepClone[NodeInfo]()
     val queryStr = s"""
      select name,type,is_action,workflow_name,description,content
      from node 
@@ -74,11 +74,10 @@ abstract class NodeInfo(var name: String) extends DeepCloneable[NodeInfo] with D
             newNode
           }else{
             null
-            
           }
       })
   }
-}
+}  
 
 object NodeInfo {
   def apply(node: scala.xml.Node): NodeInfo = parseXmlNode(node)

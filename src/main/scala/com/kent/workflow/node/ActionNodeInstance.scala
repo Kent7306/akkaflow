@@ -15,12 +15,6 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends
   var actionActor: ActionActor = _
   def kill():Boolean
   
-  def deepCloneAssist(ani: ActionNodeInstance): ActionNodeInstance = {
-    super.deepCloneAssist(ani)
-    ani.hasRetryTimes = hasRetryTimes
-    ani
-  }
-  
   /**
    * 得到下一个执行节点
    */
