@@ -40,7 +40,7 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * 初始化
    */
-  init()
+  //init()
   /**
    * 增
    */
@@ -54,6 +54,9 @@ class WorkFlowManager extends Actor with ActorLogging{
     }
     add(wf, isSaved)
   }
+  /**
+   * 增
+   */
   def add(wf: WorkflowInfo, isSaved: Boolean): ResponseData = {
     ShareData.logRecorder ! Info("WorkflowManager", null, s"添加工作流配置：${wf.name}")
 		if(isSaved) ShareData.persistManager ! Save(wf)
@@ -176,10 +179,6 @@ class WorkFlowManager extends Actor with ActorLogging{
       wfi2.startTime = null
       wfi2.endTime = null
       wfi2.nodeInstanceList.foreach { y =>  y.status = PREP; y.startTime = null; y.endTime = null}
-      //ShareData.persistManager ! Save(wfi2)
-      //这里用了阻塞，保证节点重置后能保存到数据库中
-      //Thread.sleep(3000)
-      //Await.result(result, 20 second)
     	
       //创建新的workflow actor，并加入到列表中
       val wfActorRef = context.actorOf(Props(WorkflowActor(wfi2)), wfi2.actorName)

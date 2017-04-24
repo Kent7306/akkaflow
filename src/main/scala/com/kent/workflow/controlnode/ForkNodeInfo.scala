@@ -13,7 +13,7 @@ class ForkNodeInfo(name: String) extends ControlNodeInfo(name){
   var pathList: List[String] = List()
 
   override def createInstance(workflowInstanceId: String): ForkNodeInstance = {
-    val fni = ForkNodeInstance(this.deepClone[ForkNodeInfo])
+    val fni = ForkNodeInstance(this.deepCloneAs[ForkNodeInfo])
     fni.id = workflowInstanceId
     fni
   }

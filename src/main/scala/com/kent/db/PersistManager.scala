@@ -10,6 +10,7 @@ import com.kent.db.PersistManager._
 import akka.actor.ActorRef
 import com.kent.workflow.WorkflowInstance
 import java.sql.ResultSet
+import scala.io.Source
 
 class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging{
   implicit var connection: Connection = null
@@ -20,6 +21,20 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
 	  //得到连接
 	  connection = DriverManager.getConnection(url, username, pwd)
     context.become(active)
+    init()
+  }
+  /**
+   * init
+   */
+  def init(){
+    var content = ""
+    Source.fromFile("config/create_table.sql").foreach { content += _ }
+    val sqls = content.split(";").filter { _.trim() !="" }.toList
+    try {
+    	this.execute(sqls)      
+    } catch {
+      case e: Exception => e.printStackTrace();throw new Exception("执行初始化sql失败")
+    }
   }
   /**
    * 开启持久化
@@ -52,7 +67,22 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     })
     if(listOpt.isEmpty) null else listOpt.get
   }
-  
+  /**
+   * 执行多条dml语句
+   */
+  def execute(sqls:List[String])(implicit conn: Connection): Boolean = {
+    conn.setAutoCommit(false)
+    val stat = conn.createStatement();
+    val errorCnt = sqls.map { stat.execute(_) }.toList.filter { !_ }.size
+    if(errorCnt > 0){
+    	conn.rollback()
+    	false      
+    }else{
+      conn.commit()
+      conn.setAutoCommit(true)
+      true
+    }
+  }
   
   /**
    * 查询sql

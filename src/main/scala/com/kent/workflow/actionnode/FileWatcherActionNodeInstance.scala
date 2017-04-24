@@ -91,5 +91,5 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
 }
 
 object FileWatcherActionNodeInstance {
-  def apply(fwan: FileWatcherActionNodeInfo): FileWatcherActionNodeInstance = FileWatcherActionNodeInstance(fwan)
+  def apply(fwan: FileWatcherActionNodeInfo): FileWatcherActionNodeInstance = new FileWatcherActionNodeInstance(fwan)
 }

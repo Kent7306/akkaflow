@@ -13,7 +13,7 @@ class FileWatcherActionNodeInfo(name: String) extends ActionNodeInfo(name) {
     var isWarnMsgEnable: Boolean = false
   
     def createInstance(workflowInstanceId: String): FileWatcherActionNodeInstance = {
-       val fwani = FileWatcherActionNodeInstance(this.deepClone[FileWatcherActionNodeInfo])
+       val fwani = FileWatcherActionNodeInstance(this.deepCloneAs[FileWatcherActionNodeInfo])
         fwani.id = workflowInstanceId
         fwani
     }

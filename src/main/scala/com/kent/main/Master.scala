@@ -38,6 +38,7 @@ import com.kent.db.LogRecorder
 import akka.cluster.Member
 import akka.actor.ActorPath
 import akka.actor.RootActorPath
+import com.kent.db.XmlLoader
 
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
@@ -59,8 +60,8 @@ class Master extends ClusterRole {
       //worker请求注册
       context watch sender
       roler = roler :+ sender
-      log.info("Worker registered: " + sender)
-      log.info("Registered workers number: " + roler.size)
+      log.info("注册Worker: " + sender)
+      log.info("当前注册的Worker数量: " + roler.size)
     }
     case Start() => this.start()
     case Terminated(workerActorRef) =>
@@ -69,13 +70,13 @@ class Master extends ClusterRole {
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
     case RemoveWorkFlow(wfId) => workflowManager ! RemoveWorkFlow(wfId)
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
-    case AskWorker(host: String) => sender ! GetWorker(askWorker(host: String))
+    case AskWorker(host: String) => sender ! GetWorker(allocateWorker(host: String))
     case ReRunWorkflowInstance(id: String) => workflowManager ! ReRunWorkflowInstance(id)
   }
   /**
    * 请求得到新的worker，动态分配
    */
-  def askWorker(host: String):ActorRef = {
+  private def allocateWorker(host: String):ActorRef = {
     //host为-1情况下，随机分配
     if(host == "-1") {
       roler(Random.nextInt(roler.size))
@@ -92,7 +93,7 @@ class Master extends ClusterRole {
     /**
    * 获取http-server的路径
    */
-  def getHttpServerPath(member: Member):Option[ActorPath] = {
+  private def getHttpServerPath(member: Member):Option[ActorPath] = {
     if(member.hasRole("http-server")){
     	Some(RootActorPath(member.address) /"user" / "http-server")    
     }else{
@@ -130,16 +131,18 @@ class Master extends ClusterRole {
     ShareData.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
     //创建日志记录器
     ShareData.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
-    
-    Thread.sleep(1000)
     //创建coordinator管理器
     coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
     //创建workflow管理器
     workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
     coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
     workflowManager ! GetManagers(workflowManager,coordinatorManager)
-    Thread.sleep(1000)
-    coordinatorManager ! Start()
+    Thread.sleep(3000)
+    val xmlLoader = context.actorOf(Props(XmlLoader("xmlconfig/workflow","xmlconfig/coordinator", 5)),"xml-loader")
+    //coordinatorManager ! Start()
+    
+    //
+    xmlLoader ! Start()
     true
   }
 }

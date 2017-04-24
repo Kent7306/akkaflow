@@ -9,8 +9,8 @@ import java.sql.ResultSet
 class EndNodeInfo(name: String) extends ControlNodeInfo(name){
 
   override def createInstance(workflowInstanceId: String): EndNodeInstance = {
-    val eni = EndNodeInstance(this.deepClone[EndNodeInfo])
-    eni.id = workflowInstanceId: String
+    val eni = EndNodeInstance(this.deepCloneAs[EndNodeInfo])
+    eni.id = workflowInstanceId
     eni
   }
 }

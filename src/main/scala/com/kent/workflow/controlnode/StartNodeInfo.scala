@@ -10,7 +10,7 @@ class StartNodeInfo(name: String) extends ControlNodeInfo(name){
   var to: String = _
 
   override def createInstance(workflowInstanceId: String): StartNodeInstance = {
-    val sni = StartNodeInstance(this.deepClone[StartNodeInfo])
+    val sni = StartNodeInstance(this.deepCloneAs[StartNodeInfo])
     sni.id = workflowInstanceId
     sni
   }

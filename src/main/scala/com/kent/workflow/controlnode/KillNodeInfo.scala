@@ -12,7 +12,7 @@ class KillNodeInfo(name: String) extends ControlNodeInfo(name) {
   var msg: String = _
 
   override def createInstance(workflowInstanceId: String): KillNodeInstance = {
-    val kni = KillNodeInstance(this.deepClone[KillNodeInfo])
+    val kni = KillNodeInstance(this.deepCloneAs[KillNodeInfo])
     kni.id = workflowInstanceId
     kni
   }

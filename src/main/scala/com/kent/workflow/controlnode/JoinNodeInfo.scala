@@ -12,7 +12,7 @@ class JoinNodeInfo(name: String) extends ControlNodeInfo(name)  {
   var to: String = _
 
   override def createInstance(workflowInstanceId: String): JoinNodeInstance = {
-    val jni = JoinNodeInstance(this.deepClone[JoinNodeInfo])
+    val jni = JoinNodeInstance(this.deepCloneAs[JoinNodeInfo])
     jni.id = workflowInstanceId
     jni
   }

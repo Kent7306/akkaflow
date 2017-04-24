@@ -52,7 +52,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
    */
   def getEntityWithNodeInfo(implicit conn: Connection, isWithNodeInfo: Boolean): Option[WorkflowInfo] = {
     import com.kent.util.Util._
-    val wf = this.deepClone[WorkflowInfo]
+    val wf = this.deepClone()
     //工作流实例查询sql
     val queryStr = s"""
         select name,dir,description,mail_level,mail_receivers,create_time,last_update_time
@@ -170,6 +170,5 @@ object WorkflowInfo {
       WStatus.values.foreach { x => if(x.id == id) return x }
       sta
     }
-    
   }
 }

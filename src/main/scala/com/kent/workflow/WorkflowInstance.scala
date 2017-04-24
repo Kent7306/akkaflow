@@ -108,7 +108,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
    */
   def getEntityWithNodeInstance(implicit conn: Connection, isWithNodeInstance: Boolean): Option[WorkflowInstance] = {
     import com.kent.util.Util._
-    val wfi = this.deepClone[WorkflowInstance]
+    val wfi = this.deepClone
     //工作流实例查询sql
     val queryStr = s"""
          select id,name,dir,param,status,description,mail_level,

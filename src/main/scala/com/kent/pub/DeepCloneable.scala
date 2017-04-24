@@ -13,7 +13,7 @@ trait DeepCloneable[A] extends Serializable{
   /**
    * 克隆接口,并指定下界
    */
-  def deepClone[B <: A]():B = {
+  def deepCloneAs[B <: A]():B = {
       var outer: Any = null
       try { // 将该对象序列化成流,因为写在流里的是对象的一个拷贝，而原对象仍然存在于JVM里面。所以利用这个特性可以实现对象的深拷贝
           val baos = new ByteArrayOutputStream()
@@ -29,10 +29,5 @@ trait DeepCloneable[A] extends Serializable{
       }
       outer.asInstanceOf[B]
   }
-  /**
-   * 克隆接口，返回自身类型
-   */
-  def deepClone():A = {
-      deepClone[A]
-  }
+  def deepClone():A = deepCloneAs[A]
 }

@@ -43,7 +43,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
   def preExecute():Boolean = {
     this.startTime = Util.nowDate 
     this.status = RUNNING 
-    ShareData.persistManager ! Save(this.deepClone())
+    ShareData.persistManager ! Save(this.deepClone) 
     true
   }
   /**
@@ -117,7 +117,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
    */
   def getEntity(implicit conn: Connection): Option[NodeInstance] = {
     import com.kent.util.Util._
-    val newNodeInstance = this.deepClone[NodeInstance]()
+    val newNodeInstance = this.deepClone
     val queryStr = s"""
          select workflow_instance_id,name,is_action,type,content,description,status,stime,etime,msg
          from node_instance 

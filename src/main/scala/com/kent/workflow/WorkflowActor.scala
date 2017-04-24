@@ -113,7 +113,11 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	    GetWorker(worker) <- (masterRef ? AskWorker(actionNodeInstance.nodeInfo.host)).mapTo[GetWorker]
 	    af <- (worker ? CreateAction(actionNodeInstance)).mapTo[ActorRef]
 	  } yield af
-	  actionNodeAF.map { x => if(x!=null){runningActors += (x -> actionNodeInstance);x ! Start()} }
+	  actionNodeAF.map { 
+	    x => if(x!=null){
+	      runningActors += (x -> actionNodeInstance);x ! Start()
+	    } 
+	  }
 		true
 	}
 	/**

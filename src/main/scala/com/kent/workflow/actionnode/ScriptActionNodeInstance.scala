@@ -13,7 +13,7 @@ import java.io.File
 import com.kent.util.Util
 
 class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) extends ActionNodeInstance(nodeInfo)  {
-  var executeResult: Process = _
+  private var executeResult: Process = _
 
   override def execute(): Boolean = {
     try {
@@ -60,9 +60,5 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
 }
 
 object ScriptActionNodeInstance {
-  def apply(san: ScriptActionNodeInfo): ScriptActionNodeInstance = {
-    val sa = san.deepClone() 
-    val sani = new ScriptActionNodeInstance(sa)
-    sani
-  }
+  def apply(san: ScriptActionNodeInfo): ScriptActionNodeInstance = new ScriptActionNodeInstance(san)
 }

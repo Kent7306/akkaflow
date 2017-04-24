@@ -12,7 +12,7 @@ class ShellActionNodeInfo(name: String) extends ActionNodeInfo(name) {
   var command: String = _
 
   def createInstance(workflowInstanceId: String): ShellActionNodeInstance = {
-    val hsani = ShellActionNodeInstance(this.deepClone[ShellActionNodeInfo])
+    val hsani = ShellActionNodeInstance(this.deepCloneAs[ShellActionNodeInfo])
     hsani.id = workflowInstanceId
     hsani
   }

@@ -24,7 +24,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   private var paramList: List[Tuple2[String, String]] = List()
 	import com.kent.coordinate.Coordinator.Status._
   import com.kent.coordinate.Coordinator.Depend
-  private var cron: CronComponent = _
+  @transient private var cron: CronComponent = _
   private var content: String = _
   private var startDate: Date = _
   private var isEnabled: Boolean = true
@@ -187,26 +187,11 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     result
   }
 
-/*  def deepClone(): Coordinator = {
-    val newCoor = new Coordinator(name)
-    newCoor.paramMap = paramMap.map(x => (x._1, x._2)).toMap
-    newCoor.paramList = paramList.map(x => (x._1, x._2)).toList
-    newCoor.cron = if(cron != null) cron.deepClone() else null
-    newCoor.depends = depends.map { _.deepClone() }.toList
-    newCoor.workflows = workflows.map { x => x }.toList
-    newCoor.startDate = startDate
-    newCoor.endDate = endDate
-    newCoor.content = content
-    newCoor.isEnabled = isEnabled
-    newCoor.status = status
-    newCoor.desc = desc
-    newCoor.dir = if(dir != null) Directory(dir.dirname, 0) else null
-    newCoor
+  override def deepClone(): Coordinator = {
+     val newCoor = super.deepClone();
+     newCoor.cron = if(this.cron != null) this.cron.deepClone() else null;
+     newCoor
   }
-
-  def deepCloneAssist(e: Coordinator): Coordinator = {
-    ???
-  }*/
   
 }
 object Coordinator {

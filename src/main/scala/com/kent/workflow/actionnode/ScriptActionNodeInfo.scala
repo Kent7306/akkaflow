@@ -11,7 +11,7 @@ class ScriptActionNodeInfo(name: String) extends ActionNodeInfo(name) {
   var content: String = _
   
   def createInstance(workflowInstanceId: String): ScriptActionNodeInstance = {
-    val sani = ScriptActionNodeInstance(this.deepClone[ScriptActionNodeInfo]) 
+    val sani = ScriptActionNodeInstance(this.deepCloneAs[ScriptActionNodeInfo]) 
     sani.id = workflowInstanceId
     sani
   }

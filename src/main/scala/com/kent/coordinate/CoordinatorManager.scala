@@ -25,7 +25,7 @@ class CoordinatorManager extends Actor with ActorLogging{
   /**
    * 初始化
    */
-  init()
+  //init()
   /**
    * 增
    */
@@ -39,6 +39,9 @@ class CoordinatorManager extends Actor with ActorLogging{
     }
     add(coor, isSaved)
   }
+  /**
+   * 新增coordinator
+   */
   def add(coor: Coordinator, isSaved: Boolean): ResponseData = {
 		if(isSaved) ShareData.persistManager ! Save(coor)
 		if(coordinators.get(coor.name).isEmpty){
