@@ -28,12 +28,13 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
    */
   def init(){
     var content = ""
+    log.info("检查库表情况...")
     Source.fromFile("config/create_table.sql").foreach { content += _ }
     val sqls = content.split(";").filter { _.trim() !="" }.toList
     try {
     	this.execute(sqls)      
     } catch {
-      case e: Exception => e.printStackTrace();throw new Exception("执行初始化sql失败")
+      case e: Exception => e.printStackTrace();throw new Exception("执行初始化建表sql失败")
     }
   }
   /**

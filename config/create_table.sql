@@ -85,3 +85,7 @@ create table if not exists directory_info(
     name varchar(128) not null,
     description varchar(1024)
 );
+truncate node;
+truncate workflow;
+truncate directory_info;
+truncate coordinator;

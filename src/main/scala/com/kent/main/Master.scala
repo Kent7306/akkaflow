@@ -43,6 +43,53 @@ import com.kent.db.XmlLoader
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
   var workflowManager: ActorRef = _
+  var xmlLoader: ActorRef = _
+  
+  init()
+  
+  def init(){
+    import com.kent.pub.ShareData._
+    //mysql持久化参数配置
+    val mysqlConfig = (config.getString("workflow.mysql.user"),
+                      config.getString("workflow.mysql.password"),
+                      config.getString("workflow.mysql.jdbc-url"),
+                      config.getBoolean("workflow.mysql.is-enabled")
+                    )
+   //日志记录器配置
+   val logRecordConfig = (config.getString("workflow.log-mysql.user"),
+                      config.getString("workflow.log-mysql.password"),
+                      config.getString("workflow.log-mysql.jdbc-url"),
+                      config.getBoolean("workflow.log-mysql.is-enabled")
+                    )
+   //Email参数配置
+   val emailConfig = (config.getString("workflow.email.hostname"),
+                      config.getInt(("workflow.email.smtp-port")),
+                      config.getString("workflow.email.account"),
+                      config.getString("workflow.email.password"),
+                      config.getBoolean("workflow.email.is-enabled")
+                    )
+  //xmlLoader参数配置
+  val xmlLoaderConfig = (config.getString("workflow.xml-loader.workflow-dir"),
+                      config.getString(("workflow.xml-loader.coordinator-dir")),
+                      config.getInt("workflow.xml-loader.scan-interval")
+                    )
+                    
+    //创建持久化管理器
+    ShareData.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
+    //创建邮件发送器
+    ShareData.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
+    //创建日志记录器
+    ShareData.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+    //创建coordinator管理器
+    coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
+    //创建workflow管理器
+    workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
+    //创建xml装载器
+    xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2, xmlLoaderConfig._3)),"xml-loader")
+    
+    Thread.sleep(3000)
+    log.info("初始化成功")
+  }
   
   def receive: Actor.Receive = { 
     case MemberUp(member) => 
@@ -104,45 +151,11 @@ class Master extends ClusterRole {
    * 启动入口
    */
   def start():Boolean = {
-    import com.kent.pub.ShareData._
-    //mysql持久化参数配置
-    val mysqlConfig = (config.getString("workflow.mysql.user"),
-                      config.getString("workflow.mysql.password"),
-                      config.getString("workflow.mysql.jdbc-url"),
-                      config.getBoolean("workflow.mysql.is-enabled")
-                    )
-   //日志记录器配置
-   val logRecordConfig = (config.getString("workflow.log-mysql.user"),
-                      config.getString("workflow.log-mysql.password"),
-                      config.getString("workflow.log-mysql.jdbc-url"),
-                      config.getBoolean("workflow.log-mysql.is-enabled")
-                    )
-   //Email参数配置
-   val emailConfig = (config.getString("workflow.email.hostname"),
-                      config.getInt(("workflow.email.smtp-port")),
-                      config.getString("workflow.email.account"),
-                      config.getString("workflow.email.password"),
-                      config.getBoolean("workflow.email.is-enabled")
-                    )
-                    
-    //创建持久化管理器
-    ShareData.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
-    //创建邮件发送器
-    ShareData.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
-    //创建日志记录器
-    ShareData.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
-    //创建coordinator管理器
-    coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
-    //创建workflow管理器
-    workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
     coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
     workflowManager ! GetManagers(workflowManager,coordinatorManager)
-    Thread.sleep(3000)
-    val xmlLoader = context.actorOf(Props(XmlLoader("xmlconfig/workflow","xmlconfig/coordinator", 5)),"xml-loader")
-    //coordinatorManager ! Start()
-    
-    //
     xmlLoader ! Start()
+    
+    //coordinatorManager ! Start()
     true
   }
 }

@@ -1,5 +1,5 @@
 name := "akkaflow"
-version := "1.0"
+version := "2.0"
 scalaVersion := "2.11.8"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 
@@ -19,7 +19,7 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
     "com.typesafe.akka" %% "akka-cluster-metrics" % akkaVersion,
     "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
-    "mysql" % "mysql-connector-java" % "5.1.+",
+     "mysql" % "mysql-connector-java" % "5.1.12",
     //"io.kamon" % "sigar-loader" % "1.6.6-rev002",
     "com.github.philcali" %% "cronish" % "0.1.3",
     "org.json4s" % "json4s-jackson_2.11" % "3.5.0",
@@ -28,28 +28,24 @@ libraryDependencies ++= {
   )
 }
 
-//deploy base on sbt-native-packager
+
 import NativePackagerHelper._
 enablePlugins(JavaServerAppPackaging)
 //mainClass in Compile := Some("com.kent.main.Master")
 //mainClass in Compile := Some("com.kent.main.Worker")
 mainClass in Compile := Some("com.kent.main.HttpServer")
 mappings in Universal ++= {
-  // optional example illustrating how to copy additional directory
-  directory("scripts") ++
-  // copy configuration files to config directory
-  contentOf("src/main/resources").toMap.mapValues("config/" + _)
-}
-
-// add 'config' directory first in the classpath of the start script,
-// an alternative is to set the config file locations via CLI parameters
-// when starting the application
-scriptClasspath := Seq("../config/") ++ scriptClasspath.value
-
-
-
-mappings in Universal ++= {
-  directory("scripts") ++
-  contentOf("bin-script").toMap.mapValues("bin/" + _)
+  directory("scripts") ++ contentOf("src/main/resources").toMap.mapValues("config/" + _)
 }
 scriptClasspath := Seq("../bin-script/") ++ scriptClasspath.value
+scriptClasspath := Seq("../config/") ++ scriptClasspath.value
+mappings in Universal ++= {
+    directory("scripts") ++ contentOf("tmp").toMap.mapValues("tmp/" + _)
+}
+mappings in Universal ++= { 
+	directory("scripts") ++ contentOf("bin-script").toMap.mapValues("bin/" + _) 
+}
+mappings in Universal ++= {
+	directory("scripts") ++ contentOf("xmlconfig").toMap.mapValues("xmlconfig/" + _) 
+}
+
