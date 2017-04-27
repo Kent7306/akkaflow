@@ -21,6 +21,7 @@ import com.kent.workflow.WorkflowActor.Start
 
 class Worker extends ClusterRole {
   val i = 0
+  init()
   import com.kent.main.Worker._
   def receive: Actor.Receive = {
     case MemberUp(member) => register(member, getMasterPath)
@@ -32,8 +33,6 @@ class Worker extends ClusterRole {
     
     case CreateAction(ani) => sender ! createActionActor(ani)
     case _:MemberEvent => // ignore 
-    
-    case Start() => this.start()
   }
   /**
    * 创建action actor
@@ -54,7 +53,7 @@ class Worker extends ClusterRole {
     }
   }
   
-  def start(): Boolean = {
+  def init(){
     import com.kent.pub.ShareData._
      //日志记录器配置
      val logRecordConfig = (config.getString("workflow.log-mysql.user"),
@@ -64,7 +63,6 @@ class Worker extends ClusterRole {
                     )
       //创建日志记录器
       ShareData.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
-      true
   }
 }
 
@@ -85,7 +83,6 @@ object Worker extends App {
       ShareData.config = config
       val system = ActorSystem("akkaflow", config)
       val worker = system.actorOf(Worker.props, name = "worker")
-      worker ! Start()
   }
   
   def props = Props[Worker]

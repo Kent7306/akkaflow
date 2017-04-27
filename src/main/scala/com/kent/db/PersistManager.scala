@@ -29,7 +29,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
   def init(){
     var content = ""
     log.info("检查库表情况...")
-    Source.fromFile("config/create_table.sql").foreach { content += _ }
+    Source.fromFile(this.getClass.getResource("/").getPath + "../config/create_table.sql").foreach { content += _ }
     val sqls = content.split(";").filter { _.trim() !="" }.toList
     try {
     	this.execute(sqls)      
