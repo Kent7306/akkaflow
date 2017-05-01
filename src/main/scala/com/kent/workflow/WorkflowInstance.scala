@@ -90,7 +90,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
         result = executeSql(updateSql)
       }
   	  //覆盖实例的节点
-  	  executeSql(s"delete from node_instance where workflow_instance_id='${id}'")
+  	  //executeSql(s"delete from node_instance where workflow_instance_id='${id}'")
   		this.nodeInstanceList.foreach { _.save }
   	  conn.commit()
   	  conn.setAutoCommit(true)

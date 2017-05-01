@@ -31,6 +31,7 @@ import scala.util.Random
 import com.kent.pub.ShareData
 import com.kent.db.LogRecorder._
 import com.kent.mail.EmailSender.EmailMessage
+import scala.util.Success
 
 class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with ActorLogging {
 	import com.kent.workflow.WorkflowActor._
@@ -55,20 +56,20 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  this.workflowInstance.status = W_RUNNING
 	  //节点替换参数
 	  this.workflowInstance.nodeInstanceList.foreach { _.replaceParam(workflowInstance.parsedParams) }
+	  //保存工作流实例
+	   workflowInstance.startTime = Util.nowDate
+    ShareData.persistManager ! Save(workflowInstance.deepClone())
+	  
 	  //找到开始节点并加入到等待队列
     val sn = workflowInstance.getStartNode()
     if(!sn.isEmpty && sn.get.ifCanExecuted(workflowInstance)){
-    	workflowInstance.startTime = Util.nowDate
     	waitingNodes = waitingNodes.enqueue(sn.get)
+    	//启动队列
+    	this.scheduler = context.system.scheduler.schedule(0 millis, 100 millis){
+    		this.scan()
+    	}
     }else{
       ShareData.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "找不到开始节点")
-    }
-    //保存工作流实例
-    ShareData.persistManager ! Save(workflowInstance.deepClone())
-    
-    //启动队列
-	  this.scheduler = context.system.scheduler.schedule(0 millis, 100 millis){
-      this.scan()
     }
   }
 	/**
@@ -123,13 +124,12 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	/**
 	 * kill掉所有子actor
 	 */
-  def killRunningNodeActors(callback: (WorkflowActor) => Unit){
+  def killRunningNodeActors(callback: (WorkflowActor,List[ActionExecuteResult]) => Unit){
 	  implicit val timeout = Timeout(20 seconds)
 	  
 	  //kill掉所有运行的actionactor
 	  val futures = runningActors.map(x => {
-	    val result = ask(x._1, Kill())
-	                .mapTo[ActionExecuteResult]
+	    val result = ask(x._1, Kill()).mapTo[ActionExecuteResult]
 	                .recover{ case e: Exception => 
 	                    x._1 ! PoisonPill
 	                    ActionExecuteResult(FAILED,"节点超时")
@@ -142,7 +142,9 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 		      y 
 		  }
 	  }).toList
-	  val futuresSeq = Future.sequence(futures).onComplete {x => callback(this)}
+	  val futuresSeq = Future.sequence(futures).onComplete {
+	    case Success(x) => callback(this, x)
+	  }
 	}
   /**
 	 * 终止
@@ -160,14 +162,17 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
   /**
    * 手动kill
    */
-  def kill(){
+  private def kill(sdr: ActorRef){
     this.workflowInstance.status = W_KILLED
-    killRunningNodeActors(_.terminate())
+    killRunningNodeActors{ (wfa,aerList) => 
+      sdr ! aerList
+      wfa.terminate()
+    }
   }
   
   def receive: Actor.Receive = {
     case Start() => workflowManageAcotrRef = sender;start()
-    case Kill() => kill()
+    case Kill() => kill(sender)
     
     case ActionExecuteRetryTimes(times) => handleActionRetryTimes(times, sender)
     case ActionExecuteResult(status, msg) => handleActionResult(status, msg, sender)

@@ -31,29 +31,21 @@ libraryDependencies ++= {
 
 import NativePackagerHelper._
 enablePlugins(JavaServerAppPackaging)
-//mainClass in Compile := Some("com.kent.main.Master")
-//mainClass in Compile := Some("com.kent.main.Worker")
-mainClass in Compile := Some("com.kent.main.HttpServer")
+
 mappings in Universal ++= {
-  directory("scripts") ++ 
-  contentOf("src/main/resources").toMap.mapValues("config/" + _)
+  directory("config") ++ contentOf("src/main/resources").toMap.mapValues("config/" + _)
 }
-//scriptClasspath := Seq("../bin-script/") ++ scriptClasspath.value
 scriptClasspath := Seq("../config/") ++ scriptClasspath.value
 mappings in Universal ++= {
-    directory("tmp") ++ 
-    contentOf("tmp").toMap.mapValues("tmp/" + _)
+    directory("tmp") ++ contentOf("tmp").toMap.mapValues("tmp/" + _)
 }
 mappings in Universal ++= { 
-	directory("script") ++ 
-	contentOf("bin-script").toMap.mapValues("bin/" + _) 
+	directory("sbin") ++ contentOf("sbin").toMap.mapValues("sbin/" + _) 
 }
 mappings in Universal ++= {
-	directory("config") ++ 
-	contentOf("config").toMap.mapValues("config/" + _) 
+	directory("config") ++ contentOf("config").toMap.mapValues("config/" + _) 
 }
 mappings in Universal ++= {
-	directory("xmlconfig") ++ 
-	contentOf("xmlconfig").toMap.mapValues("xmlconfig/" + _) 
+	directory("xmlconfig") ++ contentOf("xmlconfig").toMap.mapValues("xmlconfig/" + _) 
 }
 

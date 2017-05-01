@@ -18,7 +18,7 @@ class KillNodeInstance (override val nodeInfo: KillNodeInfo) extends ControlNode
     println("KILL! 执行workflow名称："+wfa.workflowInstance.workflow.name+"执行完毕."+"actor名称: "+ wfa.workflowInstance.actorName)
     wfa.workflowInstance.status = W_KILLED
     this.status = SUCCESSED
-    wfa.killRunningNodeActors(_.terminate())
+    wfa.killRunningNodeActors((wfaa,aesList) => wfaa.terminate())
     true
   }
 

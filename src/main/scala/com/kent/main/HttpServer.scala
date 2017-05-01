@@ -23,6 +23,8 @@ import scala.concurrent.duration._
 import scala.concurrent.Await
 import com.kent.coordinate.CoordinatorManager._
 import akka.http.scaladsl.server.Route
+import com.kent.main.Master.ShutdownCluster
+import akka.http.scaladsl.Http.ServerBinding
 
 class HttpServer extends ClusterRole {
   implicit val timeout = Timeout(20 seconds)
@@ -39,6 +41,12 @@ class HttpServer extends ClusterRole {
     val result = Await.result(resultF, 20 second)
     result
   }
+  private def getResponseFromMaster(event: Any): ResponseData = {
+    val master = context.actorSelection(roler(0).path)
+    val resultF = (master ? event).mapTo[ResponseData]
+    val result = Await.result(resultF, 20 second)
+    result
+  }
   
   def receive: Actor.Receive = {
     case MemberUp(member) => 
@@ -50,8 +58,11 @@ class HttpServer extends ClusterRole {
       //worker请求注册
       context watch sender
       roler = roler :+ sender
-      log.info("Master registered: " + sender)
+      log.info("注册master角色: " + sender)
     }
+    case ShutdownCluster() => sender ! getResponseFromMaster(ShutdownCluster())
+                              Thread.sleep(5000)
+                              HttpServer.shutdwon()
     case RemoveWorkFlow(name) => sender ! getResponseFromWorkflowManager(RemoveWorkFlow(name))
     case AddWorkFlow(content) => sender ! getResponseFromWorkflowManager(AddWorkFlow(content))
     case ReRunWorkflowInstance(id) => sender ! getResponseFromWorkflowManager(ReRunWorkflowInstance(id))
@@ -80,6 +91,7 @@ object HttpServer extends App{
   ShareData.config = config
   
   implicit val system = ActorSystem("akkaflow", config)
+  ShareData.curActorSystem = ShareData.curActorSystem :+ system
   implicit val materializer = ActorMaterializer()
     // needed for the future flatMap/onComplete in the end
   implicit val executionContext = system.dispatcher
@@ -165,13 +177,23 @@ object HttpServer extends App{
         }
       }
     }
+    //cluster
+    val clusterRoute = path("akkaflow" / "cluster"){            
+      parameter('action){
+        action => {
+          if(action == "shutdown"){
+            handleRequestWithActor(ShutdownCluster())
+          }else{
+        	  handleRequestWithActor("fail","action参数有误",null)                     
+          }
+        }
+      }
+    }
     
-    val route = wfRoute ~ coorRoute ~ wfiRoute
+    val route = wfRoute ~ coorRoute ~ wfiRoute ~ clusterRoute
   
    val bindingFuture = Http().bindAndHandle(route, "localhost", 8090)
-
-    println(s"Server online at http://localhost:8090/\nPress RETURN to stop...")
-    StdIn.readLine() // let it run until user presses return
-    bindingFuture.flatMap(_.unbind()) // trigger unbinding from the port
-                 .onComplete(_ => system.terminate()) // and shutdown when done
+    def shutdwon(){
+      bindingFuture.flatMap(_.unbind()).onComplete(_ => system.terminate())
+    }
 }

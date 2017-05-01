@@ -18,6 +18,7 @@ import com.kent.workflow.ActionActor
 import com.kent.pub.ShareData
 import com.kent.db.LogRecorder
 import com.kent.workflow.WorkflowActor.Start
+import com.kent.main.Master.ShutdownCluster
 
 class Worker extends ClusterRole {
   val i = 0
@@ -30,8 +31,8 @@ class Worker extends ClusterRole {
     case MemberRemoved(member, previousStatus) =>
       log.info("Member is Removed: {} after {}", member.address, previousStatus)
     case state: CurrentClusterState =>
-    
     case CreateAction(ani) => sender ! createActionActor(ani)
+    case ShutdownCluster() => ShareData.curActorSystem.foreach { _.terminate() }
     case _:MemberEvent => // ignore 
   }
   /**
@@ -82,6 +83,7 @@ object Worker extends App {
         .withFallback(defaultConf)
       ShareData.config = config
       val system = ActorSystem("akkaflow", config)
+      ShareData.curActorSystem = ShareData.curActorSystem :+ system
       val worker = system.actorOf(Worker.props, name = "worker")
   }
   

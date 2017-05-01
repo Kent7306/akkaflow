@@ -1,11 +1,7 @@
 package com.kent.main
 
 import akka.actor.Actor
-import akka.cluster.ClusterEvent.MemberUp
-import akka.cluster.ClusterEvent.UnreachableMember
-import akka.cluster.ClusterEvent.MemberRemoved
-import akka.cluster.ClusterEvent.CurrentClusterState
-import akka.cluster.ClusterEvent.MemberEvent
+import akka.cluster.ClusterEvent._
 import com.kent.main.ClusterRole.Registration
 import akka.actor.Terminated
 import scala.concurrent.duration._
@@ -16,18 +12,14 @@ import akka.actor.Props
 import com.kent.coordinate.CoordinatorManager
 import com.kent.workflow.WorkFlowManager
 import com.kent.db.PersistManager
-import com.kent.coordinate.CoordinatorManager.GetManagers
+import com.kent.coordinate.CoordinatorManager._
 import com.kent.workflow.WorkFlowManager._
-import com.kent.coordinate.CoordinatorManager.AddCoor
-import com.kent.coordinate.CoordinatorManager.Start
+import akka.pattern.{ ask, pipe }
 import com.kent.main.Worker.CreateAction
 import com.kent.workflow.node.ActionNodeInstance
 import scala.concurrent.ExecutionContext.Implicits.global
-import akka.pattern.ask
-import akka.pattern.pipe
 import akka.util.Timeout
 import com.kent.main.Master.GetWorker
-import com.kent.main.Master.AskWorker
 import scala.util.Random
 import com.typesafe.config.Config
 import com.kent.pub.ShareData
@@ -39,12 +31,18 @@ import akka.cluster.Member
 import akka.actor.ActorPath
 import akka.actor.RootActorPath
 import com.kent.db.XmlLoader
+import com.kent.main.Master.ShutdownCluster
+import com.kent.coordinate.CoordinatorManager.Stop
+import com.kent.main.Master.AskWorker
+import com.kent.main.HttpServer.ResponseData
+import scala.util.Success
 
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
   var workflowManager: ActorRef = _
   var xmlLoader: ActorRef = _
-  
+  var httpServerRef:ActorRef = _
+  implicit val timeout = Timeout(20 seconds)
   init()
   
   def init(){
@@ -94,6 +92,12 @@ class Master extends ClusterRole {
   def receive: Actor.Receive = { 
     case MemberUp(member) => 
       register(member, getHttpServerPath)
+      if(member.hasRole("http-server")){
+        val path = RootActorPath(member.address) /"user" / "http-server"
+        import scala.concurrent.duration._
+        val result = context.actorSelection(path).resolveOne(20 second)
+        result.map { this.httpServerRef = _ }
+      }
       log.info("Member is Up: {}", member.address)
     case UnreachableMember(member) =>
       log.info("Member detected as Unreachable: {}", member)
@@ -119,6 +123,15 @@ class Master extends ClusterRole {
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
     case AskWorker(host: String) => sender ! GetWorker(allocateWorker(host: String))
     case ReRunWorkflowInstance(id: String) => workflowManager ! ReRunWorkflowInstance(id)
+    case ShutdownCluster() =>  val sdr = sender
+                               coordinatorManager ! Stop()
+                               xmlLoader ! Stop()
+                               val result = (workflowManager ? KllAllWorkFlow()).mapTo[ResponseData]
+                               result.andThen{
+                                  case Success(x) => roler.foreach { _ ! ShutdownCluster() }
+                                             sdr ! ResponseData("success","worker角色与master角色已关闭",null)
+                                             ShareData.curActorSystem.foreach { _.terminate() }
+                                }
   }
   /**
    * 请求得到新的worker，动态分配
@@ -154,14 +167,14 @@ class Master extends ClusterRole {
     coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
     workflowManager ! GetManagers(workflowManager,coordinatorManager)
     xmlLoader ! Start()
-    
-    //coordinatorManager ! Start()
+    coordinatorManager ! Start()
     true
   }
 }
 object Master extends App {
   case class GetWorker(worker: ActorRef)
   case class AskWorker(host: String)
+  case class ShutdownCluster()
   def props = Props[Master]
   
   val defaultConf = ConfigFactory.load()
@@ -178,7 +191,7 @@ object Master extends App {
   
   // 创建一个ActorSystem实例
   val system = ActorSystem("akkaflow", config)
+  ShareData.curActorSystem = ShareData.curActorSystem :+ system
   val master = system.actorOf(Master.props, name = "master")
-  
   master ! Start()
 }

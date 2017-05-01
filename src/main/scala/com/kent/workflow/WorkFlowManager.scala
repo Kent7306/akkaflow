@@ -25,6 +25,10 @@ import scala.util.Success
 import scala.concurrent.Future
 import com.kent.main.HttpServer.ResponseData
 import scala.concurrent.Await
+import com.kent.workflow.ActionActor.ActionExecuteResult
+import org.json4s.Extraction
+import org.json4s.jackson.JsonMethods
+import org.json4s.DefaultFormats
 
 class WorkFlowManager extends Actor with ActorLogging{
   /**
@@ -124,6 +128,7 @@ class WorkFlowManager extends Actor with ActorLogging{
    * 工作流实例完成后处理
    */
   def handleWorkFlowInstanceReply(wfInstance: WorkflowInstance):Boolean = {
+    //剔除该完成的工作流实例
     val (wfname, af) = this.workflowActors.get(wfInstance.id).get
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.id }.toMap
     //根据状态发送邮件告警
@@ -132,32 +137,50 @@ class WorkFlowManager extends Actor with ActorLogging{
     	                "workflow告警", 
     	                s"任务【${wfInstance.actorName}】执行状态：${wfInstance.status}")      
     }
+    Thread.sleep(1000)
     ShareData.logRecorder ! Info("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
-    println("==============================")
-    println(wfInstance)
-    println("==============================")
+    println("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
     coordinatorManager ! WorkFlowExecuteResult(wfname, wfInstance.status)  
     true
   }
   /**
    * 手动kill掉工作流实例
    */
-  def killWorkFlowInstance(id: String): ResponseData = {
+  def killWorkFlowInstance(id: String): Future[ResponseData] = {
     import com.kent.workflow.WorkflowActor.Kill
     if(!workflowActors.get(id).isEmpty){
     	val wfaRef = workflowActors(id)._2
-    	wfaRef ! Kill()
-    	ResponseData("success",s"开始执行杀掉工作流[${id}]", null)
+    	val result = (wfaRef ? Kill()).mapTo[List[ActionExecuteResult]]
+    	val resultF = result.map { x => 
+    	  implicit val formats = DefaultFormats
+        val strTmp = JsonMethods.compact(Extraction.decompose(x))
+    	  ResponseData("success",s"工作流[${id}]已被杀死", strTmp) 
+    	}
+    	resultF
     }else{
-      ResponseData("fail",s"[工作流实例：${id}]不存在，不能kill掉", null)
+      Future(ResponseData("fail",s"[工作流实例：${id}]不存在，不能kill掉", null))
     }
   }
   /**
    * 手动kill掉工作流（包含其所有的实例）
    */
-  def killWorkFlow(wfName: String): ResponseData = {
-    workflowActors.foreach(x => if(x._2._1 == wfName){killWorkFlowInstance(x._1)})
-    ResponseData("success",s"开始执行杀掉工作流[wfName]的所有实例", null)
+  def killWorkFlow(wfName: String): Future[ResponseData] = {
+    val result = workflowActors.filter(_._2._1 == wfName).map(x => killWorkFlowInstance(x._1)).toList
+    val resultF = Future.sequence(result).map { x => 
+      ResponseData("success",s"工作流名称[wfName]的所有实例已经被杀死", null) 
+    }
+   resultF 
+  }
+  /**
+   * 手动kill所有工作流
+   */
+  def killAllWorkFlow(): Future[ResponseData] = {
+    val result = workflowActors.map(x => killWorkFlowInstance(x._1)).toList
+    val resultF = Future.sequence(result).map { x => 
+      ResponseData("success",s"所有工作流实例已经被杀死", null) 
+      
+    }
+   resultF 
   }
   /**
    * 重跑指定的工作流实例
@@ -196,8 +219,18 @@ class WorkFlowManager extends Actor with ActorLogging{
     //case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
     case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
-    case KillWorkFlowInstance(id) => sender ! this.killWorkFlowInstance(id)
-    case KillWorkFlow(wfName) => sender ! this.killWorkFlow(wfName)
+    case KillWorkFlowInstance(id) =>  val sdr = sender
+                                      this.killWorkFlowInstance(id).andThen{
+                                        case Success(x) => sdr ! x
+                                      }
+    case KllAllWorkFlow() => val sdr = sender
+                             this.killAllWorkFlow().andThen{
+                                case Success(x) => sdr ! x
+                              }
+    case KillWorkFlow(wfName) => val sdr = sender
+                                 this.killWorkFlow(wfName).andThen{
+                                        case Success(x) => sdr ! x
+                                      }
     case ReRunWorkflowInstance(wfiId: String) => sender ! reRun(wfiId)
     case GetManagers(wfm, cm) => {
       coordinatorManager = cm
@@ -221,6 +254,7 @@ object WorkFlowManager{
   
   case class NewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
   case class KillWorkFlow(wfName: String)
+  case class KllAllWorkFlow()
   case class KillWorkFlowInstance(id: String)
   case class AddWorkFlow(content: String)
   case class RemoveWorkFlow(wfName: String)

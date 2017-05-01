@@ -6,7 +6,7 @@
 
 	<action name="watch_log" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "监测日志文件">
 	    <file-watcher>
-	        <file dir="/tmp/log_test/${stadate}">order.out</file> 
+	        <file dir="tmp/log_test/${stadate}">order.out</file> 
 	        <size-warn-message enable="true" size-threshold="2MB"></size-warn-message> 
 	    </file-watcher>
 	    <ok to="fork"/>
@@ -23,19 +23,19 @@
 	    	<content>
            	<![CDATA[
 	           	#!/usr/bin/perl
-				$date="${stadate}";
-				$file="/tmp/log_test/".$date."/order.out";
-				$result="/tmp/log_test/".$date."/order.result";
-				open(FH,'<',$file) or die("no such file");
-				open(FR,'>',$result);
-				while(<FH>){
-				chomp $_;
-				@cols = split(/-/,$_);
-				$str = join(",",@cols);
-				print FR $date.",".$str."\n";
-				}
-				close FH;
-				close FR;
+			$date="${stadate}";
+			$file="tmp/log_test/".$date."/order.out";
+			$result="tmp/log_test/".$date."/order.result";
+			open(FH,'<',$file) or die("no such file");
+			open(FR,'>',$result);
+			while(<FH>){
+			chomp $_;
+			@cols = split(/-/,$_);
+			$str = join(",",@cols);
+			print FR $date.",".$str."\n";
+			}
+			close FH;
+			close FR;
            	]]>
            </content>
         </script>
@@ -68,7 +68,7 @@
 				do
 				    str="'"${line//,/\',\'}"'"
 				    /usr/local/mysql/bin/mysql -uroot -proot -Dtest -e "insert into t_order values ($str)"
-				done <  /tmp/log_test/$sdate/order.result
+				done <  tmp/log_test/$sdate/order.result
 	           	]]>
            </content>
         </script>

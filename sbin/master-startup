@@ -1,0 +1,8 @@
+#!/bin/bash
+
+user_dir=`pwd`
+script_dir=`dirname "$0"`
+
+cd $script_dir/..
+bin/master
+cd $user_dir

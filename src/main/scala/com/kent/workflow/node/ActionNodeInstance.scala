@@ -16,7 +16,7 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends
   def kill():Boolean
   
   /**
-   * 得到下一个执行节点
+   * 得到下一个节点
    */
   override def getNextNodes(wfi: WorkflowInstance): List[NodeInstance] = {
     status match {
@@ -41,13 +41,13 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends
       case FAILED => 
         if(this.getNextNodes(wfa.workflowInstance).size <=0){    //若该action节点执行失败后无下一节点
           wfa.workflowInstance.status = W_FAILED 
-      		wfa.killRunningNodeActors(_.terminate()) 
+      		wfa.killRunningNodeActors((wfaa,aerList) => wfaa.terminate()) 
       		return false
         }
         //若该action节点执行失败后有指定下一节点
       case KILLED =>
         wfa.workflowInstance.status = W_KILLED 
-        wfa.killRunningNodeActors(_.terminate())
+        wfa.killRunningNodeActors((wfaa,aerList) => wfaa.terminate()) 
         return false
     }
     //查找下一节点

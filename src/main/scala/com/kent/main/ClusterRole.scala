@@ -11,6 +11,7 @@ import akka.cluster.ClusterEvent.MemberEvent
 import akka.cluster.Member
 import akka.actor.ActorPath
 import com.kent.main.ClusterRole.Registration
+import com.kent.main.ClusterRole.UnRegistration
 
 abstract class ClusterRole extends Actor with ActorLogging {
   // 创建一个Cluster实例
@@ -34,10 +35,21 @@ abstract class ClusterRole extends Actor with ActorLogging {
     	actorSelection ! Registration()      
     }
   }
+   /**
+   * 下游子系统节点发送解除注册消息
+   */
+  def unRegister(member: Member, createPath: (Member) => Option[ActorPath]): Unit = { 
+    val pathOpt = createPath(member)
+    if(!pathOpt.isEmpty){
+    	val actorSelection = context.actorSelection(pathOpt.get)
+    	actorSelection ! UnRegistration()      
+    }
+  }
 }
 
 object ClusterRole {
   case class Request(status: String, msg: String, data: Any) extends Serializable
   case class Response(status: String, msg: String, data: Any) extends Serializable
   case class Registration() extends Serializable
+  case class UnRegistration() extends Serializable
 }

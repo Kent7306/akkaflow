@@ -102,7 +102,7 @@ class CoordinatorManager extends Actor with ActorLogging{
    */
   def stop(): Boolean = {
     ShareData.logRecorder ! Info("CoordinatorManager",null,s"停止扫描...")
-    if(scheduler.isCancelled) true else scheduler.cancel()
+    if(scheduler == null || scheduler.isCancelled) true else scheduler.cancel()
   }
   /**
    * 扫描

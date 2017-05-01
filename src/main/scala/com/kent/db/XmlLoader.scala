@@ -18,6 +18,7 @@ import scala.util.Success
 import com.kent.coordinate.CoordinatorManager.Start
 import com.kent.coordinate.CoordinatorManager.AddCoor
 import akka.actor.Cancellable
+import com.kent.coordinate.CoordinatorManager.Stop
 
 class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends Actor with ActorLogging{
   var fileMap: Map[String,Long] = Map()
@@ -26,12 +27,17 @@ class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends A
   
   def receive: Actor.Receive = {
     case Start() => start()
+    case Stop() => stop()
   }
   def start():Boolean = {
     this.scheduler = context.system.scheduler.schedule(0 millis, interval seconds){
       this.loadXmlFiles()
     }
     true
+  }
+  def stop() = {
+    if(this.scheduler != null && !this.scheduler.isCancelled) this.scheduler.cancel()
+    context.stop(self)
   }
   /**
    * 读取xml文件

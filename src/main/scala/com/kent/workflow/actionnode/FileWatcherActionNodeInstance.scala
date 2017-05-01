@@ -5,6 +5,10 @@ import java.util.Date
 import com.kent.coordinate.ParamHandler
 import java.io.File
 import com.kent.util.Util
+import com.kent.pub.ShareData
+import com.kent.db.LogRecorder._
+import scala.concurrent.ExecutionContext.Implicits.global
+import akka.actor._
 
 class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNodeInfo)  extends ActionNodeInstance(nodeInfo)  {
 
@@ -66,8 +70,14 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
           actionActor.sendMailMsg(null, "【WARN】FileWatcher数据异常", content)
         }
         true
-      } else false
-    } else false
+      } else {
+        ShareData.logRecorder ! Error("NodeInstance",this.id,s"检测到目录（${nodeInfo.dir}）符合命名要求的文件（${nodeInfo.filename}）个数少于阈值： 阈值：${nodeInfo.numThreshold}, 当前：${files.size}")
+        false
+      }
+    } else {
+      ShareData.logRecorder ! Error("NodeInstance",this.id,s"扫描的目录（${nodeInfo.dir}）不存在")
+      false
+    }
   }
   
   private def fileNameFuzzyMatch(fileName: String): String = {
