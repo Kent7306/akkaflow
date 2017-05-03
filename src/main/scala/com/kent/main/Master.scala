@@ -130,7 +130,7 @@ class Master extends ClusterRole {
                                result.andThen{
                                   case Success(x) => roler.foreach { _ ! ShutdownCluster() }
                                              sdr ! ResponseData("success","worker角色与master角色已关闭",null)
-                                             ShareData.curActorSystem.foreach { _.terminate() }
+                                              Master.system.terminate()
                                 }
   }
   /**
@@ -170,12 +170,16 @@ class Master extends ClusterRole {
     coordinatorManager ! Start()
     true
   }
+  
+  def shutdownCluster()
 }
 object Master extends App {
   case class GetWorker(worker: ActorRef)
   case class AskWorker(host: String)
   case class ShutdownCluster()
+  case class RoleInfo(name: String, actorNames: List[String])
   def props = Props[Master]
+  var curSystem:ActorSystem = _
   
   val defaultConf = ConfigFactory.load()
   val masterConf = defaultConf.getStringList("workflow.nodes.masters").get(0).split(":")
@@ -191,7 +195,7 @@ object Master extends App {
   
   // 创建一个ActorSystem实例
   val system = ActorSystem("akkaflow", config)
-  ShareData.curActorSystem = ShareData.curActorSystem :+ system
+  Master.curSystem = system
   val master = system.actorOf(Master.props, name = "master")
-  master ! Start()
+  //master ! Start()
 }

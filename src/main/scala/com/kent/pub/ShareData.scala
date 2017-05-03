@@ -12,5 +12,4 @@ object ShareData {
   var persistManager:ActorRef = _
   var emailSender:ActorRef = _
   var logRecorder:ActorRef = _
-  var curActorSystem: List[ActorSystem] = List()
 }

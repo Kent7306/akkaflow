@@ -91,7 +91,7 @@ object HttpServer extends App{
   ShareData.config = config
   
   implicit val system = ActorSystem("akkaflow", config)
-  ShareData.curActorSystem = ShareData.curActorSystem :+ system
+  val curActorSystem = system
   implicit val materializer = ActorMaterializer()
     // needed for the future flatMap/onComplete in the end
   implicit val executionContext = system.dispatcher

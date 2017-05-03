@@ -32,7 +32,7 @@ class Worker extends ClusterRole {
       log.info("Member is Removed: {} after {}", member.address, previousStatus)
     case state: CurrentClusterState =>
     case CreateAction(ani) => sender ! createActionActor(ani)
-    case ShutdownCluster() => ShareData.curActorSystem.foreach { _.terminate() }
+    case ShutdownCluster() => Worker.curActorSystems.foreach { _.terminate() }
     case _:MemberEvent => // ignore 
   }
   /**
@@ -72,6 +72,7 @@ object Worker extends App {
   import scala.collection.JavaConverters._
   val defaultConf = ConfigFactory.load()
   val workersConf = defaultConf.getStringList("workflow.nodes.workers").asScala.map { x => val y = x.split(":");(y(0),y(1)) }.toList
+  var curActorSystems:List[ActorSystem] = List()
   
   workersConf.foreach {
     info =>
@@ -83,7 +84,7 @@ object Worker extends App {
         .withFallback(defaultConf)
       ShareData.config = config
       val system = ActorSystem("akkaflow", config)
-      ShareData.curActorSystem = ShareData.curActorSystem :+ system
+      Worker.curActorSystems = Worker.curActorSystems :+ system
       val worker = system.actorOf(Worker.props, name = "worker")
   }
   
