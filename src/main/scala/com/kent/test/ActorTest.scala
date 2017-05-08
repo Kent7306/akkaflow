@@ -32,7 +32,7 @@ class Child extends Actor {
   def receive: Actor.Receive = {
     case a:String => 
       println("c: "+ a)
-      println(sender)
+      println(self.path.name)
       sender ! "------"
   }
 }

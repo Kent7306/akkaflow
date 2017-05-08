@@ -5,8 +5,8 @@ import java.util.Date
 import com.kent.coordinate.ParamHandler
 import java.io.File
 import com.kent.util.Util
-import com.kent.pub.ShareData
-import com.kent.db.LogRecorder._
+import com.kent.main.Worker
+import com.kent.pub.Event._
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 
@@ -71,11 +71,11 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
         }
         true
       } else {
-        ShareData.logRecorder ! Error("NodeInstance",this.id,s"检测到目录（${nodeInfo.dir}）符合命名要求的文件（${nodeInfo.filename}）个数少于阈值： 阈值：${nodeInfo.numThreshold}, 当前：${files.size}")
+        Worker.logRecorder ! Error("NodeInstance",this.id,s"检测到目录（${nodeInfo.dir}）符合命名要求的文件（${nodeInfo.filename}）个数少于阈值： 阈值：${nodeInfo.numThreshold}, 当前：${files.size}")
         false
       }
     } else {
-      ShareData.logRecorder ! Error("NodeInstance",this.id,s"扫描的目录（${nodeInfo.dir}）不存在")
+      Worker.logRecorder ! Error("NodeInstance",this.id,s"扫描的目录（${nodeInfo.dir}）不存在")
       false
     }
   }

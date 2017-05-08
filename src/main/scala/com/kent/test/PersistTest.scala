@@ -6,12 +6,10 @@ import akka.actor.Props
 import com.kent.db.PersistManager
 import com.kent.workflow.controlnode.StartNodeInfo
 import com.kent.util.Util
-import com.kent.db.PersistManager.Save
-import com.kent.db.PersistManager.Get
-import com.kent.db.PersistManager.Delete
 import com.kent.workflow.WorkflowInfo
 import com.kent.workflow.WorkflowInstance
 import java.util.Date
+import com.kent.pub.Event._
 
 object PersistTest extends App{
     val conf = """

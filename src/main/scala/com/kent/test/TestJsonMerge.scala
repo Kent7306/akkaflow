@@ -1,6 +1,7 @@
-package com.kent.main
+package com.kent.test
 
 import org.json4s.jackson.JsonMethods
+import org.json4s.string2JsonInput
 
 object TestJsonMerge extends App{
   val str1 = """{"a":"1","b":"2"}"""

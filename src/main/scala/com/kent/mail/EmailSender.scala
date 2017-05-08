@@ -2,7 +2,7 @@ package com.kent.mail
 
 import akka.actor.ActorLogging
 import akka.actor.Actor
-import com.kent.mail.EmailSender._
+import com.kent.pub.Event._
 import org.apache.commons.mail.HtmlEmail
 
 /**
@@ -29,7 +29,7 @@ class EmailSender(hostName: String, port: Int, account: String, pwd: String, isE
    * 同步发送短信
    */
   private def sendEmailSync(emailMessage: EmailMessage) {
-    import com.kent.pub.ShareData._
+    import com.kent.main.Master._
     println("开始发送Email")
     val email = new HtmlEmail
     email.setHostName(hostName)
@@ -49,6 +49,4 @@ object EmailSender {
   def apply(hostName: String, port: Int, account: String, pwd: String, isEnabled: Boolean):EmailSender = {
     new EmailSender(hostName, port, account, pwd, isEnabled)
   }
-  
-  case class EmailMessage(toUsers: List[String],subject: String,htmlText: String)
 }

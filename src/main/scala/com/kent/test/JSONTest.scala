@@ -1,7 +1,9 @@
-package com.kent.main
-import java.util.Date
+package com.kent.test
+
 import org.json4s.JsonAST.JString
-import org.json4s.JsonAST.JObject
+import org.json4s.JsonAST.JString
+import org.json4s.jvalue2monadic
+import org.json4s.string2JsonInput
 
 
 object Test extends App{
@@ -55,7 +57,7 @@ object Test extends App{
   import org.json4s.JsonDSL._
     import org.json4s.jackson.JsonMethods._
   val paramStr = compact(render(m))
- // println(paramStr)
+  println(paramStr+"******")
   println(compact(render(arr)))
   import com.kent.workflow.WorkflowInfo.WStatus
   import com.kent.workflow.WorkflowInfo.WStatus._

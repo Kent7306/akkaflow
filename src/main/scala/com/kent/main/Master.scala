@@ -12,30 +12,21 @@ import akka.actor.Props
 import com.kent.coordinate.CoordinatorManager
 import com.kent.workflow.WorkFlowManager
 import com.kent.db.PersistManager
-import com.kent.coordinate.CoordinatorManager._
-import com.kent.workflow.WorkFlowManager._
 import akka.pattern.{ ask, pipe }
-import com.kent.main.Worker.CreateAction
 import com.kent.workflow.node.ActionNodeInstance
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.util.Timeout
-import com.kent.main.Master.GetWorker
+import com.kent.pub.Event._
 import scala.util.Random
 import com.typesafe.config.Config
-import com.kent.pub.ShareData
 import com.kent.mail.EmailSender
-import com.kent.mail.EmailSender.EmailMessage
-import com.kent.db.LogRecorder._
 import com.kent.db.LogRecorder
 import akka.cluster.Member
 import akka.actor.ActorPath
 import akka.actor.RootActorPath
 import com.kent.db.XmlLoader
-import com.kent.main.Master.ShutdownCluster
-import com.kent.coordinate.CoordinatorManager.Stop
-import com.kent.main.Master.AskWorker
-import com.kent.main.HttpServer.ResponseData
 import scala.util.Success
+import scala.concurrent.Future
 
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
@@ -46,7 +37,7 @@ class Master extends ClusterRole {
   init()
   
   def init(){
-    import com.kent.pub.ShareData._
+    import com.kent.main.Master._
     //mysql持久化参数配置
     val mysqlConfig = (config.getString("workflow.mysql.user"),
                       config.getString("workflow.mysql.password"),
@@ -73,11 +64,11 @@ class Master extends ClusterRole {
                     )
                     
     //创建持久化管理器
-    ShareData.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
+    Master.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
     //创建邮件发送器
-    ShareData.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
+    Master.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
     //创建日志记录器
-    ShareData.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+    Master.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
     //创建coordinator管理器
     coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
     //创建workflow管理器
@@ -123,15 +114,9 @@ class Master extends ClusterRole {
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
     case AskWorker(host: String) => sender ! GetWorker(allocateWorker(host: String))
     case ReRunWorkflowInstance(id: String) => workflowManager ! ReRunWorkflowInstance(id)
-    case ShutdownCluster() =>  val sdr = sender
-                               coordinatorManager ! Stop()
-                               xmlLoader ! Stop()
-                               val result = (workflowManager ? KllAllWorkFlow()).mapTo[ResponseData]
-                               result.andThen{
-                                  case Success(x) => roler.foreach { _ ! ShutdownCluster() }
-                                             sdr ! ResponseData("success","worker角色与master角色已关闭",null)
-                                              Master.system.terminate()
-                                }
+    case ShutdownCluster() =>  shutdownCluster(sender)
+    case CollectClusterInfo() => collectClusterInfo(sender)
+                               
   }
   /**
    * 请求得到新的worker，动态分配
@@ -141,7 +126,9 @@ class Master extends ClusterRole {
     if(host == "-1") {
       roler(Random.nextInt(roler.size))
     }else{ //指定host分配
-    	val list = roler.map { x => x.path.address.host.get }.toList
+    	val list = roler.map { x => 
+    	  x.path.address.host.get 
+    	}.toList
     	if(list.size > 0){
     		roler(Random.nextInt(list.size))       	  
     	}else{
@@ -171,15 +158,82 @@ class Master extends ClusterRole {
     true
   }
   
-  def shutdownCluster()
+  def collectClusterInfo(sdr: ActorRef) = {
+    import com.kent.pub.Event.ActorType._
+    var allActorInfo = new ActorInfo()
+    allActorInfo.name = "top"
+    allActorInfo.atype = ROLE
+    
+    val ai = new ActorInfo()
+    
+    ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
+    ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
+    ai.atype = ROLE
+    ai.name = self.path.name
+    allActorInfo.subActors = allActorInfo.subActors :+ ai
+    
+    val es = new ActorInfo()
+    es.name = Master.emailSender.path.name
+    es.atype = DEAMO
+    ai.subActors  = ai.subActors :+ es
+    val pm = new ActorInfo()
+    pm.name = Master.persistManager.path.name
+    pm.atype = DEAMO
+    ai.subActors  = ai.subActors :+ pm
+    val lr = new ActorInfo()
+    lr.name = Master.logRecorder.path.name
+    lr.atype = DEAMO
+    ai.subActors  = ai.subActors :+ lr
+    val xl = new ActorInfo()
+    xl.name = xmlLoader.path.name
+    xl.atype = DEAMO
+    ai.subActors  = ai.subActors :+ xl
+    val cm = new ActorInfo()
+    cm.name = coordinatorManager.path.name
+    cm.atype = DEAMO
+    ai.subActors  = ai.subActors :+ cm
+    val wmResultF = (workflowManager ? CollectClusterInfo())
+      .mapTo[GetClusterInfo].map { 
+      case GetClusterInfo(x) => x 
+    }
+    val workerResultFs = this.roler.map { x => 
+      (x ? CollectClusterInfo()).mapTo[GetClusterInfo].map{case GetClusterInfo(y) => y} 
+    }.toList
+    val resultLF = Future.sequence(workerResultFs)
+    val resultF = for{
+      x <- wmResultF
+      y <- resultLF
+    } yield (x, y)
+    resultF.andThen{case Success(x) => 
+      ai.subActors = ai.subActors :+ x._1
+      allActorInfo.subActors = allActorInfo.subActors ++ x._2
+      sdr ! ResponseData("success","worker角色与master角色已关闭", allActorInfo.getClusterInfo())
+    }
+    
+  }
+  
+  def shutdownCluster(sdr: ActorRef) = {
+     coordinatorManager ! Stop()
+     xmlLoader ! Stop()
+     val result = (workflowManager ? KllAllWorkFlow()).mapTo[ResponseData]
+     result.andThen{
+        case Success(x) => 
+                  roler.foreach { _ ! ShutdownCluster() }
+                   sdr ! ResponseData("success","worker角色与master角色已关闭",null)
+                   Master.system.terminate()
+      }
+  }
 }
 object Master extends App {
-  case class GetWorker(worker: ActorRef)
-  case class AskWorker(host: String)
-  case class ShutdownCluster()
-  case class RoleInfo(name: String, actorNames: List[String])
   def props = Props[Master]
   var curSystem:ActorSystem = _
+  var persistManager:ActorRef = _
+  var emailSender: ActorRef = _
+  var logRecorder: ActorRef = _
+//  var coordinatorManager: ActorRef = _
+//  var workflowManager: ActorRef = _
+//  var xmlLoader: ActorRef = _
+//  var httpServerRef: ActorRef = _
   
   val defaultConf = ConfigFactory.load()
   val masterConf = defaultConf.getStringList("workflow.nodes.masters").get(0).split(":")
@@ -191,7 +245,6 @@ object Master extends App {
       .withFallback(ConfigFactory.parseString(hostConf))
       .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
       .withFallback(defaultConf)
-  ShareData.config = config
   
   // 创建一个ActorSystem实例
   val system = ActorSystem("akkaflow", config)

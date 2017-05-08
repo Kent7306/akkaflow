@@ -9,16 +9,12 @@ import akka.actor.ActorLogging
 import com.kent.coordinate.Coordinator
 import akka.actor.ActorRef
 import scala.concurrent.ExecutionContext.Implicits.global
-import com.kent.workflow.WorkFlowManager.AddWorkFlow
 import akka.util.Timeout
 import scala.concurrent.duration._
-import com.kent.main.HttpServer.ResponseData
 import scala.concurrent.Future
 import scala.util.Success
-import com.kent.coordinate.CoordinatorManager.Start
-import com.kent.coordinate.CoordinatorManager.AddCoor
 import akka.actor.Cancellable
-import com.kent.coordinate.CoordinatorManager.Stop
+import com.kent.pub.Event._
 
 class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends Actor with ActorLogging{
   var fileMap: Map[String,Long] = Map()

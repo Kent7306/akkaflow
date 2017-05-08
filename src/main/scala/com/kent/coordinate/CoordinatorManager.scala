@@ -7,10 +7,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Cancellable
 import akka.actor.ActorRef
 import com.kent.workflow.WorkflowInfo.WStatus._
-import com.kent.pub.ShareData
-import com.kent.db.LogRecorder._
-import com.kent.db.PersistManager._
-import com.kent.main.HttpServer.ResponseData
+import com.kent.main.Master
+import com.kent.pub.Event._
 import akka.pattern.{ ask, pipe }
 import scala.concurrent.duration._
 import akka.util.Timeout
@@ -43,14 +41,14 @@ class CoordinatorManager extends Actor with ActorLogging{
    * 新增coordinator
    */
   def add(coor: Coordinator, isSaved: Boolean): ResponseData = {
-		if(isSaved) ShareData.persistManager ! Save(coor)
+		if(isSaved) Master.persistManager ! Save(coor)
 		if(coordinators.get(coor.name).isEmpty){
-			ShareData.logRecorder ! Info("CoordinatorManager",null,s"增加coordinator：${coor.name}")
+			Master.logRecorder ! Info("CoordinatorManager",null,s"增加coordinator：${coor.name}")
 			coordinators = coordinators + (coor.name -> coor) 
 		  ResponseData("success",s"成功添加coordinator[${coor.name}]", null)
 		}else{
 		  coordinators = coordinators + (coor.name -> coor)
-		  ShareData.logRecorder ! Info("CoordinatorManager",null,s"替换coordinator：${coor.name}")
+		  Master.logRecorder ! Info("CoordinatorManager",null,s"替换coordinator：${coor.name}")
 		  ResponseData("success",s"成功替换coordinator[${coor.name}]", null)
 		}
   }
@@ -59,9 +57,9 @@ class CoordinatorManager extends Actor with ActorLogging{
    */
   def remove(name: String): ResponseData = {
     if(!coordinators.get(name).isEmpty){
-    	ShareData.persistManager ! Delete(coordinators(name))
+    	Master.persistManager ! Delete(coordinators(name))
     	coordinators = coordinators.filterNot {x => x._1 == name}.toMap
-    	ShareData.logRecorder ! Info("CoordinatorManager",null,s"删除coordinator[${name}]")     
+    	Master.logRecorder ! Info("CoordinatorManager",null,s"删除coordinator[${name}]")     
     	ResponseData("success",s"成功删除coordinator[${name}]", null)
     }else{
       ResponseData("fail",s"coordinator[${name}]不存在", null)
@@ -71,14 +69,14 @@ class CoordinatorManager extends Actor with ActorLogging{
    * 初始化，从数据库中获取coordinators
    */
   def init(){
-    import com.kent.pub.ShareData._
+    import com.kent.main.Master._
     val isEnabled = config.getBoolean("workflow.mysql.is-enabled")
     if(isEnabled){
-       val listF = (ShareData.persistManager ? Query("select name from coordinator")).mapTo[List[List[String]]]
+       val listF = (Master.persistManager ? Query("select name from coordinator")).mapTo[List[List[String]]]
        listF.andThen{
          case Success(list) => list.map { x =>
            val coor = new Coordinator(x(0))
-           val coorF = (ShareData.persistManager ? Get(coor)).mapTo[Option[Coordinator]]
+           val coorF = (Master.persistManager ? Get(coor)).mapTo[Option[Coordinator]]
            coorF.andThen{
              case Success(coorOpt) => 
              if(!coorOpt.isEmpty) add(coorOpt.get, false)
@@ -91,7 +89,7 @@ class CoordinatorManager extends Actor with ActorLogging{
    * 启动
    */
   def start(): Boolean = {
-      ShareData.logRecorder ! Info("CoordinatorManager",null,s"启动扫描...")
+      Master.logRecorder ! Info("CoordinatorManager",null,s"启动扫描...")
       this.scheduler = context.system.scheduler.schedule(0 millis, 5 seconds){
       this.scan()
     }
@@ -101,7 +99,7 @@ class CoordinatorManager extends Actor with ActorLogging{
    * 停止
    */
   def stop(): Boolean = {
-    ShareData.logRecorder ! Info("CoordinatorManager",null,s"停止扫描...")
+    Master.logRecorder ! Info("CoordinatorManager",null,s"停止扫描...")
     if(scheduler == null || scheduler.isCancelled) true else scheduler.cancel()
   }
   /**
@@ -122,8 +120,6 @@ class CoordinatorManager extends Actor with ActorLogging{
   /**
    * receive方法
    */
-  import com.kent.coordinate.CoordinatorManager._
-  import com.kent.workflow.WorkFlowManager.WorkFlowExecuteResult
   def receive: Actor.Receive = {
     case Start() => this.start()
     case Stop() => this.stop()
@@ -144,13 +140,4 @@ object CoordinatorManager{
   def apply(contents: Set[String]):CoordinatorManager = {
     CoordinatorManager(contents.map { Coordinator(_) }.toList)
   }
-
-  
-  case class Start()
-  case class Stop()
-  case class AddCoor(content: String)
-  case class RemoveCoor(name: String)
-  case class UpdateCoor(content: String)
-  
-  case class GetManagers(workflowManager: ActorRef, coorManager: ActorRef)
 }

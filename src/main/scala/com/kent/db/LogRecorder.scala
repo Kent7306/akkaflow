@@ -4,7 +4,7 @@ import akka.actor.ActorLogging
 import akka.actor.Actor
 import java.sql.Connection
 import java.sql.DriverManager
-import com.kent.db.LogRecorder._
+import com.kent.pub.Event._
 import com.kent.util.Util
 
 class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging{
@@ -66,9 +66,6 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
 }
 object LogRecorder {
   def apply(url: String, username: String, pwd: String, isEnabled: Boolean):LogRecorder = new LogRecorder(url, username, pwd, isEnabled)
-  case class Info(ctype: String, sid: String, content: String)
-  case class Warn(ctype: String, sid: String, content: String)
-  case class Error(ctype: String, sid: String, content: String)
 }
 
 

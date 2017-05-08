@@ -6,7 +6,7 @@ import com.kent.pub.Daoable
 import com.kent.workflow.node.NodeInfo
 import java.sql.Connection
 import java.sql.DriverManager
-import com.kent.db.PersistManager._
+import com.kent.pub.Event._
 import akka.actor.ActorRef
 import com.kent.workflow.WorkflowInstance
 import java.sql.ResultSet
@@ -109,8 +109,4 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
 
 object PersistManager {
   def apply(url: String, username: String, pwd: String, isEnabled: Boolean):PersistManager = new PersistManager(url, username, pwd, isEnabled)
-  case class Save[A](obj: Daoable[A])
-  case class Delete[A](obj: Daoable[A])
-  case class Get[A](obj: Daoable[A])
-  case class Query(query: String)
 }

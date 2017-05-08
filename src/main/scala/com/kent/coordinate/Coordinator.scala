@@ -8,14 +8,14 @@ import akka.actor.ActorRef
 import com.kent.util.Util
 import com.kent.pub.Daoable
 import java.sql.Connection
-import com.kent.pub.ShareData
-import com.kent.db.LogRecorder.Info
 import com.kent.pub.DeepCloneable
 import java.sql.ResultSet
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import com.kent.coordinate.Coordinator.Depend
 import com.kent.pub.Directory
+import com.kent.main.Master
+import com.kent.pub.Event._
 
 class Coordinator(val name: String) extends Daoable[Coordinator] with DeepCloneable[Coordinator] {
   //存放参数转化后的信息
@@ -53,7 +53,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     if(isSatisfyTrigger()) {
       this.status = ACTIVE
       this.workflows.foreach { x => 
-        ShareData.logRecorder ! Info("Coordinator",this.name,s"开始触发工作流: ${x}")
+        Master.logRecorder ! Info("Coordinator",this.name,s"开始触发工作流: ${x}")
         wfManager ! NewAndExecuteWorkFlowInstance(x, this.paramMap) 
       }
       this.resetTrigger()

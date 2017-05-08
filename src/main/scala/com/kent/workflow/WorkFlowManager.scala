@@ -8,24 +8,16 @@ import akka.actor.ActorRef
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Terminated
 import akka.actor.Props
-import com.kent.workflow.WorkFlowManager._
 import com.kent.workflow.WorkflowInfo.WStatus._
 import akka.actor.PoisonPill
 import scala.concurrent.duration._
 import akka.util.Timeout
-import com.kent.workflow.WorkflowActor.Start
-import com.kent.coordinate.CoordinatorManager.GetManagers
-import com.kent.db.PersistManager._
-import com.kent.main.Master._
 import com.kent.workflow.node.NodeInfo.Status._
-import com.kent.pub.ShareData
-import com.kent.mail.EmailSender.EmailMessage
-import com.kent.db.LogRecorder._
+import com.kent.main.Master
+import com.kent.pub.Event._
 import scala.util.Success
 import scala.concurrent.Future
-import com.kent.main.HttpServer.ResponseData
 import scala.concurrent.Await
-import com.kent.workflow.ActionActor.ActionExecuteResult
 import org.json4s.Extraction
 import org.json4s.jackson.JsonMethods
 import org.json4s.DefaultFormats
@@ -62,8 +54,8 @@ class WorkFlowManager extends Actor with ActorLogging{
    * 增
    */
   def add(wf: WorkflowInfo, isSaved: Boolean): ResponseData = {
-    ShareData.logRecorder ! Info("WorkflowManager", null, s"添加工作流配置：${wf.name}")
-		if(isSaved) ShareData.persistManager ! Save(wf)
+    Master.logRecorder ! Info("WorkflowManager", null, s"添加工作流配置：${wf.name}")
+		if(isSaved) Master.persistManager ! Save(wf)
 		
 		if(workflows.get(wf.name).isEmpty){
 			workflows = workflows + (wf.name -> wf)
@@ -78,8 +70,8 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   def remove(name: String): ResponseData = {
     if(!workflows.get(name).isEmpty){
-      ShareData.logRecorder ! Info("WorkflowManager", null, s"删除工作流：${name}")
-    	ShareData.persistManager ! Delete(workflows(name))
+      Master.logRecorder ! Info("WorkflowManager", null, s"删除工作流：${name}")
+    	Master.persistManager ! Delete(workflows(name))
     	workflows = workflows.filterNot {x => x._1 == name}.toMap
       ResponseData("success",s"成功删除工作流${name}", null)
     }else{
@@ -90,14 +82,14 @@ class WorkFlowManager extends Actor with ActorLogging{
    * 初始化，从数据库中获取workflows
    */
   def init(){
-    import com.kent.pub.ShareData._
+    import com.kent.main.Master._
     val isEnabled = config.getBoolean("workflow.mysql.is-enabled")
     if(isEnabled){
-       val listF = (ShareData.persistManager ? Query("select name from workflow")).mapTo[List[List[String]]]
+       val listF = (Master.persistManager ? Query("select name from workflow")).mapTo[List[List[String]]]
        listF.andThen{
          case Success(list) => list.map { x =>
            val wf = new WorkflowInfo(x(0))
-           val wfF = (ShareData.persistManager ? Get(wf)).mapTo[Option[WorkflowInfo]]
+           val wfF = (Master.persistManager ? Get(wf)).mapTo[Option[WorkflowInfo]]
            wfF.andThen{
              case Success(wfOpt) => 
              if(!wfOpt.isEmpty) add(wfOpt.get, false)
@@ -111,12 +103,12 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   def newAndExecute(wfName: String,params: Map[String, String]): Boolean = {
     if(workflows.get(wfName).isEmpty){
-      ShareData.logRecorder ! Error("WorkflowManager", null, s"未找到名称为[${wfName}]的工作流")
+      Master.logRecorder ! Error("WorkflowManager", null, s"未找到名称为[${wfName}]的工作流")
       false
     } else {
     	val wfi = workflows(wfName).createInstance()
 			wfi.parsedParams = params
-			ShareData.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
+			Master.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
 			//创建新的workflow actor，并加入到列表中
 			val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
 			workflowActors = workflowActors + (wfi.id -> (wfi.workflow.name,wfActorRef))
@@ -133,12 +125,12 @@ class WorkFlowManager extends Actor with ActorLogging{
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.id }.toMap
     //根据状态发送邮件告警
     if(wfInstance.workflow.mailLevel.contains(wfInstance.status)){
-    	ShareData.emailSender ! EmailMessage(wfInstance.workflow.mailReceivers,
+    	Master.emailSender ! EmailMessage(wfInstance.workflow.mailReceivers,
     	                "workflow告警", 
     	                s"任务【${wfInstance.actorName}】执行状态：${wfInstance.status}")      
     }
     Thread.sleep(1000)
-    ShareData.logRecorder ! Info("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
+    Master.logRecorder ! Info("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
     println("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
     coordinatorManager ! WorkFlowExecuteResult(wfname, wfInstance.status)  
     true
@@ -147,7 +139,6 @@ class WorkFlowManager extends Actor with ActorLogging{
    * 手动kill掉工作流实例
    */
   def killWorkFlowInstance(id: String): Future[ResponseData] = {
-    import com.kent.workflow.WorkflowActor.Kill
     if(!workflowActors.get(id).isEmpty){
     	val wfaRef = workflowActors(id)._2
     	val result = (wfaRef ? Kill()).mapTo[List[ActionExecuteResult]]
@@ -190,7 +181,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     val wfi = wf.createInstance()
     wfi.id = wfiId
     implicit val timeout = Timeout(20 seconds)
-    val wfiF = (ShareData.persistManager ? Get(wfi)).mapTo[Option[WorkflowInstance]]
+    val wfiF = (Master.persistManager ? Get(wfi)).mapTo[Option[WorkflowInstance]]
     //该工作流实例不存在, 这里用了阻塞
     val wfiOpt = Await.result(wfiF, 20 second)
     if(wfiOpt.isEmpty){
@@ -209,6 +200,22 @@ class WorkFlowManager extends Actor with ActorLogging{
       wfActorRef ! Start()
       ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)
     }
+  }
+  /**
+   * 收集集群信息
+   */
+  def collectClusterInfo(): ActorInfo = {
+    import com.kent.pub.Event.ActorType._
+    val ai = new ActorInfo()
+    ai.name = self.path.name
+    ai.atype = DEAMO
+    ai.subActors = context.children.map { x =>
+      val aiTmp = new ActorInfo()
+      aiTmp.name = x.path.name
+      aiTmp.atype = ACTOR
+      aiTmp
+    }.toList
+    ai
   }
   /**
    * receive方法
@@ -236,6 +243,7 @@ class WorkFlowManager extends Actor with ActorLogging{
       coordinatorManager = cm
       context.watch(coordinatorManager)
     }
+    case CollectClusterInfo() => sender ! GetClusterInfo(collectClusterInfo())
     case Terminated(arf) => if(coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")
   }
 }
@@ -250,15 +258,4 @@ object WorkFlowManager{
   def apply(contents: Set[String]):WorkFlowManager = {
     WorkFlowManager(contents.map { WorkflowInfo(_) }.toList)
   }
-
-  
-  case class NewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
-  case class KillWorkFlow(wfName: String)
-  case class KllAllWorkFlow()
-  case class KillWorkFlowInstance(id: String)
-  case class AddWorkFlow(content: String)
-  case class RemoveWorkFlow(wfName: String)
-  case class ReRunWorkflowInstance(worflowInstanceId: String)
-  case class WorkFlowInstanceExecuteResult(workflowInstance: WorkflowInstance)
-  case class WorkFlowExecuteResult(wfName: String, status: WStatus)
 }

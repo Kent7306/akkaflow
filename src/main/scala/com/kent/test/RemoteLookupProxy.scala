@@ -1,9 +1,9 @@
-package com.kent.main
+package com.kent.test
 
 import akka.actor.ActorLogging
 import akka.actor._
-
 import scala.concurrent.duration._
+import akka.actor.ActorSelection.toScala
 
 class RemoteLookupProxy(path: String) extends Actor with ActorLogging {
   
@@ -17,7 +17,7 @@ class RemoteLookupProxy(path: String) extends Actor with ActorLogging {
   
   def receive = identify
   
-	import com.kent.main.RemoteLookupProxy._
+	import com.kent.test.RemoteLookupProxy._
   def identify: Actor.Receive = {
     case ActorIdentity(`path`, Some(actor)) => 
       log.info("switch to active state")

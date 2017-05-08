@@ -10,11 +10,11 @@ import java.sql.Connection
 import com.kent.util.Util
 import java.sql.ResultSet
 import com.kent.db.PersistManager
-import com.kent.db.PersistManager.Save
+import com.kent.pub.Event._
 import com.kent.workflow.controlnode._
 import com.kent.workflow.actionnode._
 import com.kent.workflow.controlnode._
-import com.kent.pub.ShareData
+import com.kent.main.Master
 
 abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance] with DeepCloneable[NodeInstance]{
   var id: String = _
@@ -43,7 +43,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
   def preExecute():Boolean = {
     this.startTime = Util.nowDate 
     this.status = RUNNING 
-    ShareData.persistManager ! Save(this.deepClone) 
+    Master.persistManager ! Save(this.deepClone) 
     true
   }
   /**
@@ -58,7 +58,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
    * 执行结束后回调方法
    */
   def postTerminate():Boolean = {
-    ShareData.persistManager ! Save(this.deepClone())
+    Master.persistManager ! Save(this.deepClone())
     true
   }
   /**

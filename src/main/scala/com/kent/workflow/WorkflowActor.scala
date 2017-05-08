@@ -17,20 +17,13 @@ import com.kent.util.Util
 import scala.concurrent.Future
 import akka.util._
 import scala.util.control.NonFatal
-import com.kent.workflow.WorkFlowManager._
 import akka.actor.PoisonPill
 import akka.actor.OneForOneStrategy
-import akka.actor.SupervisorStrategy._
-import com.kent.coordinate.CoordinatorManager.GetManagers
 import com.kent.db.PersistManager
-import com.kent.db.PersistManager.Save
-import com.kent.main.Master._
 import scala.concurrent.Await
-import com.kent.main.Worker.CreateAction
 import scala.util.Random
-import com.kent.pub.ShareData
-import com.kent.db.LogRecorder._
-import com.kent.mail.EmailSender.EmailMessage
+import com.kent.main.Master
+import com.kent.pub.Event._
 import scala.util.Success
 
 class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with ActorLogging {
@@ -45,6 +38,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	var scheduler:Cancellable = _
   
   
+	import akka.actor.SupervisorStrategy._
   override def supervisorStrategy = OneForOneStrategy(){
     case _:Exception => Stop
   }
@@ -58,7 +52,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  this.workflowInstance.nodeInstanceList.foreach { _.replaceParam(workflowInstance.parsedParams) }
 	  //保存工作流实例
 	   workflowInstance.startTime = Util.nowDate
-    ShareData.persistManager ! Save(workflowInstance.deepClone())
+    Master.persistManager ! Save(workflowInstance.deepClone())
 	  
 	  //找到开始节点并加入到等待队列
     val sn = workflowInstance.getStartNode()
@@ -69,7 +63,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
     		this.scan()
     	}
     }else{
-      ShareData.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "找不到开始节点")
+      Master.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "找不到开始节点")
     }
   }
 	/**
@@ -79,7 +73,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
     if(waitingNodes.size > 0){
     	val(ni, queue) = waitingNodes.dequeue
     	waitingNodes = queue
-    	ShareData.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "执行节点："+ni.nodeInfo.name+"， 类型："+ni.getClass)
+    	Master.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "执行节点："+ni.nodeInfo.name+"， 类型："+ni.getClass)
 	    ni.run(this)
     }
   }
@@ -100,7 +94,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
  private def handleActionRetryTimes(times: Int, actionSender: ActorRef){
    val ni = runningActors(actionSender).asInstanceOf[ActionNodeInstance]
    ni.hasRetryTimes = times
-   ShareData.persistManager ! Save(ni.deepClone())
+   Master.persistManager ! Save(ni.deepClone())
  }
  
 
@@ -156,7 +150,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  this.workflowInstance.endTime = Util.nowDate
 	  workflowManageAcotrRef ! WorkFlowInstanceExecuteResult(workflowInstance)
 	  //保存工作流实例
-	  ShareData.persistManager ! Save(workflowInstance.deepClone())
+	  Master.persistManager ! Save(workflowInstance.deepClone())
 	  context.stop(self)
 	}
   /**
@@ -178,14 +172,10 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
     case ActionExecuteResult(status, msg) => handleActionResult(status, msg, sender)
     case EmailMessage(toUsers, subject, htmlText) => 
       val users = if(toUsers == null || toUsers.size == 0) workflowInstance.workflow.mailReceivers else toUsers
-        ShareData.emailSender ! EmailMessage(users, subject, htmlText)
+        Master.emailSender ! EmailMessage(users, subject, htmlText)
   }
 }
 
 object WorkflowActor {
   def apply(workflowInstance: WorkflowInstance): WorkflowActor = new WorkflowActor(workflowInstance)
-  
-  case class Start()
-  case class Kill()
-  case class MailMessage(msg: String)
 }

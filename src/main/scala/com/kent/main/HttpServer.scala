@@ -10,21 +10,17 @@ import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
 import scala.io.StdIn
 import com.typesafe.config.ConfigFactory
-import com.kent.pub.ShareData
 import akka.actor.Actor
 import akka.cluster.ClusterEvent._
 import com.kent.main.ClusterRole.Registration
 import akka.actor.Props
-import com.kent.workflow.WorkFlowManager._
 import akka.actor.RootActorPath
-import com.kent.main.HttpServer.ResponseData
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.concurrent.Await
-import com.kent.coordinate.CoordinatorManager._
 import akka.http.scaladsl.server.Route
-import com.kent.main.Master.ShutdownCluster
 import akka.http.scaladsl.Http.ServerBinding
+import com.kent.pub.Event._
 
 class HttpServer extends ClusterRole {
   implicit val timeout = Timeout(20 seconds)
@@ -63,6 +59,7 @@ class HttpServer extends ClusterRole {
     case ShutdownCluster() => sender ! getResponseFromMaster(ShutdownCluster())
                               Thread.sleep(5000)
                               HttpServer.shutdwon()
+    case CollectClusterInfo() => sender ! getResponseFromMaster(CollectClusterInfo())
     case RemoveWorkFlow(name) => sender ! getResponseFromWorkflowManager(RemoveWorkFlow(name))
     case AddWorkFlow(content) => sender ! getResponseFromWorkflowManager(AddWorkFlow(content))
     case ReRunWorkflowInstance(id) => sender ! getResponseFromWorkflowManager(ReRunWorkflowInstance(id))
@@ -78,7 +75,6 @@ object HttpServer extends App{
   import org.json4s.jackson.Serialization.{read, write}
   implicit val formats = Serialization.formats(NoTypeHints)
   implicit val timeout = Timeout(20 seconds)
-  case class ResponseData(result:String, msg: String, data: String)
   def props = Props[HttpServer]
   val defaultConf = ConfigFactory.load()
   val httpConf = defaultConf.getStringList("workflow.nodes.http-servers").get(0).split(":")
@@ -88,7 +84,6 @@ object HttpServer extends App{
       .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + httpConf(0)))
       .withFallback(ConfigFactory.parseString("akka.cluster.roles = [http-server]"))
       .withFallback(defaultConf)
-  ShareData.config = config
   
   implicit val system = ActorSystem("akkaflow", config)
   val curActorSystem = system
@@ -183,6 +178,8 @@ object HttpServer extends App{
         action => {
           if(action == "shutdown"){
             handleRequestWithActor(ShutdownCluster())
+          }else if(action == "get"){
+            handleRequestWithActor(CollectClusterInfo())
           }else{
         	  handleRequestWithActor("fail","action参数有误",null)                     
           }
