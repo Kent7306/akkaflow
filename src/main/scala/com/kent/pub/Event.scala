@@ -67,7 +67,7 @@ object Event {
     def getClusterInfo():List[Map[String, String]] = {
 	    var l:List[Map[String, String]] = List()
 	    val l1 = this.subActors.map { x => 
-	      val m = Map("name" -> x.name, "ip" -> x.ip, "port" -> s"${x.port}", "atype" -> x.name, "pname" -> name)
+	      val m = Map("name" -> x.name, "ip" -> x.ip, "port" -> s"${x.port}", "atype" -> s"${x.atype.id}", "pname" -> name)
 	      m
 	    }.toList  
 	    val l2 = this.subActors.flatMap { x => x.getClusterInfo() }.toList

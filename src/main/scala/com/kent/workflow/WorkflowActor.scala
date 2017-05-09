@@ -136,7 +136,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 		      y 
 		  }
 	  }).toList
-	  val futuresSeq = Future.sequence(futures).onComplete {
+	  val futuresSeq = Future.sequence(futures).andThen {
 	    case Success(x) => callback(this, x)
 	  }
 	}

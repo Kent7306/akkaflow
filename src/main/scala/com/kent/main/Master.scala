@@ -169,7 +169,7 @@ class Master extends ClusterRole {
     ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
     ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
     ai.atype = ROLE
-    ai.name = self.path.name
+    ai.name = self.path.name + s"(${ai.ip}:${ai.port})"
     allActorInfo.subActors = allActorInfo.subActors :+ ai
     
     val es = new ActorInfo()
@@ -250,5 +250,5 @@ object Master extends App {
   val system = ActorSystem("akkaflow", config)
   Master.curSystem = system
   val master = system.actorOf(Master.props, name = "master")
-  //master ! Start()
+  master ! Start()
 }
