@@ -4,5 +4,5 @@ user_dir=`pwd`
 script_dir=`dirname "$0"`
 
 cd $script_dir/..
-bin/workder
+nohup bin/workder &
 cd $user_dir

@@ -89,3 +89,5 @@ truncate node;
 truncate workflow;
 truncate directory_info;
 truncate coordinator;
+delete from node_instance where workflow_instance_id in (select id from workflow_instance where status = 1);
+delete from workflow_instance where status = 1;

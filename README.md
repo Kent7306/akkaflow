@@ -1,4 +1,5 @@
 ## akkaflow
+演示系统: [这里](http://47.93.186.236:8080/akkaflow-ui/home/login)  用户/密码：admin/admin
 ### 简介
 `akkaflow`是一个基于`akka`架构上构建的分布式ETL调度工具，可以把任务拆分在集群中不同的节点上运行，高效利用集群资源，可监控文件数据情况，对数据及任务进行监控告警，异常处理。其中工作流定义参考`Oozie`，相对简洁轻量级，可作为构建数据仓库、或大数据平台上的调度工具。</br>
 </br>
@@ -12,7 +13,67 @@
 `akkaflow`工程只是一个后端运行的架构，目前也在不停开发完善中，基于浏览器的可视化界面后续会开发，提供工作流实例的执行情况查看，基于界面的工作流调度器拖拉配置生成，分组管理各类信息。</br>
 </br>
 ### 部署
-后续补上</br>
+#### 1、打包
+* 可以直接在项目中下载akkaflow-x.x.zip，这是已经打包好的程序包</br>
+* 可以把工程check out下来，用sbt-native-packager进行编译打包</br>
+#### 2、安装
+* 安装环境：Linux系统、jdk1.8或以上、MySQL5.7或以上</br>
+#### 3、安装步骤：
+伪分布式部署
+* 解压到`/your/app/dir`</br>
+* mysql数据库准备一个数据库，如wf</br>
+* 修改配置文件 `config/application.conf`中以下部分</br>
+```scala
+workflow {
+  nodes {   //集群节点
+        masters = ["127.0.0.1:2751"]    //主节点，所部署机器的ip与端口，目前只支持单主节点
+        workers = ["127.0.0.1:2851","127.0.0.1:2852"]   //工作节点，所部署机器的ip与端口，支持单个机器上多个工作节点
+        http-servers = ["127.0.0.1:2951"]
+  }
+  mysql {   //用mysql来持久化数据
+        user = "root"
+        password = "root"
+        jdbc-url = "jdbc:mysql://localhost:3306/wf?useSSL=false"
+        is-enabled = true
+  }
+  log-mysql {   //把输出日志保持在mysql中
+        user = "root"
+        password = "root"
+        jdbc-url = "jdbc:mysql://localhost:3306/wf?useSSL=false"
+        is-enabled = true
+  }
+  email {       //用以发告警邮件的邮箱设置
+        hostname = "smtp.163.com"
+        smtp-port = 25
+        account = "15018735011@163.com"
+        password = "********"
+        is-enabled = false
+  }
+  action {      //生成执行脚本的临时目录
+        script-location = "./tmp"
+  }
+  xml-loader {  //xml装载器配置
+        workflow-dir = "xmlconfig/workflow"
+        coordinator-dir = "xmlconfig/coordinator"
+        scan-interval = 5   //扫描时间间隔，单位：秒
+  }
+}
+```
+
+其中，因为akkaflow支持分布式部署，当前伪分布部署，可以把master、worker、http-servers在同一台机器的不同端口启动，设置jdbc连接，告警邮件设置</br>
+* 启动角色（注意顺序）</br>
+启动master节点：`bin/master-startup`</br>
+启动worker节点：`bin/worker-startup`</br>
+启动http-server服务器：`/bin/httpserver-startup`</br>
+启动完后，使用jps查看进程</br>
+```25765 HttpServer
+13287 Bootstrap
+25495 Master
+29435 Jps
+25566 Worker
+```
+**注意**：akkaflow工作流的定义、调度器的定义存放于xmlconfig下，akkaflow启动时，会自动扫描xmlconfig下面的文件，生成对应的worflow或coordinator提交给Master，所以新建的工作流、调度器定义文件，可以放到该目录中，安装包下的xmlconfig/example下有工作流与调度器定义示例。
+
 </br>
 ### 使用
 #### 基于命令行操作
