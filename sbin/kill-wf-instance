@@ -2,11 +2,9 @@
 
 user_dir=`pwd`
 bin_dir=`dirname $user_dir/$0`
-
-host="localhost"
-port="8090"
-
 cd $bin_dir
+
+source ./head.sh
 if [ $# -ne 1 ];then
 echo -e "[Usage]: $0 [instance_id]\nɱ"
 exit 1

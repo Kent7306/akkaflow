@@ -1,6 +1,6 @@
 <work-flow name="wf_join_order_and_item" 
 	mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
-	mail-receivers="15018735011@163.com,492005267@qq.com" dir="/ogn_test" desc="导入item数据">
+	mail-receivers="15018735011@163.com,492005267@qq.com" dir="/example" desc="导入item数据">
 
 	<start name="start" to="join_sql" />
 
@@ -9,10 +9,9 @@
 		    <content>
 	           	<![CDATA[
 	           	#!/bin/bash
-	           	/usr/local/mysql/bin/mysql -uroot -proot -Dtest -e "
-	           	drop table order_detail;"
+	           	mysql -uroot -proot -Dtest -e "drop table order_detail;"
 
-				/usr/local/mysql/bin/mysql -uroot -proot -Dtest -e "
+			mysql -uroot -proot -Dtest -e "
 				create table order_detail as 
 				select a.ds,a.orderid,username,status,goods_name 
 				from t_order a join t_item b 

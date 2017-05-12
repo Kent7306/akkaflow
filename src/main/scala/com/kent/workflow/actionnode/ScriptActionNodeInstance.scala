@@ -54,7 +54,9 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
   }
 
   def kill(): Boolean = {
-    executeResult.destroy()
+    if(executeResult != null){
+      executeResult.destroy()
+    }
     true
   }
 }

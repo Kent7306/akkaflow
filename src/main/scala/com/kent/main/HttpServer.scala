@@ -56,16 +56,17 @@ class HttpServer extends ClusterRole {
       roler = roler :+ sender
       log.info("注册master角色: " + sender)
     }
-    case ShutdownCluster() => sender ! getResponseFromMaster(ShutdownCluster())
+    case event@ShutdownCluster() => sender ! getResponseFromMaster(event)
                               Thread.sleep(5000)
                               HttpServer.shutdwon()
-    case CollectClusterInfo() => sender ! getResponseFromMaster(CollectClusterInfo())
-    case RemoveWorkFlow(name) => sender ! getResponseFromWorkflowManager(RemoveWorkFlow(name))
-    case AddWorkFlow(content) => sender ! getResponseFromWorkflowManager(AddWorkFlow(content))
-    case ReRunWorkflowInstance(id) => sender ! getResponseFromWorkflowManager(ReRunWorkflowInstance(id))
-    case KillWorkFlowInstance(id) => sender ! getResponseFromWorkflowManager(KillWorkFlowInstance(id))
-    case AddCoor(content) => sender ! getResponseFromCoordinatorManager(AddCoor(content))
-    case RemoveCoor(name) => sender ! getResponseFromCoordinatorManager(RemoveCoor(name))
+    case event@CollectClusterInfo() => sender ! getResponseFromMaster(event)
+    case event@RemoveWorkFlow(_) => sender ! getResponseFromWorkflowManager(event)
+    case event@AddWorkFlow(_) => sender ! getResponseFromWorkflowManager(event)
+    case event@ReRunWorkflowInstance(_) => sender ! getResponseFromWorkflowManager(event)
+    case event@KillWorkFlowInstance(_) => sender ! getResponseFromWorkflowManager(event)
+    case event@AddCoor(_) => sender ! getResponseFromCoordinatorManager(event)
+    case event@RemoveCoor(_) => sender ! getResponseFromCoordinatorManager(event)
+    case event@ManualNewAndExecuteWorkFlowInstance(_, _) => sender ! getResponseFromWorkflowManager(event)
       
   }
 }
@@ -111,7 +112,12 @@ object HttpServer extends App{
             handleRequestWithActor(RemoveWorkFlow(name))
           }else if(action == "get"){
             handleRequestWithResponseData("fail","暂时还没get方法",null)   
-          }else{
+          }else if(action == "run"){
+             parameterMap {
+               paras => handleRequestWithActor(ManualNewAndExecuteWorkFlowInstance(name, paras))
+             }
+          }
+          else{
         	  handleRequestWithResponseData("fail","action参数有误",null)                      
           }
         }

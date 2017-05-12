@@ -31,6 +31,7 @@ object Event {
   case class EmailMessage(toUsers: List[String],subject: String,htmlText: String)
   //wfm
   case class NewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
+  case class ManualNewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
   case class KillWorkFlow(wfName: String)
   case class KllAllWorkFlow()
   case class KillWorkFlowInstance(id: String)

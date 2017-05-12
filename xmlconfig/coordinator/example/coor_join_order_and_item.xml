@@ -1,5 +1,5 @@
 <coordinator name="coor_join_order_and_item" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" 
-    is-enabled="true" dir="/ogn_test"
+    is-enabled="true" dir="/example"
     desc="每分钟启动">    
     <trigger>
        <depend-list>

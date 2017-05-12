@@ -1,0 +1,9 @@
+#!/bin/bash
+
+user_dir=`pwd`
+bin_dir=`dirname $user_dir/$0`
+cd $bin_dir
+source ./head.sh
+
+result=`curl -s -XGET "http://$host:$port/akkaflow/cluster?action=shutdown"`
+echo $result

@@ -94,7 +94,6 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     import com.kent.util.Util._
     conn.setAutoCommit(false)
     executeSql(s"delete from coordinator where name = ${withQuate(name)}")
-    println(s"delete from coordinator where name = ${withQuate(name)}");
     val result = executeSql(s"delete from directory_info where name = ${withQuate(name)} and dtype = '0'")
     conn.commit()
     conn.setAutoCommit(true)

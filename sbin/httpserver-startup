@@ -4,5 +4,5 @@ user_dir=`pwd`
 script_dir=`dirname "$0"`
 
 cd $script_dir/..
-nohup bin/http-server &
+nohup bin/http-server >> logs/run.log &
 cd $user_dir

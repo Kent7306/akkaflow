@@ -1,6 +1,6 @@
 <work-flow name="wf_import_order" 
 	mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
-	mail-receivers="15018735011@163.com,492005267@qq.com" dir="/ogn_test" desc="导入order数据">
+	mail-receivers="15018735011@163.com,492005267@qq.com" dir="/example" desc="导入order数据">
 
 	<start name="start" to="watch_log" />
 
@@ -63,11 +63,11 @@
 	           	<![CDATA[
 	           	#!/bin/bash
 				sdate="${stadate}" 
-				/usr/local/mysql/bin/mysql -uroot -proot -Dtest -e "delete from t_order where ds = '$sdate'"
+				mysql -uroot -proot -Dtest -e "delete from t_order where ds = '$sdate'"
 				while read line
 				do
 				    str="'"${line//,/\',\'}"'"
-				    /usr/local/mysql/bin/mysql -uroot -proot -Dtest -e "insert into t_order values ($str)"
+				    mysql -uroot -proot -Dtest -e "insert into t_order values ($str)"
 				done <  tmp/log_test/$sdate/order.result
 	           	]]>
            </content>

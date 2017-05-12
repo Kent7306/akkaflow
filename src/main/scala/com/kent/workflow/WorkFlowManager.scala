@@ -117,6 +117,23 @@ class WorkFlowManager extends Actor with ActorLogging{
     }
   }
   /**
+   * 生成工作流实例并执行
+   */
+  def manualNewAndExecute(wfName: String,params: Map[String, String]): ResponseData = {
+    if(workflows.get(wfName).isEmpty){
+      ResponseData("fail",s"工作流${wfName}不存在", null)
+    } else {
+    	val wfi = workflows(wfName).createInstance()
+			wfi.parsedParams = params
+			Master.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
+			//创建新的workflow actor，并加入到列表中
+			val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
+			workflowActors = workflowActors + (wfi.id -> (wfi.workflow.name,wfActorRef))
+			wfActorRef ! Start()
+			ResponseData("success",s"已生成工作流实例,id:${wfi.id}", null)
+    }
+  }
+  /**
    * 工作流实例完成后处理
    */
   def handleWorkFlowInstanceReply(wfInstance: WorkflowInstance):Boolean = {
@@ -225,6 +242,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     case RemoveWorkFlow(name) => sender ! this.remove(name)
     //case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
     case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)
+    case ManualNewAndExecuteWorkFlowInstance(name, params) => sender ! this.manualNewAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
     case KillWorkFlowInstance(id) =>  val sdr = sender
                                       this.killWorkFlowInstance(id).andThen{

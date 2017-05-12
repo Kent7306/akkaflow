@@ -4,5 +4,6 @@ user_dir=`pwd`
 script_dir=`dirname "$0"`
 
 cd $script_dir/..
-nohup bin/master &
+mkdir -p logs
+nohup bin/master >> logs/run.log &
 cd $user_dir

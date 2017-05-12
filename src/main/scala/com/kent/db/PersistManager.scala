@@ -32,10 +32,19 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     Source.fromFile(this.getClass.getResource("/").getPath + "../config/create_table.sql").foreach { content += _ }
     val sqls = content.split(";").filter { _.trim() !="" }.toList
     try {
-    	this.execute(sqls)      
+      connection.setAutoCommit(false)
+    	val stat = connection.createStatement()
+      val results = sqls.map { stat.execute(_) }.toList
+      connection.commit()
     } catch {
-      case e: Exception => e.printStackTrace();throw new Exception("执行初始化建表sql失败")
+      case e: Exception => 
+          connection.rollback()
+          e.printStackTrace()
+          throw new Exception("执行初始化建表sql失败")
     }
+    
+    connection.setAutoCommit(true)
+    log.info("初始化数据库成功...")
   }
   /**
    * 开启持久化
@@ -68,23 +77,6 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     })
     if(listOpt.isEmpty) null else listOpt.get
   }
-  /**
-   * 执行多条dml语句
-   */
-  def execute(sqls:List[String])(implicit conn: Connection): Boolean = {
-    conn.setAutoCommit(false)
-    val stat = conn.createStatement();
-    val errorCnt = sqls.map { stat.execute(_) }.toList.filter { !_ }.size
-    if(errorCnt > 0){
-    	conn.rollback()
-    	false      
-    }else{
-      conn.commit()
-      conn.setAutoCommit(true)
-      true
-    }
-  }
-  
   /**
    * 查询sql
    */
