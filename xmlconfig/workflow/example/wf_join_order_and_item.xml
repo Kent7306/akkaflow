@@ -9,9 +9,10 @@
 		    <content>
 	           	<![CDATA[
 	           	#!/bin/bash
+	           	source /etc/profile
 	           	mysql -uroot -proot -Dtest -e "drop table order_detail;"
 
-			mysql -uroot -proot -Dtest -e "
+			    mysql -uroot -proot -Dtest -e "
 				create table order_detail as 
 				select a.ds,a.orderid,username,status,goods_name 
 				from t_order a join t_item b 

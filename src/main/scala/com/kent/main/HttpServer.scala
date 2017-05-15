@@ -17,31 +17,35 @@ import akka.actor.Props
 import akka.actor.RootActorPath
 import akka.util.Timeout
 import scala.concurrent.duration._
-import scala.concurrent.Await
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.Http.ServerBinding
 import com.kent.pub.Event._
+import akka.actor.ActorRef
+import scala.util.Success
 
 class HttpServer extends ClusterRole {
   implicit val timeout = Timeout(20 seconds)
-  
-  private def getResponseFromWorkflowManager(event: Any): ResponseData = {
+  import scala.concurrent.ExecutionContext.Implicits.global
+  private def getResponseFromWorkflowManager(sdr: ActorRef,event: Any) = {
     val wfm = context.actorSelection(roler(0).path / "wfm")
     val resultF = (wfm ? event).mapTo[ResponseData]
-    val result = Await.result(resultF, 20 second)
-    result
+    resultF.andThen{
+      case Success(x) => sdr ! x
+    }
   }
-  private def getResponseFromCoordinatorManager(event: Any): ResponseData = {
+  private def getResponseFromCoordinatorManager(sdr: ActorRef, event: Any) = {
     val cm = context.actorSelection(roler(0).path / "cm")
     val resultF = (cm ? event).mapTo[ResponseData]
-    val result = Await.result(resultF, 20 second)
-    result
+    resultF.andThen{
+      case Success(x) => sdr ! x
+    }
   }
-  private def getResponseFromMaster(event: Any): ResponseData = {
+  private def getResponseFromMaster(sdr: ActorRef, event: Any) = {
     val master = context.actorSelection(roler(0).path)
     val resultF = (master ? event).mapTo[ResponseData]
-    val result = Await.result(resultF, 20 second)
-    result
+    resultF.andThen{
+      case Success(x) => sdr ! x
+    }
   }
   
   def receive: Actor.Receive = {
@@ -56,17 +60,17 @@ class HttpServer extends ClusterRole {
       roler = roler :+ sender
       log.info("注册master角色: " + sender)
     }
-    case event@ShutdownCluster() => sender ! getResponseFromMaster(event)
+    case event@ShutdownCluster() => getResponseFromMaster(sender, event)
                               Thread.sleep(5000)
                               HttpServer.shutdwon()
-    case event@CollectClusterInfo() => sender ! getResponseFromMaster(event)
-    case event@RemoveWorkFlow(_) => sender ! getResponseFromWorkflowManager(event)
-    case event@AddWorkFlow(_) => sender ! getResponseFromWorkflowManager(event)
-    case event@ReRunWorkflowInstance(_) => sender ! getResponseFromWorkflowManager(event)
-    case event@KillWorkFlowInstance(_) => sender ! getResponseFromWorkflowManager(event)
-    case event@AddCoor(_) => sender ! getResponseFromCoordinatorManager(event)
-    case event@RemoveCoor(_) => sender ! getResponseFromCoordinatorManager(event)
-    case event@ManualNewAndExecuteWorkFlowInstance(_, _) => sender ! getResponseFromWorkflowManager(event)
+    case event@CollectClusterInfo() => getResponseFromMaster(sender,event)
+    case event@RemoveWorkFlow(_) =>  getResponseFromWorkflowManager(sender, event)
+    case event@AddWorkFlow(_) => getResponseFromWorkflowManager(sender, event)
+    case event@ReRunWorkflowInstance(_) => getResponseFromWorkflowManager(sender, event)
+    case event@KillWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
+    case event@AddCoor(_) => getResponseFromCoordinatorManager(sender, event)
+    case event@RemoveCoor(_) => getResponseFromCoordinatorManager(sender, event)
+    case event@ManualNewAndExecuteWorkFlowInstance(_, _) => getResponseFromWorkflowManager(sender, event)
       
   }
 }

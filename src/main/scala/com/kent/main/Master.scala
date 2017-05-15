@@ -28,6 +28,7 @@ import com.kent.db.XmlLoader
 import scala.util.Success
 import scala.concurrent.Future
 
+
 class Master extends ClusterRole {
   var coordinatorManager: ActorRef = _
   var workflowManager: ActorRef = _
@@ -36,6 +37,10 @@ class Master extends ClusterRole {
   implicit val timeout = Timeout(20 seconds)
   init()
   
+  import akka.actor.OneForOneStrategy
+  override def supervisorStrategy = OneForOneStrategy(){
+    case _:Exception => import akka.actor.SupervisorStrategy._;Escalate
+  }
   def init(){
     import com.kent.main.Master._
     //mysql持久化参数配置

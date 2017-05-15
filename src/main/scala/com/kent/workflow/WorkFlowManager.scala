@@ -193,30 +193,34 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * 重跑指定的工作流实例
    */
-  def reRun(wfiId: String): ResponseData = {
+  def reRun(wfiId: String): Future[ResponseData] = {
     val wf = new WorkflowInfo(null)
     val wfi = wf.createInstance()
     wfi.id = wfiId
     implicit val timeout = Timeout(20 seconds)
     val wfiF = (Master.persistManager ? Get(wfi)).mapTo[Option[WorkflowInstance]]
-    //该工作流实例不存在, 这里用了阻塞
-    val wfiOpt = Await.result(wfiF, 20 second)
-    if(wfiOpt.isEmpty){
-      ResponseData("fail", s"工作流实例[${wfiId}]不存在", null)
-    }else{
-      //重置时间与状态
-    	val wfi2 = wfiOpt.get
-      wfi2.status = W_PREP
-      wfi2.startTime = null
-      wfi2.endTime = null
-      wfi2.nodeInstanceList.foreach { y =>  y.status = PREP; y.startTime = null; y.endTime = null}
-    	
-      //创建新的workflow actor，并加入到列表中
-      val wfActorRef = context.actorOf(Props(WorkflowActor(wfi2)), wfi2.actorName)
-      workflowActors = workflowActors + (wfi2.id -> (wfi2.workflow.name,wfActorRef))
-      wfActorRef ! Start()
-      ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)
+    wfiF.map { wfiOpt => 
+      if(wfiOpt.isEmpty){
+        ResponseData("fail", s"工作流实例[${wfiId}]不存在", null)
+      }else{
+        if(!workflowActors.get(wfiId).isEmpty){
+          ResponseData("fail", s"工作流实例[${wfiId}]已经在重跑", null)
+        }else{
+          //重置时间与状态
+        	val wfi2 = wfiOpt.get
+          wfi2.status = W_PREP
+          wfi2.startTime = null
+          wfi2.endTime = null
+          wfi2.nodeInstanceList.foreach { y =>  y.status = PREP; y.startTime = null; y.endTime = null}
+          //创建新的workflow actor，并加入到列表中
+          val wfActorRef = context.actorOf(Props(WorkflowActor(wfi2)), wfi2.actorName)
+          workflowActors = workflowActors + (wfi2.id -> (wfi2.workflow.name,wfActorRef))
+          wfActorRef ! Start()
+          ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)
+        }
+      }
     }
+    
   }
   /**
    * 收集集群信息
@@ -256,7 +260,10 @@ class WorkFlowManager extends Actor with ActorLogging{
                                  this.killWorkFlow(wfName).andThen{
                                         case Success(x) => sdr ! x
                                       }
-    case ReRunWorkflowInstance(wfiId: String) => sender ! reRun(wfiId)
+    case ReRunWorkflowInstance(wfiId: String) => val sdr = sender
+                                                 this.reRun(wfiId).andThen{
+                                                    case Success(x) => sdr ! x  
+                                                }
     case GetManagers(wfm, cm) => {
       coordinatorManager = cm
       context.watch(coordinatorManager)

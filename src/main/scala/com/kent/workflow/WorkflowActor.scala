@@ -20,7 +20,6 @@ import scala.util.control.NonFatal
 import akka.actor.PoisonPill
 import akka.actor.OneForOneStrategy
 import com.kent.db.PersistManager
-import scala.concurrent.Await
 import scala.util.Random
 import com.kent.main.Master
 import com.kent.pub.Event._
