@@ -6,9 +6,13 @@ import java.sql.Connection
 import java.sql.DriverManager
 import com.kent.pub.Event._
 import com.kent.util.Util
+import com.kent.util.Util._
+import com.kent.db.LogRecorder.LogMsg
+import com.kent.pub.Daoable
 
-class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging{
+class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging with Daoable[Any] {
   implicit var connection: Connection = null
+  
   def receive = print2Console
   if(isEnabled){
 	  //注册Driver
@@ -26,30 +30,31 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     case Error(ctype, sid, content) => 
         logging("ERROR", ctype, sid, Util.escapeStr(content))
   }
+  
+  var messageList:List[LogMsg] = List()
+  var lastCommitTimeStamp = nowDate.getTime
+  /**
+   * 打印到数据库（这里用了个队列，一次性事务提交，减少数据库压力）
+   */
   private def logging(level: String,ctype: String, sid: String, content: String):Boolean = {
-    import com.kent.util.Util._
     val now = formatStandarTime(nowDate)
-    val insertSql = s"""
-      insert into log_record values(null,${withQuate(sid)},${withQuate(level)},${withQuate(ctype)},${withQuate(now)},${withQuate(content)})
-      """
-    executeSql(insertSql)
+    messageList = messageList :+ LogMsg(level, ctype, sid, content, now)
+
+    if(messageList.size > 100 || lastCommitTimeStamp - nowDate.getTime > 10000){
+      val executeList = messageList
+      messageList = List()
+      val sqls = executeList.map { x => s"""
+    		insert into log_record values(null,${withQuate(x.sid)},${withQuate(x.level)},${withQuate(x.ctype)},${withQuate(x.time)},${withQuate(x.content)})
+      """ }.toList
+      lastCommitTimeStamp = nowDate.getTime
+    	executeSql(sqls)
+    }else {
+      true
+    }
+    
   }
   private def loggingStr(ctype: String, sid: String, content: String): String = {
     s"[${ctype}][${sid}] ${content}"
-  }
-  
-  def executeSql(sql: String)(implicit conn: Connection): Boolean = {
-    val stat = conn.createStatement()
-    var result:Boolean = false
-    try{
-    	result = stat.execute(sql)      
-    }catch{
-      case e:Exception => e.printStackTrace()
-    }finally{
-      if(stat != null) stat.close()
-      result
-    }
-    result
   }
   /**
    * 打印到终端
@@ -63,8 +68,22 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
   override def postStop(){
     if(connection != null)connection.close()
   }
+
+  def delete(implicit conn: Connection): Boolean = {
+    ???
+  }
+
+  def getEntity(implicit conn: Connection): Option[Any] = {
+    ???
+  }
+
+  def save(implicit conn: Connection): Boolean = {
+    ???
+  }
 }
 object LogRecorder {
+  case class LogMsg(level: String,ctype: String, sid: String, content: String,time: String)
+  
   def apply(url: String, username: String, pwd: String, isEnabled: Boolean):LogRecorder = new LogRecorder(url, username, pwd, isEnabled)
 }
 

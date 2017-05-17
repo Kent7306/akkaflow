@@ -29,7 +29,7 @@ class ShellActionNodeInstance(override val nodeInfo: ShellActionNodeInfo) extend
   }
 
   def kill(): Boolean = {
-    executeResult.destroy()
+    if(executeResult != null)executeResult.destroy()
     true
   }
 }

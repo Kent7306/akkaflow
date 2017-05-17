@@ -1,30 +1,23 @@
 <work-flow name="wf_parall_sum"  dir="/example" desc="">
-        <start name="start" to="s1" />
-        <action name="s1" desc = "清理及创建目录">
-            <script>
-                <content>
-                    <![CDATA[
-                    rm -rf tmp/${stadate}
-                    mkdir tmp/${stadate}
-                    ]]>
-                </content>
-            </script>
-            <ok to="fork"/>
-        </action>
+        <start name="start" to="fork" />
         
         <fork name="fork">
              <path to="a1" />
              <path to="a2" />
              <path to="a3" />
+             <path to="a3_1" />
+             <path to="a3_2" />
         </fork> 
         <action name="a1" host="127.0.0.1" desc = "产生1到10">
             <script>
                 <content>
-                    <![CDATA[
-                    for i in `seq 1 10`
-                    do 
-                       sleep 2;echo $i;echo $i >> tmp/${stadate}/data.log
-                    done
+                <![CDATA[
+                   #!/usr/bin/perl
+                    my $i=0;
+                    for(my $i=0;$i < 10; $i++){
+                    sleep 2;
+                    print $i . "\n";
+                    }
                     ]]>
                 </content>
             </script>
@@ -34,11 +27,13 @@
             <script>
                 <content>
                     <![CDATA[
-                    for i in `seq 11 20`
-                    do 
-                       sleep 2;echo $i;echo $i >> tmp/${stadate}/data.log
-                    done
-                    ]]>
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=10;$i < 20; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+               ]]>
                 </content>
             </script>
             <ok to="join_node"/>
@@ -47,27 +42,47 @@
             <script>
                 <content>
                     <![CDATA[
-                    for i in `seq 21 30`
-                    do 
-                       sleep 2;echo $i;echo $i >> tmp/${stadate}/data.log
-                    done
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=20;$i < 30; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
                     ]]>
                 </content>
             </script>
             <ok to="join_node"/>
         </action>
-
-        <join name="join_node" to="a4"/>
-
-        <action name="a4" host="127.0.0.1" desc = "计算结果">
+        <action name="a3_1" host="127.0.0.1" desc = "产生31到40">
             <script>
                 <content>
                     <![CDATA[
-                    cat tmp/${stadate}/*.log | awk '{s+=$1} END{print s}'
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=30;$i < 40; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
                     ]]>
                 </content>
             </script>
-            <ok to="end"/>
+            <ok to="join_node"/>
         </action>
+        <action name="a3_2" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <join name="join_node" to="end"/>
         <end name="end"/>
 </work-flow>

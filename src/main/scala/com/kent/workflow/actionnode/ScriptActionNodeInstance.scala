@@ -16,7 +16,7 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
   private var executeResult: Process = _
 
   override def execute(): Boolean = {
-    try {
+    /*try {
       var newLocation = if(nodeInfo.location == null || nodeInfo.location == "")
             Worker.config.getString("workflow.action.script-location") + "/" + Util.produce8UUID
             else nodeInfo.location
@@ -40,11 +40,20 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
       
       val pLogger = ProcessLogger(line => Worker.logRecorder ! Info("NodeInstance", this.id, line),
                                   line => Worker.logRecorder ! Error("NodeInstance", this.id, line))
-       executeResult = Process(s"${cmd} ${newLocation}").run(pLogger)
-       if(executeResult.exitValue() == 0) true else false
+      executeResult = Process(s"${cmd} ${newLocation}").run(pLogger)
+      if(executeResult.exitValue() == 0) true else false
+      
+       true
     }catch{
       case e:Exception => Worker.logRecorder ! Error("NodeInstance", this.id, e.getMessage);false
+    }*/
+    println(this.name + "--"+"start"+"--"+Util.nowDate)
+    (1 to 10).foreach { 
+      x => Thread.sleep(2000);
+      //println(this.name + "--"+x+"--"+Util.nowDate) 
     }
+    println(this.name + "--"+"end"+"--"+Util.nowDate)
+    true
   }
 
   def replaceParam(param: Map[String, String]): Boolean = {

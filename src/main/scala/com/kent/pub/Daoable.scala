@@ -40,6 +40,22 @@ trait Daoable[A] {
     }
     result
   }
+  def executeSql(sqls: List[String])(implicit conn: Connection):Boolean = {
+    try {
+      conn.setAutoCommit(false)
+    	val stat = conn.createStatement()
+      val results = sqls.map { stat.execute(_) }.toList
+      conn.commit()
+    } catch {
+      case e: Exception => 
+          conn.rollback()
+          e.printStackTrace()
+          throw new Exception("执行初始化建表sql失败")
+          return false
+    }
+    conn.setAutoCommit(true)
+    true
+  }
   /**
    * 设置该对象的content字段
    */
