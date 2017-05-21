@@ -10,9 +10,10 @@ import akka.actor.ActorRef
 import com.kent.workflow.node.ActionNodeInstance
 import com.kent.main.Worker
 import com.kent.pub.Event._
+import scala.util.Success
+import scala.concurrent.Future
 
 class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with ActorLogging {
-  var sheduler:Cancellable = null
   var workflowActorRef: ActorRef = _
   var isKilled = false
   def receive: Actor.Receive = {
@@ -26,7 +27,8 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
   def start(){
     workflowActorRef = sender
     actionNodeInstance.actionActor = this
-    sheduler = context.system.scheduler.scheduleOnce(10 millisecond){
+    
+    def asynExcute():Unit = {
       Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,s"开始执行")
       var executedStatus: Status = FAILED
       var msg:String = null
@@ -69,6 +71,14 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
       }
       if(context != null && !isKilled) terminate(workflowActorRef, actionNodeInstance.status, actionNodeInstance.executedMsg)
     }
+    
+    val thread = new Thread(new Runnable() {
+  		def run() {
+  		  	asynExcute()
+  		}
+	  },s"action_${actionNodeInstance.id}_${actionNodeInstance.name}")
+    thread.start()
+    
   }
   /**
    * 发送邮件
@@ -80,7 +90,6 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
    * 结束
    */
   def terminate(worflowActor: ActorRef, status: Status, msg: String){
-		sheduler.cancel()
 		worflowActor ! ActionExecuteResult(status, msg) 
 		Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,s"执行完毕")
 		context.stop(self) 

@@ -11,6 +11,8 @@ import akka.actor.ActorRef
 import com.kent.workflow.WorkflowInstance
 import java.sql.ResultSet
 import scala.io.Source
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging{
   implicit var connection: Connection = null
@@ -52,7 +54,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
   def active: Actor.Receive = {
     case Save(obj) => obj.save
     case Delete(obj) => obj.delete
-    case Get(obj) =>  val resultObj = if(obj.getEntity.isEmpty) null else obj.getEntity.get; sender ! obj.getEntity
+    case Get(obj) => sender ! obj.getEntity
     case Query(str) => sender ! queryList(str)
   }
   /**

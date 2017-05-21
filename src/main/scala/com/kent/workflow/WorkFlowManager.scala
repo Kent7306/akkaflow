@@ -21,6 +21,7 @@ import scala.concurrent.Await
 import org.json4s.Extraction
 import org.json4s.jackson.JsonMethods
 import org.json4s.DefaultFormats
+import java.util.Date
 
 class WorkFlowManager extends Actor with ActorLogging{
   /**
@@ -148,7 +149,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     }
     Thread.sleep(1000)
     Master.logRecorder ! Info("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
-    println("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
+    //println("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
     coordinatorManager ! WorkFlowExecuteResult(wfname, wfInstance.status)  
     true
   }
@@ -220,7 +221,6 @@ class WorkFlowManager extends Actor with ActorLogging{
         }
       }
     }
-    
   }
   /**
    * 收集集群信息

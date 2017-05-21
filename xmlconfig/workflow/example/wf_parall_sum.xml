@@ -7,6 +7,21 @@
              <path to="a3" />
              <path to="a3_1" />
              <path to="a3_2" />
+             <path to="a3_3" />
+             <path to="a3_4" />
+             <path to="a3_5" />
+             <path to="a3_6" />
+             <path to="a3_7" />
+             <path to="a3_8" />
+             <path to="a3_9" />
+             <path to="a3_10" />
+             <path to="a3_11" />
+             <path to="a3_12" />
+             <path to="a3_13" />
+             <path to="a3_14" />
+             <path to="a3_15" />
+             <path to="a3_16" />
+             <path to="a3_17" />
         </fork> 
         <action name="a1" host="127.0.0.1" desc = "产生1到10">
             <script>
@@ -69,6 +84,231 @@
             <ok to="join_node"/>
         </action>
         <action name="a3_2" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_3" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_4" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_5" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_6" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_7" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_8" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_9" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_10" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_11" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_12" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_13" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_14" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_15" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_16" host="127.0.0.1" desc = "产生41到50">
+            <script>
+                <content>
+                    <![CDATA[
+                #!/usr/bin/perl
+                my $i=0;
+                for(my $i=40;$i < 50; $i++){
+                sleep 2;
+                print $i . "\n";
+                }
+                    ]]>
+                </content>
+            </script>
+            <ok to="join_node"/>
+        </action>
+        <action name="a3_17" host="127.0.0.1" desc = "产生41到50">
             <script>
                 <content>
                     <![CDATA[

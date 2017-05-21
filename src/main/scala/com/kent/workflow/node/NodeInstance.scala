@@ -15,6 +15,7 @@ import com.kent.workflow.controlnode._
 import com.kent.workflow.actionnode._
 import com.kent.workflow.controlnode._
 import com.kent.main.Master
+import scala.concurrent.Future
 
 abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance] with DeepCloneable[NodeInstance]{
   var id: String = _
@@ -24,6 +25,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
   var endTime: Date = _
   
   def name = s"${id}_${nodeInfo.name}"
+  
   /**
    * 节点实例运行入口
    */

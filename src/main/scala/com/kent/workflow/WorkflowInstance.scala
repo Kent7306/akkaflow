@@ -83,7 +83,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   	                        create_time = ${withQuate(formatStandarTime(workflow.createTime))}
   	    where id = '${id}'
   	    """
-  	  if(this.getEntity.isEmpty){
+  	  if(this.getEntityWithNodeInstance(false).isEmpty){
       	result = executeSql(insertSql)     
       }else{
         result = executeSql(updateSql)
@@ -100,12 +100,12 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   }
 
   def getEntity(implicit conn: Connection): Option[WorkflowInstance] = {
-    getEntityWithNodeInstance(conn, true)
+    getEntityWithNodeInstance(true)
   }
   /**
    * 是否关联查询得到工作流实例和相关的节点实例
    */
-  def getEntityWithNodeInstance(implicit conn: Connection, isWithNodeInstance: Boolean): Option[WorkflowInstance] = {
+  def getEntityWithNodeInstance(isWithNodeInstance: Boolean)(implicit conn: Connection): Option[WorkflowInstance] = {
     import com.kent.util.Util._
     val wfi = this.deepClone
     //工作流实例查询sql
