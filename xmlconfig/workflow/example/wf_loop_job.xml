@@ -1,0 +1,34 @@
+<work-flow name="wf_loop_job"  dir="/example" desc="测试循环">
+        <start name="start" to="a1" />
+        <action name="a1" desc="执行情况">
+            <script>
+                <content>
+                <![CDATA[
+                    n=${param:num}
+                    rand=`expr $RANDOM % ${param:range}`
+                    echo "随机数为$rand，开始sleep $rand 秒"
+                    sleep $rand
+                    if [ $n -ne $rand ]; then
+                        echo "$rand != $n,出错退出" >&2
+                        exit 1;
+                    fi
+                    echo "$rand = $n,成功退出"
+                    exit 0
+                    ]]>
+                </content>
+            </script>
+            <ok to="end"/>
+            <error to="a2"/>
+        </action>
+        <action name="a2" desc="等待2秒,循环">
+            <script>
+                <content>
+                <![CDATA[
+                    sleep 2
+                    ]]>
+                </content>
+            </script>
+            <ok to="a1"/>
+        </action>
+        <end name="end"/>
+</work-flow>

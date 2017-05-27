@@ -93,9 +93,9 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
   }
 
   def replaceParam(param: Map[String, String]): Boolean = {
-    nodeInfo.dir = ParamHandler(new Date()).getValue(nodeInfo.dir, param)
-    nodeInfo.filename = ParamHandler(new Date()).getValue(nodeInfo.filename, param)
-    nodeInfo.warnMessage = ParamHandler(new Date()).getValue(nodeInfo.warnMessage, param)
+    nodeInfo.dir = ParamHandler().getValue(nodeInfo.dir, param)
+    nodeInfo.filename = ParamHandler().getValue(nodeInfo.filename, param)
+    nodeInfo.warnMessage = ParamHandler().getValue(nodeInfo.warnMessage, param)
     true
   }
 }

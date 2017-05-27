@@ -18,8 +18,6 @@ import com.kent.main.Master
 import com.kent.pub.Event._
 
 class Coordinator(val name: String) extends Daoable[Coordinator] with DeepCloneable[Coordinator] {
-  //存放参数转化后的信息
-  private var paramMap: Map[String, String] = Map()
 	//存放参数原始信息
   private var paramList: List[Tuple2[String, String]] = List()
 	import com.kent.coordinate.Coordinator.Status._
@@ -54,7 +52,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
       this.status = ACTIVE
       this.workflows.foreach { x => 
         Master.logRecorder ! Info("Coordinator",this.name,s"开始触发工作流: ${x}")
-        wfManager ! NewAndExecuteWorkFlowInstance(x, this.paramMap) 
+        wfManager ! NewAndExecuteWorkFlowInstance(x, translateParam(this.paramList)) 
       }
       this.resetTrigger()
       true
@@ -73,14 +71,11 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     	false
     }
   }
-  def init(){
-    this.paramMap = initParam(this.paramList)
-  }
   /**
-   * 初始化参数
+   * 存放参数转化后的信息（每次触发时）
    */
-  private def initParam(paramList: List[Tuple2[String,String]]): Map[String, String] = {
-		val paramHandler = new ParamHandler(new Date())
+  private def translateParam(paramList: List[Tuple2[String,String]]): Map[String, String] = {
+		val paramHandler = ParamHandler()
 		var paramMap:Map[String, String] = Map()
 	  //系统变量
     paramMap += ("x" -> "y")
@@ -132,7 +127,6 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
         newCoor.status = Coordinator.Status.getStatusWithId(rs.getInt("status"))
         newCoor.desc = rs.getString("description")
         newCoor.dir = Directory(rs.getString("dir"),0)
-        newCoor.init()
         newCoor
       }else{
         null
@@ -234,7 +228,6 @@ object Coordinator {
     import com.kent.coordinate.Coordinator.Status._
     coor.status = ACTIVE
     coor.workflows = workflows
-    coor.init()
     coor
   }
   /**

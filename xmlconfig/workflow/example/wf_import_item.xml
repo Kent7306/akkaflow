@@ -6,7 +6,7 @@
 
 	<action name="watch_log" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
 	    <file-watcher>
-	        <file dir="tmp/log_test/${stadate}">item_*.out</file> 
+	        <file dir="tmp/log_test/${param:stadate}">item_*.out</file> 
 	        <size-warn-message enable="true" size-threshold="2MB"></size-warn-message> 
 	    </file-watcher>
 	    <ok to="fork"/>
@@ -19,7 +19,7 @@
 
 	<action name="clean_log" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
 		<shell>
-             <command>tmp/log_test/clean_2.sh ${stadate}</command>
+             <command>tmp/log_test/clean_2.sh ${param:stadate}</command>
         </shell>
 	    <ok to="join_node"/>
 	</action>
@@ -41,7 +41,7 @@
 
 	<action name="import_2_mysql" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "join node">
 		<shell>
-             <command>tmp/log_test/import_2.sh ${stadate}</command>
+             <command>tmp/log_test/import_2.sh ${param:stadate}</command>
         </shell>
 	    <ok to="end"/>
 	</action>

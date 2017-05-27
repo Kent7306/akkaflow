@@ -3,6 +3,7 @@ package com.kent.coordinate
 import java.util.Date
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import com.kent.util.Util
 
 /**
  * 参数处理器
@@ -19,18 +20,24 @@ class ParamHandler(date:Date){
     if(pattern.findFirstIn(expr2).isEmpty){
       expr
     }else{
+      var result: String = ""
     	val pattern2 = "(.*?)\\$\\{(.*?)\\}(.*)".r
     	val pattern2(pre, mid, end) = expr2
-    	if(!paramMap.get(mid).isEmpty){  //该参数可在paramMap中找到
-    	  val result = pre+paramMap.get(mid).get + this.getValue(end, paramMap)
-    	  result.replace("#@@#", "\n")
-    	}else if(!"time\\.".r.findFirstIn(mid).isEmpty){  //时间参数
-    	  val result = pre + handleTimeParam(mid) + this.getValue(end, paramMap)
-    	  result.replace("#@@#", "\n")
-    	}else{  //未找到，就不进行替换了
-    	  val result = pre + "${"+mid+"}" + end
-    	  result.replace("#@@#", "\n")
+    	if(!"param:".r.findFirstIn(mid).isEmpty){
+    	  val paramName = mid.split(":")(1).trim()
+    	  if(!paramMap.get(paramName).isEmpty){
+    		  result = pre+paramMap.get(paramName).get + this.getValue(end, paramMap)    	    
+    	  }else{
+    	    result = pre+ "${param:undefined}" + this.getValue(end, paramMap) 
+    	  }
     	}
+    	else if(!"time\\.".r.findFirstIn(mid).isEmpty){  //时间参数
+    	  result = pre + handleTimeParam(mid) + this.getValue(end, paramMap)
+    	}
+    	else{  //未找到，就不进行替换了
+    	  result = pre + "${"+mid+"}" + end
+    	}
+    	result.replace("#@@#", "\n")
     }
   }
   
@@ -87,5 +94,8 @@ class ParamHandler(date:Date){
 object ParamHandler {
   def apply(date: Date): ParamHandler = {
     new ParamHandler(date)
+  }
+  def apply(): ParamHandler = {
+    new ParamHandler(Util.nowDate)
   }
 }

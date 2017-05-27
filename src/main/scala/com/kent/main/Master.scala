@@ -34,6 +34,7 @@ class Master extends ClusterRole {
   var workflowManager: ActorRef = _
   var xmlLoader: ActorRef = _
   var httpServerRef:ActorRef = _
+  var isStarted = false
   implicit val timeout = Timeout(20 seconds)
   init()
   
@@ -109,6 +110,7 @@ class Master extends ClusterRole {
       roler = roler :+ sender
       log.info("注册Worker: " + sender)
       log.info("当前注册的Worker数量: " + roler.size)
+      if(isStarted) self ! Start()
     }
     case Start() => this.start()
     case Terminated(workerActorRef) =>
@@ -156,6 +158,7 @@ class Master extends ClusterRole {
    * 启动入口
    */
   def start():Boolean = {
+    this.isStarted = true
     coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
     workflowManager ! GetManagers(workflowManager,coordinatorManager)
     xmlLoader ! Start()
@@ -235,10 +238,6 @@ object Master extends App {
   var persistManager:ActorRef = _
   var emailSender: ActorRef = _
   var logRecorder: ActorRef = _
-//  var coordinatorManager: ActorRef = _
-//  var workflowManager: ActorRef = _
-//  var xmlLoader: ActorRef = _
-//  var httpServerRef: ActorRef = _
   
   val defaultConf = ConfigFactory.load()
   val masterConf = defaultConf.getStringList("workflow.nodes.masters").get(0).split(":")
@@ -255,5 +254,4 @@ object Master extends App {
   val system = ActorSystem("akkaflow", config)
   Master.curSystem = system
   val master = system.actorOf(Master.props, name = "master")
-  master ! Start()
 }

@@ -46,7 +46,6 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
     }catch{
       case e:Exception => Worker.logRecorder ! Error("NodeInstance", this.id, e.getMessage);false
     }
-    true
   }
 
   def replaceParam(param: Map[String, String]): Boolean = {
