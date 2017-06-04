@@ -40,6 +40,7 @@ object Event {
   case class ReRunWorkflowInstance(worflowInstanceId: String)
   case class WorkFlowInstanceExecuteResult(workflowInstance: WorkflowInstance)
   case class WorkFlowExecuteResult(wfName: String, status: WStatus)
+  case class GetWaittingInstances()
   //wf-actor
   case class Kill()
   case class MailMessage(msg: String)

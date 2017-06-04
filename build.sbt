@@ -1,5 +1,5 @@
 name := "akkaflow"
-version := "2.2"
+version := "2.3"
 scalaVersion := "2.11.8"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 
@@ -16,12 +16,11 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
     "com.typesafe.akka" %% "akka-cluster-metrics" % akkaVersion,
     "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
-     "mysql" % "mysql-connector-java" % "5.1.12",
-    //"io.kamon" % "sigar-loader" % "1.6.6-rev002",
+    "mysql" % "mysql-connector-java" % "5.1.42",
     "com.github.philcali" %% "cronish" % "0.1.3",
     "org.json4s" % "json4s-jackson_2.11" % "3.5.0",
     "org.apache.commons" % "commons-email" % "1.4",
-    "com.typesafe.akka" %% "akka-http" % "10.0.1"
+    "com.typesafe.akka" %% "akka-http" % "10.0.6"
   )
 }
 

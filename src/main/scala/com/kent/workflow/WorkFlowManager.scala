@@ -22,22 +22,59 @@ import org.json4s.Extraction
 import org.json4s.jackson.JsonMethods
 import org.json4s.DefaultFormats
 import java.util.Date
+import akka.actor.Cancellable
 
 class WorkFlowManager extends Actor with ActorLogging{
   /**
+   * 工作流信息
    * [wfName, workflowInfo]
    */
   var workflows: Map[String, WorkflowInfo] = Map()
   /**
+   * 运行中的工作流实例actor集合
    * Map[WorflowInstance.id, [wfname, workflowActorRef]]
    */
   var workflowActors: Map[String,Tuple2[String,ActorRef]] = Map()
+  /**
+   * 等待队列
+   */
+  val waittingWorkflowInstance = scala.collection.mutable.Queue[WorkflowInstance]()
+  //var waittingWorkflowInstance:List[WorkflowInstance] = List()
+  
   var coordinatorManager: ActorRef = _
+  //调度器
+  var scheduler: Cancellable = _
   implicit val timeout = Timeout(20 seconds)
   /**
    * 初始化
    */
   //init()
+  
+    /**
+   * 启动
+   */
+  def start(): Boolean = {
+		  import com.kent.coordinate.Coordinator.Status._
+      Master.logRecorder ! Info("WorkFlowManager",null,s"启动扫描...")
+      this.scheduler = context.system.scheduler.schedule(200 millis, 200 millis){
+		    if(waittingWorkflowInstance.size > 0) {
+		    	val wfi = waittingWorkflowInstance.dequeue()
+		    	//当前运行实例个数不能大于配置实例上限，若大于，则放到队列后面
+		    	val runningInstanceNum = workflowActors.map{case (x,(y,z)) => y}.filter { _ == wfi.workflow.name }.size
+		    	//println(wfi.workflow.name + "  " + runningInstanceNum + " " + wfi.workflow.instanceLimit)
+		    	if(runningInstanceNum < wfi.workflow.instanceLimit){
+		    		val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
+		    		Master.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
+    				workflowActors = workflowActors + (wfi.id -> (wfi.workflow.name,wfActorRef))
+  	  			wfActorRef ! Start()
+		    	} else {
+		    	  waittingWorkflowInstance.enqueue(wfi)
+		    	}
+		    }
+      }
+    true
+  }
+  
   /**
    * 增
    */
@@ -109,11 +146,8 @@ class WorkFlowManager extends Actor with ActorLogging{
     } else {
     	val wfi = workflows(wfName).createInstance()
 			wfi.parsedParams = params
-			Master.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
-			//创建新的workflow actor，并加入到列表中
-			val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
-			workflowActors = workflowActors + (wfi.id -> (wfi.workflow.name,wfActorRef))
-			wfActorRef ! Start()
+			//把工作流实例加入到等待队列中
+			waittingWorkflowInstance.enqueue(wfi)
 			true      
     }
   }
@@ -126,11 +160,8 @@ class WorkFlowManager extends Actor with ActorLogging{
     } else {
     	val wfi = workflows(wfName).createInstance()
 			wfi.parsedParams = params
-			Master.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
-			//创建新的workflow actor，并加入到列表中
-			val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
-			workflowActors = workflowActors + (wfi.id -> (wfi.workflow.name,wfActorRef))
-			wfActorRef ! Start()
+			//把工作流实例加入到等待队列中
+			waittingWorkflowInstance.enqueue(wfi)
 			ResponseData("success",s"已生成工作流实例,id:${wfi.id}", null)
     }
   }
@@ -149,7 +180,6 @@ class WorkFlowManager extends Actor with ActorLogging{
     }
     Thread.sleep(1000)
     Master.logRecorder ! Info("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
-    //println("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
     coordinatorManager ! WorkFlowExecuteResult(wfname, wfInstance.status)  
     true
   }
@@ -171,7 +201,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     }
   }
   /**
-   * 手动kill掉工作流（包含其所有的实例）
+   * 手动kill掉工作流（包含其所有的运行实例）
    */
   def killWorkFlow(wfName: String): Future[ResponseData] = {
     val result = workflowActors.filter(_._2._1 == wfName).map(x => killWorkFlowInstance(x._1)).toList
@@ -213,11 +243,14 @@ class WorkFlowManager extends Actor with ActorLogging{
           wfi2.startTime = null
           wfi2.endTime = null
           wfi2.nodeInstanceList.foreach { y =>  y.status = PREP; y.startTime = null; y.endTime = null}
-          //创建新的workflow actor，并加入到列表中
-          val wfActorRef = context.actorOf(Props(WorkflowActor(wfi2)), wfi2.actorName)
-          workflowActors = workflowActors + (wfi2.id -> (wfi2.workflow.name,wfActorRef))
-          wfActorRef ! Start()
-          ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)
+          //把工作流实例加入到等待队列中
+        	val existWaitCnt = waittingWorkflowInstance.filter{ _.id == wfi2.id }.size
+        	if(existWaitCnt >= 1){
+        	  ResponseData("fail", s"工作流实例[${wfiId}]已经存在等待队列中", null)
+        	}else{
+        		waittingWorkflowInstance.enqueue(wfi2)
+        		ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)        	  
+        	}
         }
       }
     }
@@ -239,9 +272,17 @@ class WorkFlowManager extends Actor with ActorLogging{
     ai
   }
   /**
+   * 获取等待队列信息
+   */
+  def getWaittingNodeInfo():ResponseData = {
+    val wns = this.waittingWorkflowInstance.map { x => Map("wfid" -> x.id,"name" -> x.workflow.name) }.toList
+    ResponseData("success","成功获取等待队列信息", wns)
+  }
+  /**
    * receive方法
    */
   def receive: Actor.Receive = {
+    case Start() => this.start()
     case AddWorkFlow(content) => sender ! this.add(content, true)
     case RemoveWorkFlow(name) => sender ! this.remove(name)
     //case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
@@ -269,6 +310,7 @@ class WorkFlowManager extends Actor with ActorLogging{
       context.watch(coordinatorManager)
     }
     case CollectClusterInfo() => sender ! GetClusterInfo(collectClusterInfo())
+    case GetWaittingInstances() => sender ! getWaittingNodeInfo()
     case Terminated(arf) => if(coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")
   }
 }

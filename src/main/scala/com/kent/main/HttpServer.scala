@@ -71,6 +71,7 @@ class HttpServer extends ClusterRole {
     case event@AddCoor(_) => getResponseFromCoordinatorManager(sender, event)
     case event@RemoveCoor(_) => getResponseFromCoordinatorManager(sender, event)
     case event@ManualNewAndExecuteWorkFlowInstance(_, _) => getResponseFromWorkflowManager(sender, event)
+    case event@GetWaittingInstances() => getResponseFromWorkflowManager(sender, event)
       
   }
 }
@@ -181,6 +182,8 @@ object HttpServer extends App{
           }
         }
       }
+    } ~ path("akkaflow" / "workflow" / "watting_instance" / "list"){
+      handleRequestWithActor(GetWaittingInstances())
     }
     //cluster
     val clusterRoute = path("akkaflow" / "cluster"){            

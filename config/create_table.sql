@@ -6,6 +6,7 @@ create table if not exists workflow(
     description varchar(128),
     mail_level JSON,
     mail_receivers JSON,
+    instance_limit int,
     create_time datetime,
     last_update_time datetime
 );
@@ -43,6 +44,7 @@ create table if not exists workflow_instance(
     description varchar(128),
     mail_level JSON,
     mail_receivers JSON,
+    instance_limit int,
     stime datetime,
     etime datetime,
     create_time datetime,

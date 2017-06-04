@@ -103,14 +103,21 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	def createAndStartActionActor(actionNodeInstance: ActionNodeInstance):Boolean = {
 	  implicit val timeout = Timeout(20 seconds)
 	  val masterRef = context.actorSelection(context.parent.path.parent)
-	  val actionNodeAF =  for{
-	    GetWorker(worker) <- (masterRef ? AskWorker(actionNodeInstance.nodeInfo.host)).mapTo[GetWorker]
-	    af <- (worker ? CreateAction(actionNodeInstance)).mapTo[ActorRef]
-	  } yield af
-	  actionNodeAF.map { 
-	    x => if(x!=null){
-	      runningActors += (x -> actionNodeInstance);x ! Start()
-	    } 
+	  (masterRef ? AskWorker(actionNodeInstance.nodeInfo.host)).mapTo[GetWorker].map{ 
+	    case GetWorker(worker) => 
+	      if(worker == null){
+	        Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, s"无法为节点${actionNodeInstance.nodeInfo.name}分配worker")
+	        actionNodeInstance.status = FAILED
+	        this.fail()
+	      }else{
+	        actionNodeInstance.allocateHost = worker.path.address.host.get
+	        (worker ? CreateAction(actionNodeInstance)).mapTo[ActorRef].map{ af =>
+	          if(af != null){
+    	        runningActors += (af -> actionNodeInstance)
+    	        af ! Start()
+    	      } 
+	        }
+	      }
 	  }
 		true
 	}
@@ -140,7 +147,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  }
 	}
   /**
-	 * 终止
+	 * 终止当前工作流actor
 	 */
 	def terminate(){
 		scheduler.cancel()
@@ -161,6 +168,16 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
       sdr ! aerList
       wfa.terminate()
     }
+  }
+  def kill(){
+    this.workflowInstance.status = W_KILLED
+    killRunningNodeActors{ (wfa,aerList) =>  
+      wfa.terminate()
+    }
+  }
+  def fail(){
+    this.workflowInstance.status = W_FAILED 
+    this.killRunningNodeActors((wfaa,aerList) => wfaa.terminate()) 
   }
   
   def receive: Actor.Receive = {

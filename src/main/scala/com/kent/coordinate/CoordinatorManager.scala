@@ -89,10 +89,11 @@ class CoordinatorManager extends Actor with ActorLogging{
    * 启动
    */
   def start(): Boolean = {
+		  import com.kent.coordinate.Coordinator.Status._
       Master.logRecorder ! Info("CoordinatorManager",null,s"启动扫描...")
-      this.scheduler = context.system.scheduler.schedule(0 millis, 5 seconds){
-      this.scan()
-    }
+      this.scheduler = context.system.scheduler.schedule(0 millis,  200 millis){
+        coordinators.filter { _._2.status == ACTIVE }.foreach { _._2.execute(workflowManager) }
+      }
     true
   }
   /**
@@ -103,15 +104,7 @@ class CoordinatorManager extends Actor with ActorLogging{
     if(scheduler == null || scheduler.isCancelled) true else scheduler.cancel()
   }
   /**
-   * 扫描
-   */
-  def scan(): Boolean = {
-    import com.kent.coordinate.Coordinator.Status._
-    coordinators.filter { _._2.status == ACTIVE }.foreach { _._2.execute(workflowManager) }
-    return true
-  }
-  /**
-   * 
+   * 设置前置依赖的工作流状态
    */
   def setCoordinatorDepend(wfName: String, status: WStatus){
     if(status == W_SUCCESSED)

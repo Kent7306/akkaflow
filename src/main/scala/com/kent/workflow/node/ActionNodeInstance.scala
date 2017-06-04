@@ -12,6 +12,7 @@ import com.kent.workflow.ActionActor
 
 abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends NodeInstance(nodeInfo) {
   var hasRetryTimes: Int = 0
+  var allocateHost: String = _
   var actionActor: ActionActor = _
   def kill():Boolean
   
@@ -40,14 +41,11 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends
       case SUCCESSED => 
       case FAILED => 
         if(this.getNextNodes(wfa.workflowInstance).size <=0){    //若该action节点执行失败后无下一节点
-          wfa.workflowInstance.status = W_FAILED 
-      		wfa.killRunningNodeActors((wfaa,aerList) => wfaa.terminate()) 
+          wfa.fail()
       		return false
         }
-        //若该action节点执行失败后有指定下一节点
       case KILLED =>
-        wfa.workflowInstance.status = W_KILLED 
-        wfa.killRunningNodeActors((wfaa,aerList) => wfaa.terminate()) 
+        wfa.kill()
         return false
     }
     //查找下一节点

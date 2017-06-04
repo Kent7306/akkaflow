@@ -1,6 +1,7 @@
 <work-flow name="wf_import_order" 
 	mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
-	mail-receivers="15018735011@163.com,492005267@qq.com" dir="/example" desc="导入order数据">
+	mail-receivers="15018735011@163.com,492005267@qq.com" dir="/example" desc="导入order数据"
+	instance-limit = "2">
 
 	<start name="start" to="watch_log" />
 

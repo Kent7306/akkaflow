@@ -24,6 +24,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   var mailLevel = List[WStatus]()
   var mailReceivers = List[String]()
   var dir: Directory = null
+  var instanceLimit: Int = 1
   
   /**
    * 由该工作流信息创建属于某工作流实例
@@ -55,7 +56,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
     val wf = this.deepClone()
     //工作流实例查询sql
     val queryStr = s"""
-        select name,dir,description,mail_level,mail_receivers,create_time,last_update_time
+        select name,dir,description,mail_level,mail_receivers,instance_limit,create_time,last_update_time
          from workflow where name=${withQuate(name)}
                     """
     //节点实例查询sql
@@ -68,6 +69,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
             wf.desc = rs.getString("description")
             wf.name = rs.getString("name")
             wf.dir = Directory(rs.getString("dir"), 1)
+            wf.instanceLimit = rs.getInt("instance_limit")
             val levelStr = JsonMethods.parse(rs.getString("mail_level"))
             val receiversStr = JsonMethods.parse(rs.getString("mail_receivers"))
             wf.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
@@ -106,7 +108,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
      dir.newLeafNode(name)
   	  val insertSql = s"""
   	     insert into workflow values(${withQuate(name)},${withQuate(dir.dirname)},${withQuate(desc)},
-  	     ${withQuate(levelStr)},${withQuate(receiversStr)},
+  	     ${withQuate(levelStr)},${withQuate(receiversStr)},${instanceLimit},
   	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))})
   	    """
   	  val updateSql = s"""
@@ -114,6 +116,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   	                        dir = ${withQuate(dir.dirname)},
   	                        mail_level = ${withQuate(levelStr)}, 
   	                        mail_receivers = ${withQuate(receiversStr)}, 
+  	                        instance_limit = ${instanceLimit},
   	                        last_update_time = ${withQuate(formatStandarTime(nowDate))}
   	    where name = '${name}'
   	    """
@@ -139,12 +142,13 @@ object WorkflowInfo {
    * 解析xml为一个对象
    */
   def parseXmlNode(node: scala.xml.Node): WorkflowInfo = {
-      val a = WStatus.withName("W_FAILED")
+      //val a = WStatus.withName("W_FAILED")
       val nameOpt = node.attribute("name")
       val descOpt = node.attribute("desc")
       val createTimeOpt = node.attribute("create-time")
       val mailLevelOpt = node.attribute("mail-level")
       val mailReceiversOpt = node.attribute("mail-receivers")
+      val intanceLimitOpt = node.attribute("instance-limit")
       val dirOpt = node.attribute("dir")
       if(nameOpt == None) throw new Exception("节点<work-flow/>未配置name属性")
       val wf = new WorkflowInfo(nameOpt.get.text)
@@ -157,6 +161,9 @@ object WorkflowInfo {
     	}
     	if(!mailReceiversOpt.isEmpty){
     	  wf.mailReceivers = mailReceiversOpt.get.text.split(",").toList
+    	}
+    	if(!intanceLimitOpt.isEmpty){
+    	  wf.instanceLimit = intanceLimitOpt.get.text.toInt
     	}
     	wf.dir = if(dirOpt.isEmpty) Directory("/tmp",1) else Directory(dirOpt.get.text,1)
     	wf

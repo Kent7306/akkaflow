@@ -133,14 +133,11 @@ class Master extends ClusterRole {
     if(host == "-1") {
       roler(Random.nextInt(roler.size))
     }else{ //指定host分配
-    	val list = roler.map { x => 
-    	  x.path.address.host.get 
-    	}.toList
-    	if(list.size > 0){
+    	val list = roler.map { _.path.address.host.get }.toList
+    	if(list.size > 0)
     		roler(Random.nextInt(list.size))       	  
-    	}else{
+    	else
     	  null
-    	}
     }
   }
   
@@ -163,6 +160,7 @@ class Master extends ClusterRole {
     workflowManager ! GetManagers(workflowManager,coordinatorManager)
     xmlLoader ! Start()
     coordinatorManager ! Start()
+    workflowManager ! Start()
     true
   }
   
@@ -215,7 +213,7 @@ class Master extends ClusterRole {
     resultF.andThen{case Success(x) => 
       ai.subActors = ai.subActors :+ x._1
       allActorInfo.subActors = allActorInfo.subActors ++ x._2
-      sdr ! ResponseData("success","worker角色与master角色已关闭", allActorInfo.getClusterInfo())
+      sdr ! ResponseData("success","成功获取集群信息", allActorInfo.getClusterInfo())
     }
     
   }
