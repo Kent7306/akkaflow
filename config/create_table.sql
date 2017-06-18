@@ -7,6 +7,8 @@ create table if not exists workflow(
     mail_level JSON,
     mail_receivers JSON,
     instance_limit int,
+    params JSON comment '参数名称集合,例: [sdate,otype]',
+    xml_str text comment 'xml的内容',
     create_time datetime,
     last_update_time datetime
 );

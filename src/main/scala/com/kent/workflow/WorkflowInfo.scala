@@ -15,6 +15,7 @@ import org.json4s.jackson.JsonMethods
 import com.kent.workflow.WorkflowInfo.WStatus
 import org.json4s.JsonAST.JString
 import com.kent.pub.Directory
+import com.kent.coordinate.ParamHandler
 
 class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Daoable[WorkflowInfo] {
 	import com.kent.workflow.WorkflowInfo.WStatus._
@@ -25,6 +26,8 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   var mailReceivers = List[String]()
   var dir: Directory = null
   var instanceLimit: Int = 1
+  var xmlStr: String = _
+  var params = List[String]()
   
   /**
    * 由该工作流信息创建属于某工作流实例
@@ -56,7 +59,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
     val wf = this.deepClone()
     //工作流实例查询sql
     val queryStr = s"""
-        select name,dir,description,mail_level,mail_receivers,instance_limit,create_time,last_update_time
+        select name,dir,description,mail_level,mail_receivers,instance_limit,params,xml_str,create_time,last_update_time
          from workflow where name=${withQuate(name)}
                     """
     //节点实例查询sql
@@ -72,8 +75,11 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
             wf.instanceLimit = rs.getInt("instance_limit")
             val levelStr = JsonMethods.parse(rs.getString("mail_level"))
             val receiversStr = JsonMethods.parse(rs.getString("mail_receivers"))
+            var paramsStr = JsonMethods.parse(rs.getString("params"))
             wf.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
             wf.mailReceivers = (receiversStr \\ classOf[JString]).asInstanceOf[List[String]]
+            wf.xmlStr = rs.getString("xml_str")
+            wf.params = (paramsStr \\ classOf[JString]).asInstanceOf[List[String]]
             wf.createTime = Util.getStandarTimeWithStr(rs.getString("create_time"))
             wf
           }else{
@@ -101,6 +107,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
     
     val levelStr = compact(mailLevel.map { _.toString()})
     val receiversStr = compact(mailReceivers)
+    val paramsStr = compact(params)
     
     try{
       conn.setAutoCommit(false)
@@ -109,6 +116,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   	  val insertSql = s"""
   	     insert into workflow values(${withQuate(name)},${withQuate(dir.dirname)},${withQuate(desc)},
   	     ${withQuate(levelStr)},${withQuate(receiversStr)},${instanceLimit},
+  	     ${withQuate(paramsStr)}, ${withQuate(Util.transformXmlStr(xmlStr))},
   	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))})
   	    """
   	  val updateSql = s"""
@@ -116,6 +124,8 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   	                        dir = ${withQuate(dir.dirname)},
   	                        mail_level = ${withQuate(levelStr)}, 
   	                        mail_receivers = ${withQuate(receiversStr)}, 
+  	                        params = ${withQuate(paramsStr)},
+  	                        xml_str = ${withQuate(Util.transformXmlStr(xmlStr))},
   	                        instance_limit = ${instanceLimit},
   	                        last_update_time = ${withQuate(formatStandarTime(nowDate))}
   	    where name = '${name}'
@@ -136,12 +146,13 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 }
 
 object WorkflowInfo {
-  def apply(content: String): WorkflowInfo = WorkflowInfo(XML.loadString(content))
-  def apply(node: scala.xml.Node): WorkflowInfo = parseXmlNode(node)
+  //def apply(content: String): WorkflowInfo = WorkflowInfo(XML.loadString(content))
+  def apply(content: String): WorkflowInfo = parseXmlNode(content)
   /**
    * 解析xml为一个对象
    */
-  def parseXmlNode(node: scala.xml.Node): WorkflowInfo = {
+  def parseXmlNode(content: String): WorkflowInfo = {
+      val node = XML.loadString(content);
       //val a = WStatus.withName("W_FAILED")
       val nameOpt = node.attribute("name")
       val descOpt = node.attribute("desc")
@@ -166,6 +177,9 @@ object WorkflowInfo {
     	  wf.instanceLimit = intanceLimitOpt.get.text.toInt
     	}
     	wf.dir = if(dirOpt.isEmpty) Directory("/tmp",1) else Directory(dirOpt.get.text,1)
+    	
+    	wf.xmlStr = content
+    	wf.params = ParamHandler.extractParams(content)
     	wf
   }
   

@@ -103,21 +103,39 @@ object Util {
   * 转化json字符串，使之能保存在数据库中   
   */
   def transformJsonStr(str: String): String = {
-    val sb = new StringBuffer()
-    str.map { x => 
-      x match {
-        case '\'' => "\'\'"
-        case '\"' => "\\\\\\\""
-        case '\\' => "\\\\\\\\"
-        case '/' => "\\\\/"
-        case '\b' => "\\\\b"
-        case '\f' => "\\\\f"
-        case '\n' => "\\\\n"
-        case '\r' => "\\\\r"
-        case '\t' => "    "
-        case x => x.toString()
-      }}.foreach { sb.append(_) }
-      sb.toString()
+    if(str != null) {
+      val sb = new StringBuffer()
+      str.map { x => 
+        x match {
+          case '\'' => "\'\'"
+          case '\"' => "\\\\\\\""
+          case '\\' => "\\\\\\\\"
+          case '/' => "\\\\/"
+          case '\b' => "\\\\b"
+          case '\f' => "\\\\f"
+          case '\n' => "\\\\n"
+          case '\r' => "\\\\r"
+          case '\t' => "    "
+          case x => x.toString()
+        }}.foreach { sb.append(_) }
+        sb.toString()
+    }else{
+      null
+    }
+  }
+  def transformXmlStr(str: String): String = {
+    if(str != null) {
+      val sb = new StringBuffer()
+      str.map { x => 
+        x match {
+          case '\'' => "\'\'"
+          case '\\' => "\\\\"
+          case x => x.toString()
+        }}.foreach { sb.append(_) }
+        sb.toString()
+    }else{
+      null
+    }
   }
    /**
   * 转化json字符串，使之能保存在数据库中   

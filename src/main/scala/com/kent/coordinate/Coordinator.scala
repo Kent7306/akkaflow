@@ -32,6 +32,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   private var workflows: List[String] = List()
   var status: Status = SUSPENDED
   private var desc: String = _
+  private var xmlStr: String = _
   /**
    * 判断是否满足触发
    */
@@ -102,8 +103,8 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     val newCoor = this.deepClone()
     
     val queryStr = s"""
-      select name,param,dir,content,cron,depends,workflow_names,stime,etime,is_enabled,
-	    status,description,create_time,last_update_time from coordinator
+      select name,param,dir,cron,depends,workflow_names,stime,etime,is_enabled,
+	    status,description,xml_str,create_time,last_update_time from coordinator
 	    where name = ${withQuate(name)}
 	                  """
     val coorOpt = querySql(queryStr, (rs: ResultSet) =>{
@@ -127,6 +128,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
         newCoor.status = Coordinator.Status.getStatusWithId(rs.getInt("status"))
         newCoor.desc = rs.getString("description")
         newCoor.dir = Directory(rs.getString("dir"),0)
+        newCoor.xmlStr = rs.getString("xml_str")
         newCoor
       }else{
         null
@@ -151,11 +153,11 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     val insertSql = s"""insert into coordinator values(
                     ${withQuate(name)},${withQuate(paramStr)},
                     ${withQuate(dir.dirname)},
-                    null,
                     ${withQuate(if(cron == null) null else cron.cronStr)},${withQuate(dependsStr)},
                     ${withQuate(workflowsStr)},${withQuate(formatStandarTime(startDate))},
                     ${withQuate(formatStandarTime(endDate))},${enabledStr},
-                    ${status.id},${withQuate(desc)},${withQuate(formatStandarTime(nowDate))},
+                    ${status.id},${withQuate(desc)},${withQuate(Util.transformXmlStr(xmlStr))},
+                    ${withQuate(formatStandarTime(nowDate))},
                     ${withQuate(formatStandarTime(nowDate))})"""
     
     val updateSql = s"""
@@ -170,6 +172,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
                         is_enabled = ${enabledStr},
                         status = ${status.id},
                         description = ${withQuate(desc)},
+                        xml_str = ${withQuate(Util.transformXmlStr(xmlStr))},
                         last_update_time = ${withQuate(formatStandarTime(nowDate))}
           where name = ${withQuate(name)}
       """
@@ -188,10 +191,10 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   
 }
 object Coordinator {
-  def apply(content: String): Coordinator = {
-     pareseXmlNode(XML.loadString(content))
-  }
-  def pareseXmlNode(node: scala.xml.Node): Coordinator = {
+  def apply(content: String): Coordinator =  pareseXmlNode(content)
+  
+  def pareseXmlNode(content: String): Coordinator = {
+    val node = XML.loadString(content)
     val nameOpt = node.attribute("name")
     if(nameOpt.isEmpty || nameOpt.get.text.trim() == ""){
       throw new Exception("[coordinator]属性name为空")
@@ -228,6 +231,7 @@ object Coordinator {
     import com.kent.coordinate.Coordinator.Status._
     coor.status = ACTIVE
     coor.workflows = workflows
+    coor.xmlStr = content
     coor
   }
   /**

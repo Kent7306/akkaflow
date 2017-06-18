@@ -81,8 +81,8 @@ class Master extends ClusterRole {
     workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
     //创建xml装载器
     xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2, xmlLoaderConfig._3)),"xml-loader")
-    
     Thread.sleep(3000)
+    //self ! Start()
     log.info("初始化成功")
   }
   
@@ -110,7 +110,10 @@ class Master extends ClusterRole {
       roler = roler :+ sender
       log.info("注册Worker: " + sender)
       log.info("当前注册的Worker数量: " + roler.size)
-      if(isStarted) self ! Start()
+      if(!isStarted) {
+        isStarted = true
+        self ! Start()
+      }
     }
     case Start() => this.start()
     case Terminated(workerActorRef) =>
@@ -155,12 +158,11 @@ class Master extends ClusterRole {
    * 启动入口
    */
   def start():Boolean = {
-    this.isStarted = true
     coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
     workflowManager ! GetManagers(workflowManager,coordinatorManager)
-    xmlLoader ! Start()
     coordinatorManager ! Start()
     workflowManager ! Start()
+    xmlLoader ! Start()
     true
   }
   
