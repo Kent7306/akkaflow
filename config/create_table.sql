@@ -17,7 +17,6 @@ create table if not exists coordinator (
     name varchar(128) primary key,
     param JSON,
     dir varchar(128),
-    content varchar(10240),
     cron varchar(128),
     depends JSON comment '工作流依赖id集合，例：[xxxx,xxxx]',
     workflow_names JSON comment '触发工作流name集合，例：[xxxx，xxxx]',
@@ -26,6 +25,7 @@ create table if not exists coordinator (
     is_enabled int,
     status int(1),
     description varchar(1024),
+    xml_str text comment 'xml的内容', 
     create_time datetime,
     last_update_time datetime
 );
