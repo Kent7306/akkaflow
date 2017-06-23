@@ -5,8 +5,8 @@ import org.apache.commons.mail.HtmlEmail
 object MailTest extends App{
   val email = new HtmlEmail();
     email.setHostName("smtp.163.com");
-    //email.setSslSmtpPort("465");
-    
+    email.setSslSmtpPort("465");
+    email.setSSLOnConnect(true);
     //email.setSmtpPort(25)
     email.setAuthentication("15018735011@163.com", "ogn88287306");
     email.setCharset("UTF-8");

@@ -30,7 +30,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
   
   var workflowManageAcotrRef:ActorRef = _
   //正在运行的节点actor
-	var runningActors: Map[ActorRef, NodeInstance] = Map()
+	var runningActors: Map[ActorRef, ActionNodeInstance] = Map()
 	//节点等待执行队列
 	var waitingNodes = Queue[NodeInstance]()
 	
@@ -69,11 +69,22 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	 * 扫描
 	 */
   def scan(){
+    //s
     if(waitingNodes.size > 0){
     	val(ni, queue) = waitingNodes.dequeue
     	waitingNodes = queue
     	Master.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "执行节点："+ni.nodeInfo.name+"， 类型："+ni.getClass)
 	    ni.run(this)
+    }
+    //动作节点执行超时处理
+    if(runningActors.size > 0){  
+      val timeoutNodes = runningActors.filter(_._2.nodeInfo.timeout != -1)
+          .filter(x => Util.nowTime - x._2.startTime.getTime > x._2.nodeInfo.timeout*1000)
+          .map(_._2.nodeInfo.name).toList
+      if(timeoutNodes.size > 0){
+        Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, "以下动作节点超时：["+timeoutNodes.mkString(",")+"], 杀死当前工作流")
+        this.kill()
+      }
     }
   }
   /**
@@ -104,6 +115,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  implicit val timeout = Timeout(20 seconds)
 	  val masterRef = context.actorSelection(context.parent.path.parent)
 	  (masterRef ? AskWorker(actionNodeInstance.nodeInfo.host)).mapTo[GetWorker].map{ 
+	    //获取worker
 	    case GetWorker(worker) => 
 	      if(worker == null){
 	        Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, s"无法为节点${actionNodeInstance.nodeInfo.name}分配worker")
@@ -160,7 +172,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
 	  context.stop(self)
 	}
   /**
-   * 手动kill
+   * 手动kill，并反馈给发送的actor
    */
   private def kill(sdr: ActorRef){
     this.workflowInstance.status = W_KILLED
@@ -169,15 +181,23 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
       wfa.terminate()
     }
   }
+  /**
+   * 默默kill
+   */
   def kill(){
     this.workflowInstance.status = W_KILLED
-    killRunningNodeActors{ (wfa,aerList) =>  
+    killRunningNodeActors{ (wfa,aerList) => 
       wfa.terminate()
     }
   }
+  /**
+   * 执行失败
+   */
   def fail(){
     this.workflowInstance.status = W_FAILED 
-    this.killRunningNodeActors((wfaa,aerList) => wfaa.terminate()) 
+    this.killRunningNodeActors{(wfa,aerList) => 
+      wfa.terminate()
+    }
   }
   
   def receive: Actor.Receive = {
@@ -187,8 +207,10 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
     case ActionExecuteRetryTimes(times) => handleActionRetryTimes(times, sender)
     case ActionExecuteResult(status, msg) => handleActionResult(status, msg, sender)
     case EmailMessage(toUsers, subject, htmlText) => 
-      val users = if(toUsers == null || toUsers.size == 0) workflowInstance.workflow.mailReceivers else toUsers
-        Master.emailSender ! EmailMessage(users, subject, htmlText)
+    val users = if(toUsers == null || toUsers.size == 0) workflowInstance.workflow.mailReceivers else toUsers
+    if(users.size > 0){
+    	Master.emailSender ! EmailMessage(users, subject, htmlText)      
+    }
   }
 }
 

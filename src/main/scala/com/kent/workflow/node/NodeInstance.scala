@@ -91,7 +91,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
     val isAction = if(this.isInstanceOf[ActionNodeInstance]) 1 else 0
     val insertStr = s"""
     insert into node_instance
-    values(${withQuate(id)},${withQuate(nodeInfo.name)},${isAction},${withQuate(this.getClass.getName)},
+    values(${withQuate(id)},${withQuate(nodeInfo.name)},${isAction},${withQuate(this.nodeInfo.getClass.getName)},
           ${withQuate(getContent())},${withQuate(nodeInfo.desc)},
            ${status.id},${withQuate(formatStandarTime(startTime))},
            ${withQuate(formatStandarTime(endTime))},${withQuate(executedMsg)})
@@ -99,7 +99,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
     val updateStr = s"""
       update node_instance set name = ${withQuate(nodeInfo.name)},
                                is_action = ${isAction},
-                               type = ${withQuate(this.getClass.getName)},
+                               type = ${withQuate(this.nodeInfo.getClass.getName)},
                                content = ${withQuate(getContent())},
                                description = ${withQuate(nodeInfo.desc)},
                                status = ${status.id},
@@ -145,16 +145,11 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
 
 object NodeInstance {
   def apply(nodeType: String, name: String, id: String): NodeInstance = {
-    val withDollar = nodeType + "$"
-    if(withDollar == StartNodeInstance.getClass.getName.replaceAll("$", "")) StartNodeInfo(name).createInstance(id)
-    else if(withDollar == EndNodeInstance.getClass.getName) EndNodeInfo(name).createInstance(id)
-    else if(withDollar == JoinNodeInstance.getClass.getName) JoinNodeInfo(name).createInstance(id)
-    else if(withDollar == KillNodeInstance.getClass.getName) KillNodeInfo(name).createInstance(id)
-    else if(withDollar == ForkNodeInstance.getClass.getName) ForkNodeInfo(name).createInstance(id)
-    else if(withDollar == ShellActionNodeInstance.getClass.getName) ShellActionNodeInfo(name).createInstance(id)
-    else if(withDollar == ScriptActionNodeInstance.getClass.getName) ScriptActionNodeInfo(name).createInstance(id)
-    else if(withDollar == FileWatcherActionNodeInstance.getClass.getName) FileWatcherActionNodeInfo(name).createInstance(id)
-    else null
+    val nodeClass = Class.forName(nodeType)
+    val method = nodeClass.getMethod("apply", "str".getClass)
+    val node = method.invoke(null, name).asInstanceOf[NodeInfo];
+    val ni = node.createInstance(id)
+    ni
   }
   
 }

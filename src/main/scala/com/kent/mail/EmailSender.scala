@@ -30,18 +30,23 @@ class EmailSender(hostName: String, port: Int, account: String, pwd: String, isE
    */
   private def sendEmailSync(emailMessage: EmailMessage) {
     import com.kent.main.Master._
-    println("开始发送Email")
     val email = new HtmlEmail
     email.setHostName(hostName)
-    email.setSmtpPort(port)
+    email.setSslSmtpPort(port.toString());
+    email.setSSLOnConnect(true);
     email.setAuthentication(account, pwd)
     email.setCharset("UTF-8")
     emailMessage.toUsers.foreach { email.addTo(_) }
     email.setFrom(account)
     email.setSubject(emailMessage.subject)
     email.setHtmlMsg(emailMessage.htmlText)
-    email.send()
-    println("Email 发送成功！！！！")
+    try {
+      email.send()
+    } catch{
+      case e: Exception => 
+        log.error("发送邮件失败");
+        e.printStackTrace()
+    }
   }
 }
 
