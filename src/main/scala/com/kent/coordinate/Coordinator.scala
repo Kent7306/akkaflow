@@ -22,7 +22,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   private var paramList: List[Tuple2[String, String]] = List()
 	import com.kent.coordinate.Coordinator.Status._
   import com.kent.coordinate.Coordinator.Depend
-  @transient private var cron: CronComponent = _
+  private var cron: CronComponent = _
   private var content: String = _
   private var startDate: Date = _
   private var isEnabled: Boolean = true

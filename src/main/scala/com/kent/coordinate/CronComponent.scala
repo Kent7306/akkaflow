@@ -16,7 +16,7 @@ class CronComponent(private var _cronStr: String, private var _sdate: Date, priv
   def edate_=(edate: Date) = _edate = edate
   
   val pattern = """(?i)every""".r
-  val cron = if(pattern.findFirstIn(_cronStr).isEmpty){
+  @transient val cron = if(pattern.findFirstIn(_cronStr).isEmpty){
                 var elements = _cronStr.split(" ")
                 Cron("0", elements(0), elements(1), elements(2), elements(3), elements(4), "*")
               } else {                

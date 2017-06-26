@@ -82,7 +82,8 @@ class Master extends ClusterRole {
     //创建xml装载器
     xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2, xmlLoaderConfig._3)),"xml-loader")
     Thread.sleep(3000)
-    //self ! Start()
+    coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
+    workflowManager ! GetManagers(workflowManager,coordinatorManager)
     log.info("初始化成功")
   }
   
@@ -158,8 +159,6 @@ class Master extends ClusterRole {
    * 启动入口
    */
   def start():Boolean = {
-    coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
-    workflowManager ! GetManagers(workflowManager,coordinatorManager)
     coordinatorManager ! Start()
     workflowManager ! Start()
     xmlLoader ! Start()
