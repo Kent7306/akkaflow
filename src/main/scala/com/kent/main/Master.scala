@@ -27,6 +27,7 @@ import akka.actor.RootActorPath
 import com.kent.db.XmlLoader
 import scala.util.Success
 import scala.concurrent.Future
+import com.kent.ddata.HaDataStorager
 
 
 class Master extends ClusterRole {
@@ -35,13 +36,18 @@ class Master extends ClusterRole {
   var xmlLoader: ActorRef = _
   var httpServerRef:ActorRef = _
   var isStarted = false
+  var isStandBy = false
   implicit val timeout = Timeout(20 seconds)
-  init()
-  
+  /**
+   * 监控策略  
+   */
   import akka.actor.OneForOneStrategy
   override def supervisorStrategy = OneForOneStrategy(){
-    case _:Exception => import akka.actor.SupervisorStrategy._;Escalate
+    case _:Exception => akka.actor.SupervisorStrategy.Escalate
   }
+  /**
+   * 初始化
+   */
   def init(){
     import com.kent.main.Master._
     //mysql持久化参数配置
@@ -68,19 +74,25 @@ class Master extends ClusterRole {
                       config.getString(("workflow.xml-loader.coordinator-dir")),
                       config.getInt("workflow.xml-loader.scan-interval")
                     )
-                    
+  //是否配置了stanby角色
+  val isStandbyConfig = if (config.getString("workflow.nodes.master_standby") == null) false else true
+  
+    //创建集群高可用数据分布式数据寄存器
+    if(isStandbyConfig){
+      Master.haDataStorager = context.actorOf(Props[HaDataStorager],"ha-data")  
+    }
     //创建持久化管理器
     Master.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
     //创建邮件发送器
     Master.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
     //创建日志记录器
     Master.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+    //创建xml装载器
+    xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2, xmlLoaderConfig._3)),"xml-loader")
     //创建coordinator管理器
     coordinatorManager = context.actorOf(Props(CoordinatorManager(List())),"cm")
     //创建workflow管理器
     workflowManager = context.actorOf(Props(WorkFlowManager(List())),"wfm")
-    //创建xml装载器
-    xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2, xmlLoaderConfig._3)),"xml-loader")
     Thread.sleep(3000)
     coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
     workflowManager ! GetManagers(workflowManager,coordinatorManager)
@@ -113,7 +125,7 @@ class Master extends ClusterRole {
       log.info("当前注册的Worker数量: " + roler.size)
       if(!isStarted) {
         isStarted = true
-        self ! Start()
+        this.startActors()
       }
     }
     case Start() => this.start()
@@ -156,9 +168,28 @@ class Master extends ClusterRole {
     }
   }
   /**
-   * 启动入口
+   * 正常启动
    */
   def start():Boolean = {
+		this.isStandBy = false
+    init()
+		
+		true
+  }
+  /**
+   * 作为standby角色启动
+   */
+  def startStandby:Boolean = {
+    this.isStandBy = true
+    init()
+    
+    ???
+  }
+  
+  /**
+   * 启动入口
+   */
+  def startActors():Boolean = {
     coordinatorManager ! Start()
     workflowManager ! Start()
     xmlLoader ! Start()
@@ -237,9 +268,10 @@ object Master extends App {
   var persistManager:ActorRef = _
   var emailSender: ActorRef = _
   var logRecorder: ActorRef = _
+  var haDataStorager: ActorRef = _
   
   val defaultConf = ConfigFactory.load()
-  val masterConf = defaultConf.getStringList("workflow.nodes.masters").get(0).split(":")
+  val masterConf = defaultConf.getString("workflow.nodes.master").split(":")
   val hostConf = "akka.remote.netty.tcp.hostname=" + masterConf(0)
   val portConf = "akka.remote.netty.tcp.port=" + masterConf(1)
   
@@ -253,4 +285,5 @@ object Master extends App {
   val system = ActorSystem("akkaflow", config)
   Master.curSystem = system
   val master = system.actorOf(Master.props, name = "master")
+  master ! Start()
 }
