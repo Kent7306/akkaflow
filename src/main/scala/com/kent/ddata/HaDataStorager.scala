@@ -28,6 +28,12 @@ import com.kent.workflow.WorkflowInstance
 
 class HaDataStorager extends Actor {
   import com.kent.ddata.HaDataStorager._
+  //#read-write-majority
+  implicit val timeout1 = 5.seconds
+  private val readMajority = ReadMajority(timeout1)
+  private val writeMajority = WriteMajority(timeout1)
+  //#read-write-majority
+  
   val replicator = DistributedData(context.system).replicator
   implicit val cluster = Cluster(context.system)
   //以工作流的name作为key
@@ -116,11 +122,6 @@ class HaDataStorager extends Actor {
    
 }
 object HaDataStorager extends App{
-  //#read-write-majority
-  implicit val timeout1 = 5.seconds
-  private val readMajority = ReadMajority(timeout1)
-  private val writeMajority = WriteMajority(timeout1)
-  //#read-write-majority
   
   case class AddWorkflow(wf: WorkflowInfo)
   case class RemoveWorkflow(wfname: String)

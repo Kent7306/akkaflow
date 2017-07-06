@@ -28,6 +28,8 @@ import com.kent.db.XmlLoader
 import scala.util.Success
 import scala.concurrent.Future
 import com.kent.ddata.HaDataStorager
+import com.kent.ddata.HaDataStorager.AddWorkflow
+import com.kent.workflow.WorkflowInfo
 
 
 class Master extends ClusterRole {
@@ -116,9 +118,8 @@ class Master extends ClusterRole {
     case state: CurrentClusterState =>
     
     case _:MemberEvent => // ignore 
-      
-    case Registration() => {
-      //worker请求注册
+    //worker请求注册
+    case Registration() =>
       context watch sender
       roler = roler :+ sender
       log.info("注册Worker: " + sender)
@@ -127,10 +128,9 @@ class Master extends ClusterRole {
         isStarted = true
         this.startActors()
       }
-    }
     case Start() => this.start()
+    //worker终止，更新缓存的ActorRef
     case Terminated(workerActorRef) =>
-      //worker终止，更新缓存的ActorRef
       roler = roler.filterNot(_ == workerActorRef)
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
     case RemoveWorkFlow(wfId) => workflowManager ! RemoveWorkFlow(wfId)
@@ -145,15 +145,16 @@ class Master extends ClusterRole {
    * 请求得到新的worker，动态分配
    */
   private def allocateWorker(host: String):ActorRef = {
-    //host为-1情况下，随机分配
-    if(host == "-1") {
-      roler(Random.nextInt(roler.size))
-    }else{ //指定host分配
-    	val list = roler.map { _.path.address.host.get }.toList
-    	if(list.size > 0)
-    		roler(Random.nextInt(list.size))       	  
-    	else
-    	  null
+    if(roler.size > 0) {
+      //host为-1情况下，随机分配
+      if(host == "-1") {
+        roler(Random.nextInt(roler.size))
+      }else{ //指定host分配
+      	val list = roler.map { _.path.address.host.get }.toList
+      	if(list.size > 0) roler(Random.nextInt(list.size)) else null
+      }
+    }else{
+      null
     }
   }
   
@@ -173,17 +174,16 @@ class Master extends ClusterRole {
   def start():Boolean = {
 		this.isStandBy = false
     init()
-		
+		startActors()
 		true
   }
   /**
    * 作为standby角色启动
    */
-  def startStandby:Boolean = {
+  def startStandby():Boolean = {
     this.isStandBy = true
     init()
-    
-    ???
+    true
   }
   
   /**
@@ -276,7 +276,7 @@ object Master extends App {
   val portConf = "akka.remote.netty.tcp.port=" + masterConf(1)
   
   // 创建一个Config对象
-  val config = ConfigFactory.parseString(portConf)
+  var config = ConfigFactory.parseString(portConf)
       .withFallback(ConfigFactory.parseString(hostConf))
       .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
       .withFallback(defaultConf)

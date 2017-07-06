@@ -23,6 +23,7 @@ import org.json4s.jackson.JsonMethods
 import org.json4s.DefaultFormats
 import java.util.Date
 import akka.actor.Cancellable
+import com.kent.ddata.HaDataStorager._
 
 class WorkFlowManager extends Actor with ActorLogging{
   /**
@@ -94,6 +95,7 @@ class WorkFlowManager extends Actor with ActorLogging{
   def add(wf: WorkflowInfo, isSaved: Boolean): ResponseData = {
     Master.logRecorder ! Info("WorkflowManager", null, s"添加工作流配置：${wf.name}")
 		if(isSaved) Master.persistManager ! Save(wf)
+		Master.haDataStorager ! AddWorkflow(wf)
 		
 		if(workflows.get(wf.name).isEmpty){
 			workflows = workflows + (wf.name -> wf)
