@@ -4,8 +4,9 @@ import akka.actor.Props
 import akka.actor.ActorSystem
 import akka.remote.ContainerFormats.ActorRef
 import com.typesafe.config.ConfigFactory
+import com.kent.pub.Event._
 
-object MasterStandby extends App{
+object MasterStandbyStartup extends App{
   def props = Props[Master]
   var curSystem:ActorSystem = _
   var persistManager:ActorRef = _
@@ -22,9 +23,10 @@ object MasterStandby extends App{
       .withFallback(ConfigFactory.parseString(hostConf))
       .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
       .withFallback(defaultConf)
-  
   // 创建一个ActorSystem实例
   val system = ActorSystem("akkaflow", config)
-  Master.curSystem = system
+  Master.config =config
+  Master.system = system
   val master = system.actorOf(Master.props, name = "master")
+  master ! StartIfActive(false)
 }

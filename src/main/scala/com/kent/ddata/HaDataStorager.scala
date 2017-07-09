@@ -40,13 +40,18 @@ class HaDataStorager extends Actor {
   val WorkflowDK = LWWMapKey[WorkflowInfo]("workflows")
   //以调度器的name作为key
   val CoordinatorDK = LWWMapKey[Coordinator]("Coordinators")
-  //以运行中的工作流实例id作为key
-  val RWFIDK = LWWMapKey[String]("RWFIids")
+  //以等待队列中的工作流实例id作为key
+  val RWFIDK = LWWMapKey[WorkflowInstance]("RWFIids")
   //以等待队列中的工作流实例id作为key
   val WWFIDK = LWWMapKey[WorkflowInstance]("WWFIids")
+  //xml文件信息
+  val XmlFileDK = LWWMapKey[Long]("xmlFiles")
   
-  def receive: Actor.Receive = operaWorkflow orElse operaCoordinator orElse operaRWFIid orElse operaWWFI
-  
+  def receive: Actor.Receive = operaWorkflow  orElse 
+                               operaCoordinator orElse 
+                               operaRWFI orElse 
+                               operaWWFI orElse
+                               operaXmlFile
   /**
    * 工作流存储操作
    */
@@ -62,11 +67,13 @@ class HaDataStorager extends Actor {
     case g @ GetSuccess(WorkflowDK, Some(replyTo: ActorRef)) =>
       val wfs = g.get(WorkflowDK).getEntries().asScala.map(_._2).toList
       replyTo ! wfs
-    case NotFound(WorkflowDK, req) => // key workflows does not exist
+    case NotFound(WorkflowDK, Some(replyTo: ActorRef)) => // key workflows does not exist
       println("NotFound wf")
+      replyTo ! List[WorkflowInfo]()
   }
   /**
    * 调度器存储操作
+   * 
    */
   def operaCoordinator:Receive = {
     case AddCoordinator(coor) =>
@@ -78,31 +85,33 @@ class HaDataStorager extends Actor {
     case GetCoordinators() =>
       replicator ! Get(CoordinatorDK, readMajority, request = Some(sender))
     case g @ GetSuccess(CoordinatorDK, Some(replyTo: ActorRef)) =>
-      val wfs = g.get(CoordinatorDK).getEntries().asScala.map(_._2).toList
-      replyTo ! wfs
-    case NotFound(CoordinatorDK, req) => // key workflows does not exist
+      val coors = g.get(CoordinatorDK).getEntries().asScala.map(_._2).toList
+      replyTo ! coors
+    case NotFound(CoordinatorDK, Some(replyTo: ActorRef)) => // key workflows does not exist
       println("NotFound coor")
+      replyTo ! List[Coordinator]()
   }
   /**
    * 运行中工作流实例存储操作
    */
-  def operaRWFIid:Receive = {
-    case AddRWFIid(wfiId) =>
-      replicator ! Update(RWFIDK, LWWMap.empty[String], writeMajority, request = Some(sender)) ( _ + (wfiId -> wfiId))
-    case RemoveRWFIid(wfiId) =>
-      replicator ! Update(RWFIDK, LWWMap.empty[String], writeMajority, request = Some(sender)) ( _ - wfiId)
+  def operaRWFI:Receive = {
+    case AddRWFI(wfi) =>
+      replicator ! Update(RWFIDK, LWWMap.empty[WorkflowInstance], writeMajority, request = Some(sender)) ( _ + (wfi.id -> wfi))
+    case RemoveRWFI(wfiId) =>
+      replicator ! Update(RWFIDK, LWWMap.empty[WorkflowInstance], writeMajority, request = Some(sender)) ( _ - wfiId)
     case UpdateSuccess(RWFIDK, Some(replyTo: ActorRef)) => 
       println("update success RWFI")
-    case GetRWFIids() =>
+    case GetRWFIs() =>
       replicator ! Get(RWFIDK, readMajority, request = Some(sender))
     case g @ GetSuccess(RWFIDK, Some(replyTo: ActorRef)) =>
-      val wfs = g.get(RWFIDK).getEntries().asScala.map(_._2).toList
-      replyTo ! wfs
-    case NotFound(RWFIDK, req) => // key workflows does not exist
+      val wfis = g.get(RWFIDK).getEntries().asScala.map(_._2).toList
+      replyTo ! wfis
+    case NotFound(RWFIDK, Some(replyTo: ActorRef)) => // key workflows does not exist
       println("NotFound RWFIDK")
+      replyTo ! List[WorkflowInstance]()
   }
   /**
-   * 运行中工作流实例存储操作
+   * 等待中的工作流实例存储操作
    */
   def operaWWFI:Receive = {
     case AddWWFI(wfi) =>
@@ -116,9 +125,30 @@ class HaDataStorager extends Actor {
     case g @ GetSuccess(WWFIDK, Some(replyTo: ActorRef)) =>
       val wfis = g.get(WWFIDK).getEntries().asScala.map(_._2).toList
       replyTo ! wfis
-    case NotFound(WWFIDK, req) => // key workflows does not exist
+    case NotFound(WWFIDK, Some(replyTo: ActorRef)) => // key workflows does not exist
       println("NotFound RWFIDK")
+      replyTo ! List[WorkflowInstance]()
   }
+  /**
+   * 已经解析的xml文件信息
+   */
+  def operaXmlFile:Receive = {
+    case AddXmlFile(filename, lastModTime) =>
+      replicator ! Update(XmlFileDK, LWWMap.empty[Long], writeMajority, request = Some(sender)) ( _ + (filename -> lastModTime))
+    case RemoveXmlFile(filename) =>
+      replicator ! Update(XmlFileDK, LWWMap.empty[Long], writeMajority, request = Some(sender)) ( _ - filename)
+    case UpdateSuccess(XmlFileDK, Some(replyTo: ActorRef)) => 
+      println("update success XmlFile")
+    case GetXmlFiles() =>
+      replicator ! Get(XmlFileDK, readMajority, request = Some(sender))
+    case g @ GetSuccess(XmlFileDK, Some(replyTo: ActorRef)) =>
+      val xmlfiles = g.get(XmlFileDK).getEntries().asScala.toMap
+      replyTo ! xmlfiles
+    case NotFound(XmlFileDK, Some(replyTo: ActorRef)) => // key workflows does not exist
+      println("NotFound XmlFileDK")
+      replyTo ! Map[String, Long]()
+  }
+  
    
 }
 object HaDataStorager extends App{
@@ -126,10 +156,10 @@ object HaDataStorager extends App{
   case class AddWorkflow(wf: WorkflowInfo)
   case class RemoveWorkflow(wfname: String)
   case class GetWorkflows()
-
-  case class AddRWFIid(wfiId: String)
-  case class RemoveRWFIid(wfiId: String)
-  case class GetRWFIids()
+  
+  case class AddRWFI(wfi: WorkflowInstance)
+  case class RemoveRWFI(wfiId: String)
+  case class GetRWFIs()
   
   case class AddCoordinator(coor: Coordinator)
   case class RemoveCoordinator(coorName: String)
@@ -138,6 +168,18 @@ object HaDataStorager extends App{
   case class AddWWFI(wfi: WorkflowInstance)
   case class RemoveWWFI(wfIid: String)
   case class GetWWFIs() 
+  
+  case class AddXmlFile(filename: String, lastModTime: Long)
+  case class RemoveXmlFile(filename: String)
+  case class GetXmlFiles()
+  //获取到的分布式数据集合
+  case class DistributeData(
+      workflows: List[WorkflowInfo],
+      coordinators: List[Coordinator],
+      runningWfis: List[WorkflowInstance],
+      wattingWfis: List[WorkflowInstance],
+      xmlFiles: Map[String, Long]
+  )
   
   
   val defaultConf = ConfigFactory.load("test")
@@ -156,17 +198,10 @@ object HaDataStorager extends App{
   }
   Thread.sleep(4000)
   implicit val timeout = Timeout(20 seconds)
-  /*dbs(0) ! AddWorkflow(new WorkflowInfo("11111"))
-  dbs(0) ! AddWorkflow(new WorkflowInfo("2222"))
-  dbs(0) ! AddWorkflow(new WorkflowInfo("3333"))
-  dbs(0) ! AddWorkflow(new WorkflowInfo("3333"))
-  Thread.sleep(1000)
-  (dbs(1) ? GetWorkflows()).mapTo[List[WorkflowInfo]].andThen{case Success(x) => x.foreach{y => println(y.name)}}*/
-  
-  dbs(0) ! AddRWFIid("111")
-  dbs(0) ! AddRWFIid("121")
-  dbs(0) ! AddRWFIid("311")
-  dbs(0) ! AddRWFIid("111")
-  Thread.sleep(1000)
-  (dbs(1) ? GetRWFIids()).mapTo[List[String]].andThen{case Success(x) => x.foreach{y => println(y)}}
+  //dbs(0) ! AddWorkflow(new WorkflowInfo("11111"))
+  //dbs(0) ! AddWorkflow(new WorkflowInfo("2222"))
+  //dbs(0) ! AddWorkflow(new WorkflowInfo("3333"))
+  //dbs(0) ! AddWorkflow(new WorkflowInfo("3333"))
+  //Thread.sleep(1000)
+  (dbs(1) ? GetWorkflows()).mapTo[List[WorkflowInfo]].andThen{case Success(x) => x.foreach{y => println(y.name)}}
 }

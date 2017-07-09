@@ -13,6 +13,7 @@ import akka.pattern.{ ask, pipe }
 import scala.concurrent.duration._
 import akka.util.Timeout
 import scala.util.Success
+import com.kent.ddata.HaDataStorager._
 
 class CoordinatorManager extends Actor with ActorLogging{
   var coordinators: Map[String, Coordinator] = Map()
@@ -42,6 +43,7 @@ class CoordinatorManager extends Actor with ActorLogging{
    */
   def add(coor: Coordinator, isSaved: Boolean): ResponseData = {
 		if(isSaved) Master.persistManager ! Save(coor)
+		Master.haDataStorager ! AddCoordinator(coor)
 		if(coordinators.get(coor.name).isEmpty){
 			Master.logRecorder ! Info("CoordinatorManager",null,s"增加coordinator：${coor.name}")
 			coordinators = coordinators + (coor.name -> coor) 
@@ -68,7 +70,7 @@ class CoordinatorManager extends Actor with ActorLogging{
   /**
    * 初始化，从数据库中获取coordinators
    */
-  def init(){
+/*  def init(){
     import com.kent.main.Master._
     val isEnabled = config.getBoolean("workflow.mysql.is-enabled")
     if(isEnabled){
@@ -84,7 +86,7 @@ class CoordinatorManager extends Actor with ActorLogging{
          }
        }
     }
-  }
+  }*/
   /**
    * 启动
    */
@@ -115,7 +117,7 @@ class CoordinatorManager extends Actor with ActorLogging{
    */
   def receive: Actor.Receive = {
     case Start() => this.start()
-    case Stop() => this.stop()
+    case Stop() => sender ! this.stop()
     case AddCoor(content) => sender ! this.add(content, true)
     case RemoveCoor(name) => sender ! this.remove(name)
     case WorkFlowExecuteResult(wfName, status) => this.setCoordinatorDepend(wfName, status)

@@ -23,7 +23,7 @@ class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends A
   
   def receive: Actor.Receive = {
     case Start() => start()
-    case Stop() => stop()
+    case Stop() => sender ! stop()
   }
   def start():Boolean = {
     this.scheduler = context.system.scheduler.schedule(0 millis, interval seconds){
@@ -31,9 +31,11 @@ class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends A
     }
     true
   }
-  def stop() = {
-    if(this.scheduler != null && !this.scheduler.isCancelled) this.scheduler.cancel()
-    context.stop(self)
+  def stop():Boolean = {
+     if(this.scheduler != null && !this.scheduler.isCancelled) 
+        this.scheduler.cancel()
+     else 
+       true
   }
   /**
    * 读取xml文件
@@ -84,4 +86,9 @@ class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends A
 
 object XmlLoader{
   def apply(wfXmlPath: String, coorXmlPath: String, interval: Int) = new XmlLoader(wfXmlPath, coorXmlPath, interval)
+  def apply(wfXmlPath: String, coorXmlPath: String, interval: Int, xmlFiles: Map[String,Long]):XmlLoader = {
+    val xl = XmlLoader(wfXmlPath, coorXmlPath, interval)
+    xl.fileMap = xmlFiles
+    xl
+  }
 }

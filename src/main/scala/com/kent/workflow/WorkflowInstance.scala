@@ -1,6 +1,7 @@
 package com.kent.workflow
 
 import com.kent.workflow.WorkflowInfo.WStatus._
+import com.kent.workflow.node.NodeInfo.Status._
 import com.kent.pub.DeepCloneable
 import com.kent.workflow.node.NodeInstance
 import java.util.Date
@@ -50,6 +51,16 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
 	  val sn = nodeInstanceList.filter { _.isInstanceOf[StartNodeInstance] }.toList
 	  if(sn.size == 1) Some(sn(0)) else None
   }
+  /**
+   * 把当前工作流重置为未执行前状态
+   */
+  def reset(){
+    this.status = W_PREP
+    this.startTime = null
+    this.endTime = null
+    this.nodeInstanceList.foreach { y =>  y.status = PREP; y.startTime = null; y.endTime = null}
+  }
+  
   
   def save(implicit conn: Connection): Boolean = {
     var result = false;

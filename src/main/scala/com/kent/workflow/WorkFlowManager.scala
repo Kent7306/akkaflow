@@ -33,13 +33,13 @@ class WorkFlowManager extends Actor with ActorLogging{
   var workflows: Map[String, WorkflowInfo] = Map()
   /**
    * 运行中的工作流实例actor集合
-   * Map[WorflowInstance.id, [wfname, workflowActorRef]]
+   * Map[WorflowInstance.id, [WorkfowInstance, workflowActorRef]]
    */
-  var workflowActors: Map[String,Tuple2[String,ActorRef]] = Map()
+  var workflowActors: Map[String,Tuple2[WorkflowInstance,ActorRef]] = Map()
   /**
    * 等待队列
    */
-  val waittingWorkflowInstance = scala.collection.mutable.Queue[WorkflowInstance]()
+  val waittingWorkflowInstance = scala.collection.mutable.ListBuffer[WorkflowInstance]()
   //var waittingWorkflowInstance:List[WorkflowInstance] = List()
   
   var coordinatorManager: ActorRef = _
@@ -56,24 +56,37 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   def start(): Boolean = {
 		  import com.kent.coordinate.Coordinator.Status._
+		  /**
+		   * 从等待队列中找到满足运行的工作流实例
+		   */
+		  def getSatisfiedWFIfromWaitingWFIs(): Option[WorkflowInstance] = {
+		    for(wfi <- waittingWorkflowInstance){
+		      val runningInstanceNum = workflowActors.map{case (x,(y,z)) => y}
+		                              .filter { _.workflow.name == wfi.workflow.name }.size
+		      if(runningInstanceNum < wfi.workflow.instanceLimit){
+		        waittingWorkflowInstance.-=(wfi)
+		        return Some(wfi)
+		      }
+		    }
+		    None
+		  }
+		  
+		  
       Master.logRecorder ! Info("WorkFlowManager",null,s"启动扫描...")
       this.scheduler = context.system.scheduler.schedule(200 millis, 200 millis){
-		    if(waittingWorkflowInstance.size > 0) {
-		    	val wfi = waittingWorkflowInstance.dequeue()
-		    	//当前运行实例个数不能大于配置实例上限，若大于，则放到队列后面
-		    	val runningInstanceNum = workflowActors.map{case (x,(y,z)) => y}.filter { _ == wfi.workflow.name }.size
-		    	//println(wfi.workflow.name + "  " + runningInstanceNum + " " + wfi.workflow.instanceLimit)
-		    	if(runningInstanceNum < wfi.workflow.instanceLimit){
-		    		val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
+		    val wfiOpt = getSatisfiedWFIfromWaitingWFIs()
+		    if(!wfiOpt.isEmpty){
+		      val wfi = wfiOpt.get
+		      val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
 		    		Master.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
-    				workflowActors = workflowActors + (wfi.id -> (wfi.workflow.name,wfActorRef))
+    				workflowActors = workflowActors + (wfi.id -> (wfi,wfActorRef))
   	  			wfActorRef ! Start()
-		    	} else {
-		    	  waittingWorkflowInstance.enqueue(wfi)
-		    	}
 		    }
       }
     true
+  }
+  def stop():Boolean = {
+    if(scheduler == null || scheduler.isCancelled) true else scheduler.cancel()
   }
   
   /**
@@ -149,7 +162,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     	val wfi = workflows(wfName).createInstance()
 			wfi.parsedParams = params
 			//把工作流实例加入到等待队列中
-			waittingWorkflowInstance.enqueue(wfi)
+			waittingWorkflowInstance += wfi
 			true      
     }
   }
@@ -163,7 +176,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     	val wfi = workflows(wfName).createInstance()
 			wfi.parsedParams = params
 			//把工作流实例加入到等待队列中
-			waittingWorkflowInstance.enqueue(wfi)
+			waittingWorkflowInstance += wfi
 			ResponseData("success",s"已生成工作流实例,id:${wfi.id}", null)
     }
   }
@@ -172,7 +185,7 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   def handleWorkFlowInstanceReply(wfInstance: WorkflowInstance):Boolean = {
     //剔除该完成的工作流实例
-    val (wfname, af) = this.workflowActors.get(wfInstance.id).get
+    val (_, af) = this.workflowActors.get(wfInstance.id).get
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.id }.toMap
     //根据状态发送邮件告警
     if(wfInstance.workflow.mailLevel.contains(wfInstance.status)){
@@ -182,7 +195,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     }
     Thread.sleep(1000)
     Master.logRecorder ! Info("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
-    coordinatorManager ! WorkFlowExecuteResult(wfname, wfInstance.status)  
+    coordinatorManager ! WorkFlowExecuteResult(wfInstance.workflow.name, wfInstance.status)  
     true
   }
   /**
@@ -239,18 +252,15 @@ class WorkFlowManager extends Actor with ActorLogging{
         if(!workflowActors.get(wfiId).isEmpty){
           ResponseData("fail", s"工作流实例[${wfiId}]已经在重跑", null)
         }else{
-          //重置时间与状态
+          //重置
         	val wfi2 = wfiOpt.get
-          wfi2.status = W_PREP
-          wfi2.startTime = null
-          wfi2.endTime = null
-          wfi2.nodeInstanceList.foreach { y =>  y.status = PREP; y.startTime = null; y.endTime = null}
+          wfi2.reset()
           //把工作流实例加入到等待队列中
         	val existWaitCnt = waittingWorkflowInstance.filter{ _.id == wfi2.id }.size
         	if(existWaitCnt >= 1){
         	  ResponseData("fail", s"工作流实例[${wfiId}]已经存在等待队列中", null)
         	}else{
-        		waittingWorkflowInstance.enqueue(wfi2)
+        		waittingWorkflowInstance += wfi2
         		ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)        	  
         	}
         }
@@ -285,6 +295,7 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   def receive: Actor.Receive = {
     case Start() => this.start()
+    case Stop() => sender ! this.stop()
     case AddWorkFlow(content) => sender ! this.add(content, true)
     case RemoveWorkFlow(name) => sender ! this.remove(name)
     //case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
@@ -320,8 +331,16 @@ class WorkFlowManager extends Actor with ActorLogging{
 
 object WorkFlowManager{
   def apply(wfs: List[WorkflowInfo]):WorkFlowManager = {
+    WorkFlowManager(wfs, null)
+  }
+  def apply(wfs: List[WorkflowInfo], waittingWIFs: List[WorkflowInstance]) = {
     val wfm = new WorkFlowManager;
-    wfm.workflows = wfs.map { x => x.name -> x }.toMap
+    if(wfs != null){
+    	wfm.workflows = wfs.map { x => x.name -> x }.toMap      
+    }
+    if(waittingWIFs != null){
+    	wfm.waittingWorkflowInstance ++= waittingWIFs      
+    }
     wfm
   }
   def apply(contents: Set[String]):WorkFlowManager = {

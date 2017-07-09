@@ -12,6 +12,7 @@ object Event {
   case class AskWorker(host: String)
   case class ShutdownCluster()
   //cm
+  case class StartIfActive(isActve: Boolean)
   case class Start()
   case class Stop()
   case class AddCoor(content: String)
