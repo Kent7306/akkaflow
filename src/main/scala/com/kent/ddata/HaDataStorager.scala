@@ -126,7 +126,7 @@ class HaDataStorager extends Actor {
       val wfis = g.get(WWFIDK).getEntries().asScala.map(_._2).toList
       replyTo ! wfis
     case NotFound(WWFIDK, Some(replyTo: ActorRef)) => // key workflows does not exist
-      println("NotFound RWFIDK")
+      println("NotFound WWFIDK")
       replyTo ! List[WorkflowInstance]()
   }
   /**

@@ -125,6 +125,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     if(!workflows.get(name).isEmpty){
       Master.logRecorder ! Info("WorkflowManager", null, s"删除工作流：${name}")
     	Master.persistManager ! Delete(workflows(name))
+    	Master.haDataStorager ! RemoveWorkflow(name)
     	workflows = workflows.filterNot {x => x._1 == name}.toMap
       ResponseData("success",s"成功删除工作流${name}", null)
     }else{
@@ -134,7 +135,7 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * 初始化，从数据库中获取workflows
    */
-  def init(){
+/*  def init(){
     import com.kent.main.Master._
     val isEnabled = config.getBoolean("workflow.mysql.is-enabled")
     if(isEnabled){
@@ -150,7 +151,7 @@ class WorkFlowManager extends Actor with ActorLogging{
          }
        }
     }
-  }
+  }*/
   /**
    * 生成工作流实例并执行
    */
@@ -298,7 +299,6 @@ class WorkFlowManager extends Actor with ActorLogging{
     case Stop() => sender ! this.stop()
     case AddWorkFlow(content) => sender ! this.add(content, true)
     case RemoveWorkFlow(name) => sender ! this.remove(name)
-    //case UpdateWorkFlow(content) => this.update(WorkflowInfo(content))
     case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)
     case ManualNewAndExecuteWorkFlowInstance(name, params) => sender ! this.manualNewAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
@@ -318,10 +318,9 @@ class WorkFlowManager extends Actor with ActorLogging{
                                                  this.reRun(wfiId).andThen{
                                                     case Success(x) => sdr ! x  
                                                 }
-    case GetManagers(wfm, cm) => {
+    case GetManagers(wfm, cm) => 
       coordinatorManager = cm
       context.watch(coordinatorManager)
-    }
     case CollectClusterInfo() => sender ! GetClusterInfo(collectClusterInfo())
     case GetWaittingInstances() => sender ! getWaittingNodeInfo()
     case Terminated(arf) => if(coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")

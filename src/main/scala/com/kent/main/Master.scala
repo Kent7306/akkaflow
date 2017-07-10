@@ -83,25 +83,23 @@ class Master extends ClusterRole {
         			case Success(x) => 
         			  if(x != self){
         			    println("增加master")
-        				  this.otherMaster = x        			    
+        				  this.otherMaster = x
+        				  //备份主节点监控活动主节点
+        				  if(!this.isActiveMember) {
+        				    println("开始监控活动master")
+        				    context.watch(x)
+        				  }
         			  }
         	}          
       }
 
       log.info("Member is Up: {}", member.address)
     case UnreachableMember(member) =>
+      println("member 不能到达："+member.address)
       //移除master引用
-      if(member.hasRole("master")){
+     /* if(member.hasRole("master")){
         this.otherMaster = null
-        /*val path = RootActorPath(member.address) /"user" / "master"
-        val result = context.actorSelection(path).resolveOne(20 second)
-        result.andThen {
-          case Success(x) => 
-            if(this.otherMaster !=null && this.otherMaster == x){
-            	this.otherMaster = null              
-            }
-        }*/
-      }
+      }*/
       log.info("Member detected as Unreachable: {}", member)
     case MemberRemoved(member, previousStatus) =>
       log.info("Member is Removed: {} after {}", member.address, previousStatus)
@@ -120,8 +118,18 @@ class Master extends ClusterRole {
       }
     case StartIfActive(isAM) => if(isAM) active() else standby()
     //worker终止，更新缓存的ActorRef
-    case Terminated(workerActorRef) =>
-      roler = roler.filterNot(_ == workerActorRef)
+    case Terminated(ar) => 
+      //若是worker，则删除
+      roler = roler.filterNot(_ == ar)
+      println("down掉的：" + ar)
+      println("监控的master:" + otherMaster)
+      //若是活动主节点，则需要激活当前备份节点
+      if(ar == otherMaster){
+        println("开始切换到活动master")
+        otherMaster = null
+        this.active()
+      }
+      
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
     case RemoveWorkFlow(wfId) => workflowManager ! RemoveWorkFlow(wfId)
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
