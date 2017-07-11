@@ -18,21 +18,22 @@ import com.kent.main.Master
 import com.kent.pub.Event._
 
 class Coordinator(val name: String) extends Daoable[Coordinator] with DeepCloneable[Coordinator] {
-	//存放参数原始信息
-  private var paramList: List[Tuple2[String, String]] = List()
 	import com.kent.coordinate.Coordinator.Status._
-  import com.kent.coordinate.Coordinator.Depend
-  private var cron: CronComponent = _
-  private var content: String = _
-  private var startDate: Date = _
-  private var isEnabled: Boolean = true
-  private var endDate: Date = _
-  private var dir: Directory = _
+	import com.kent.coordinate.Coordinator.Depend
+	//存放参数原始信息
+  var paramList: List[Tuple2[String, String]] = List()
+  var cron: CronComponent = _
+  var content: String = _
+  var cronStr: String = _
+  var startDate: Date = _
+  var isEnabled: Boolean = true
+  var endDate: Date = _
+  var dir: Directory = _
   var depends: List[Depend] = List()
-  private var workflows: List[String] = List()
+  var workflows: List[String] = List()
   var status: Status = SUSPENDED
-  private var desc: String = _
-  private var xmlStr: String = _
+  var desc: String = _
+  var xmlStr: String = _
   /**
    * 判断是否满足触发
    */
@@ -118,6 +119,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
         newCoor.cron = CronComponent(cronStr, stime, etime)
         newCoor.startDate = stime
         newCoor.endDate = etime
+        newCoor.cronStr = cronStr
         
         val dependsValues = parse(rs.getString("depends"))
         val dependsStrList = (dependsValues \\ classOf[JString]).asInstanceOf[List[String]]
@@ -228,6 +230,7 @@ object Coordinator {
     coor.isEnabled = isEnabled
     coor.paramList = paramList
     coor.depends = depends
+    coor.cronStr = cronConfig
     import com.kent.coordinate.Coordinator.Status._
     coor.status = ACTIVE
     coor.workflows = workflows

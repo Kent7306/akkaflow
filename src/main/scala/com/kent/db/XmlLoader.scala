@@ -15,6 +15,8 @@ import scala.concurrent.Future
 import scala.util.Success
 import akka.actor.Cancellable
 import com.kent.pub.Event._
+import com.kent.main.Master
+import com.kent.ddata.HaDataStorager.AddXmlFile
 
 class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends Actor with ActorLogging{
   var fileMap: Map[String,Long] = Map()
@@ -45,7 +47,10 @@ class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends A
     		val files = FileUtil.listFilesWithExtensions(new File(path), List("xml"))
     		//新增或修改
     		val newFiles = files.filter { x => fileMap.get(x.getName).isEmpty || fileMap(x.getName) != x.lastModified()}.toList
-    		newFiles.foreach { x => fileMap += (x.getName -> x.lastModified) }
+    		newFiles.foreach { x => 
+    		  fileMap += (x.getName -> x.lastModified) 
+    		  Master.haDataStorager ! AddXmlFile(x.getName, x.lastModified())
+    		}
     		newFiles.map { x =>
     				var content = ""
     				Source.fromFile(x).foreach { content += _ }

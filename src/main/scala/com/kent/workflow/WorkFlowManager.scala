@@ -40,7 +40,6 @@ class WorkFlowManager extends Actor with ActorLogging{
    * 等待队列
    */
   val waittingWorkflowInstance = scala.collection.mutable.ListBuffer[WorkflowInstance]()
-  //var waittingWorkflowInstance:List[WorkflowInstance] = List()
   
   var coordinatorManager: ActorRef = _
   //调度器
@@ -65,6 +64,7 @@ class WorkFlowManager extends Actor with ActorLogging{
 		                              .filter { _.workflow.name == wfi.workflow.name }.size
 		      if(runningInstanceNum < wfi.workflow.instanceLimit){
 		        waittingWorkflowInstance.-=(wfi)
+		        Master.haDataStorager ! RemoveWWFI(wfi.id)
 		        return Some(wfi)
 		      }
 		    }
@@ -80,6 +80,7 @@ class WorkFlowManager extends Actor with ActorLogging{
 		      val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
 		    		Master.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
     				workflowActors = workflowActors + (wfi.id -> (wfi,wfActorRef))
+    				Master.haDataStorager ! AddRWFI(wfi)
   	  			wfActorRef ! Start()
 		    }
       }
@@ -164,6 +165,7 @@ class WorkFlowManager extends Actor with ActorLogging{
 			wfi.parsedParams = params
 			//把工作流实例加入到等待队列中
 			waittingWorkflowInstance += wfi
+			Master.haDataStorager ! AddWWFI(wfi)
 			true      
     }
   }
@@ -178,6 +180,7 @@ class WorkFlowManager extends Actor with ActorLogging{
 			wfi.parsedParams = params
 			//把工作流实例加入到等待队列中
 			waittingWorkflowInstance += wfi
+			Master.haDataStorager ! AddWWFI(wfi)
 			ResponseData("success",s"已生成工作流实例,id:${wfi.id}", null)
     }
   }
@@ -188,6 +191,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     //剔除该完成的工作流实例
     val (_, af) = this.workflowActors.get(wfInstance.id).get
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.id }.toMap
+    Master.haDataStorager ! RemoveRWFI(wfInstance.id)
     //根据状态发送邮件告警
     if(wfInstance.workflow.mailLevel.contains(wfInstance.status)){
     	Master.emailSender ! EmailMessage(wfInstance.workflow.mailReceivers,
@@ -206,6 +210,8 @@ class WorkFlowManager extends Actor with ActorLogging{
     if(!workflowActors.get(id).isEmpty){
     	val wfaRef = workflowActors(id)._2
     	val result = (wfaRef ? Kill()).mapTo[List[ActionExecuteResult]]
+    	this.workflowActors = this.workflowActors.filterKeys { _ != id }.toMap
+    	Master.haDataStorager ! RemoveRWFI(id)
     	val resultF = result.map { x => 
     	  implicit val formats = DefaultFormats
         val strTmp = JsonMethods.compact(Extraction.decompose(x))
@@ -262,6 +268,7 @@ class WorkFlowManager extends Actor with ActorLogging{
         	  ResponseData("fail", s"工作流实例[${wfiId}]已经存在等待队列中", null)
         	}else{
         		waittingWorkflowInstance += wfi2
+        		Master.haDataStorager ! AddWWFI(wfi)
         		ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)        	  
         	}
         }
@@ -337,6 +344,7 @@ object WorkFlowManager{
     if(wfs != null){
     	wfm.workflows = wfs.map { x => x.name -> x }.toMap      
     }
+    println(waittingWIFs+"********************"+waittingWIFs.size)
     if(waittingWIFs != null){
     	wfm.waittingWorkflowInstance ++= waittingWIFs      
     }

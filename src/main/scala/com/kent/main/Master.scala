@@ -33,6 +33,7 @@ import com.kent.workflow.WorkflowInfo
 import com.kent.ddata.HaDataStorager._
 import com.kent.workflow.WorkflowInstance
 import com.kent.coordinate.Coordinator
+import com.kent.coordinate.CronComponent
 
 
 class Master extends ClusterRole {
@@ -112,7 +113,6 @@ class Master extends ClusterRole {
       roler = roler :+ sender
       log.info("注册Worker: " + sender)
       log.info("当前注册的Worker数量: " + roler.size)
-      println(isStarted + "  " + isActiveMember)
       if(!isStarted && isActiveMember) {
         startActors()
       }
@@ -214,8 +214,10 @@ class Master extends ClusterRole {
         //创建xml装载器
         xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2, xmlLoaderConfig._3, xmlFiles)),"xml-loader")
         //创建coordinator管理器
+        coors.foreach { x => x.cron = CronComponent(x.cronStr,x.startDate,x.endDate) }
         coordinatorManager = context.actorOf(Props(CoordinatorManager(coors)),"cm")
         //创建workflow管理器
+        rwfis.foreach { _.reset() }
         val allwwfis = rwfis ++ wwfis
         workflowManager = context.actorOf(Props(WorkFlowManager(wfs, allwwfis)),"wfm")
         Thread.sleep(3000)
