@@ -34,6 +34,7 @@ import com.kent.ddata.HaDataStorager._
 import com.kent.workflow.WorkflowInstance
 import com.kent.coordinate.Coordinator
 import com.kent.coordinate.CronComponent
+import scala.concurrent.Await
 
 
 class Master extends ClusterRole {
@@ -197,10 +198,17 @@ class Master extends ClusterRole {
                     )
     
     this.isActiveMember = true
+    //通知http-server
+    if(this.httpServerRef != null){
+      this.httpServerRef ! SwitchActiveMaster()
+    }
+    
     //把其他master设置为备份主节点
 		if(this.otherMaster!= null){
 		  this.otherMaster ! StartIfActive(false)
 		}
+		//通知workers杀死所有的子actionactor  //这里不需要同步
+		val kwaF = this.roler.map { worker => (worker ? KillAllActionActor()).mapTo[Boolean] }
     //获取distributed数据来构建子actors
     val ddataF = getDData()
     ddataF.map{ 
@@ -274,52 +282,71 @@ class Master extends ClusterRole {
     allActorInfo.name = "top"
     allActorInfo.atype = ROLE
     
-    val ai = new ActorInfo()
-    
-    ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
-    ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
-    ai.atype = ROLE
-    ai.name = self.path.name + s"(${ai.ip}:${ai.port})"
-    allActorInfo.subActors = allActorInfo.subActors :+ ai
-    
-    val es = new ActorInfo()
-    es.name = Master.emailSender.path.name
-    es.atype = DEAMO
-    ai.subActors  = ai.subActors :+ es
-    val pm = new ActorInfo()
-    pm.name = Master.persistManager.path.name
-    pm.atype = DEAMO
-    ai.subActors  = ai.subActors :+ pm
-    val lr = new ActorInfo()
-    lr.name = Master.logRecorder.path.name
-    lr.atype = DEAMO
-    ai.subActors  = ai.subActors :+ lr
-    val xl = new ActorInfo()
-    xl.name = xmlLoader.path.name
-    xl.atype = DEAMO
-    ai.subActors  = ai.subActors :+ xl
-    val cm = new ActorInfo()
-    cm.name = coordinatorManager.path.name
-    cm.atype = DEAMO
-    ai.subActors  = ai.subActors :+ cm
-    val wmResultF = (workflowManager ? CollectClusterInfo())
-      .mapTo[GetClusterInfo].map { 
-      case GetClusterInfo(x) => x 
-    }
+    val mai = collectMasterInfo()
+    //获取本master的信息
+    allActorInfo.subActors = allActorInfo.subActors :+ mai
+    ???
+    //获取worker的actor信息
     val workerResultFs = this.roler.map { x => 
       (x ? CollectClusterInfo()).mapTo[GetClusterInfo].map{case GetClusterInfo(y) => y} 
     }.toList
     val resultLF = Future.sequence(workerResultFs)
-    val resultF = for{
-      x <- wmResultF
-      y <- resultLF
-    } yield (x, y)
-    resultF.andThen{case Success(x) => 
-      ai.subActors = ai.subActors :+ x._1
-      allActorInfo.subActors = allActorInfo.subActors ++ x._2
+    resultLF.andThen{
+      case Success(x) => 
+      allActorInfo.subActors = allActorInfo.subActors ++ x
       sdr ! ResponseData("success","成功获取集群信息", allActorInfo.getClusterInfo())
     }
     
+  }
+  /**
+   * 收集本Master节点的actor信息
+   */
+  private def collectMasterInfo():ActorInfo = {
+    import com.kent.pub.Event.ActorType._
+    val ai = new ActorInfo()
+    ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
+    ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
+    ai.atype = ROLE
+    val mt = if(isActiveMember) "active" else "standby"
+    ai.name = self.path.name + s"(${mt}:${ai.ip}:${ai.port})"
+    if(Master.emailSender != null){
+      val es = new ActorInfo()
+      es.name = Master.emailSender.path.name+s"(${Master.emailSender.hashCode()})"
+      es.atype = DEAMO
+      ai.subActors  = ai.subActors :+ es
+    }
+    if(Master.persistManager != null){
+      val pm = new ActorInfo()
+      pm.name = Master.persistManager.path.name+s"(${Master.persistManager.hashCode()})"
+      pm.atype = DEAMO
+      ai.subActors  = ai.subActors :+ pm
+      val lr = new ActorInfo()
+      lr.name = Master.logRecorder.path.name+s"(${Master.logRecorder.hashCode()})"
+      lr.atype = DEAMO
+      ai.subActors  = ai.subActors :+ lr
+    }
+    if(xmlLoader != null){
+      val xl = new ActorInfo()
+      xl.name = xmlLoader.path.name+s"(${xmlLoader.hashCode()})"
+      xl.atype = DEAMO
+      ai.subActors  = ai.subActors :+ xl
+    }
+    if(coordinatorManager != null){
+      val cm = new ActorInfo()
+      cm.name = coordinatorManager.path.name+s"(${coordinatorManager.hashCode()})"
+      cm.atype = DEAMO
+      ai.subActors  = ai.subActors :+ cm
+    }
+    if(workflowManager != null){
+      val wmResultF = (workflowManager ? CollectClusterInfo())
+        .mapTo[GetClusterInfo].map { 
+        case GetClusterInfo(x) => x 
+      }
+      val wfresult = Await.result(wmResultF, 20 seconds)
+      ai.subActors :+ wfresult
+    }
+    
+    ai
   }
   
   def shutdownCluster(sdr: ActorRef) = {

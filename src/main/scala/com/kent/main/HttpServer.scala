@@ -22,29 +22,43 @@ import akka.http.scaladsl.Http.ServerBinding
 import com.kent.pub.Event._
 import akka.actor.ActorRef
 import scala.util.Success
+import akka.actor.Terminated
 
 class HttpServer extends ClusterRole {
   implicit val timeout = Timeout(20 seconds)
+  var activeMaster:ActorRef = _
   import scala.concurrent.ExecutionContext.Implicits.global
   private def getResponseFromWorkflowManager(sdr: ActorRef,event: Any) = {
-    val wfm = context.actorSelection(roler(0).path / "wfm")
-    val resultF = (wfm ? event).mapTo[ResponseData]
-    resultF.andThen{
-      case Success(x) => sdr ! x
+    if(activeMaster != null){
+    	val wfm = context.actorSelection(activeMaster.path / "wfm")
+    			val resultF = (wfm ? event).mapTo[ResponseData]
+    					resultF.andThen{
+    					case Success(x) => sdr ! x
+    	}
+    }else{
+      sdr ! ResponseData("fail","不存在活动的Master",null)
     }
   }
   private def getResponseFromCoordinatorManager(sdr: ActorRef, event: Any) = {
-    val cm = context.actorSelection(roler(0).path / "cm")
-    val resultF = (cm ? event).mapTo[ResponseData]
-    resultF.andThen{
-      case Success(x) => sdr ! x
+    if(activeMaster != null){
+      val cm = context.actorSelection(activeMaster.path / "cm")
+      val resultF = (cm ? event).mapTo[ResponseData]
+      resultF.andThen{
+        case Success(x) => sdr ! x
+      }
+    }else{
+      sdr ! ResponseData("fail","不存在活动的Master",null)
     }
   }
   private def getResponseFromMaster(sdr: ActorRef, event: Any) = {
-    val master = context.actorSelection(roler(0).path)
-    val resultF = (master ? event).mapTo[ResponseData]
-    resultF.andThen{
-      case Success(x) => sdr ! x
+    if(activeMaster != null){
+      val master = context.actorSelection(activeMaster.path)
+      val resultF = (master ? event).mapTo[ResponseData]
+      resultF.andThen{
+        case Success(x) => sdr ! x
+      }
+    }else{
+      sdr ! ResponseData("fail","不存在活动的Master",null)
     }
   }
   
@@ -60,6 +74,11 @@ class HttpServer extends ClusterRole {
       roler = roler :+ sender
       log.info("注册master角色: " + sender)
     }
+    case Terminated(ar) => 
+      //若是worker，则删除
+      roler = roler.filterNot(_ == ar)
+      println("down掉的Master：" + ar)
+    case SwitchActiveMaster() => activeMaster = sender
     case event@ShutdownCluster() => getResponseFromMaster(sender, event)
                               Thread.sleep(5000)
                               HttpServer.shutdwon()

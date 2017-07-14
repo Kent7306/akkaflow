@@ -10,6 +10,8 @@ import akka.cluster.ClusterEvent.MemberRemoved
 import akka.cluster.ClusterEvent.CurrentClusterState
 import akka.cluster.ClusterEvent.MemberEvent
 import akka.cluster.Member
+import scala.concurrent.ExecutionContext.Implicits.global
+import akka.pattern.{ ask, pipe }
 import akka.actor.RootActorPath
 import akka.actor.ActorPath
 import akka.actor.ActorRef
@@ -18,9 +20,14 @@ import com.kent.workflow.ActionActor
 import com.kent.db.LogRecorder
 import com.typesafe.config.Config
 import com.kent.pub.Event._
+import scala.concurrent.Future
+import akka.util.Timeout
+import scala.concurrent.duration._
+import scala.util.Success
 
 class Worker extends ClusterRole {
   val i = 0
+  implicit val timeout = Timeout(20 seconds)
   init()
   import com.kent.main.Worker._
   def receive: Actor.Receive = {
@@ -31,6 +38,9 @@ class Worker extends ClusterRole {
       log.info("Member is Removed: {} after {}", member.address, previousStatus)
     case state: CurrentClusterState =>
     case CreateAction(ani) => sender ! createActionActor(ani)
+    case KillAllActionActor() => 
+      var sdr = sender
+      killAllActionActor().andThen{case Success(x) => sdr ! x}
     case CollectClusterInfo() => sender ! GetClusterInfo(collectClusterInfo())
     case ShutdownCluster() => Worker.curActorSystems.foreach { _.terminate() }
     case _:MemberEvent => // ignore 
@@ -61,6 +71,12 @@ class Worker extends ClusterRole {
 		    actionNodeInstance.name)
 		actionActorRef
   }
+  def killAllActionActor():Future[Boolean] = {
+    val resultsF = context.children.map { x => (x ? Kill()).mapTo[ActionExecuteResult] }.toList
+    val rsF = Future.sequence(resultsF).map { x => true }
+    rsF
+  }
+  
   /**
    * 获取master的路径
    */

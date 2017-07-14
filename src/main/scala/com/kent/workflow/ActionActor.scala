@@ -89,8 +89,8 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
   /**
    * 结束
    */
-  def terminate(worflowActor: ActorRef, status: Status, msg: String){
-		worflowActor ! ActionExecuteResult(status, msg) 
+  def terminate(ar: ActorRef, status: Status, msg: String){
+		ar ! ActionExecuteResult(status, msg) 
 		Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,s"执行完毕")
 		context.stop(self) 
   }

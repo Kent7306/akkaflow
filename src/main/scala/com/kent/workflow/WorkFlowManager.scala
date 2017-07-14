@@ -281,7 +281,7 @@ class WorkFlowManager extends Actor with ActorLogging{
   def collectClusterInfo(): ActorInfo = {
     import com.kent.pub.Event.ActorType._
     val ai = new ActorInfo()
-    ai.name = self.path.name
+    ai.name = self.path.name+s"(${self.hashCode()})"
     ai.atype = DEAMO
     ai.subActors = context.children.map { x =>
       val aiTmp = new ActorInfo()

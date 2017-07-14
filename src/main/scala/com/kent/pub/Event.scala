@@ -48,13 +48,14 @@ object Event {
   
   //worker
   case class CreateAction(ani: ActionNodeInstance)
+  case class KillAllActionActor()
   //action actor
   case class ActionExecuteResult(status: Status, msg: String) extends Serializable
   case class ActionExecuteRetryTimes(times: Int) extends Serializable
   
   //http-server
   case class ResponseData(result:String, msg: String, data: Any)
-  
+  case class SwitchActiveMaster()
   //收集集群信息
   case class CollectClusterInfo()
   case class GetClusterInfo(ai: ActorInfo)
