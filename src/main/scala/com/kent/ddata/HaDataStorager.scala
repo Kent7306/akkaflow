@@ -25,6 +25,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Success
 import com.kent.coordinate.Coordinator
 import com.kent.workflow.WorkflowInstance
+import akka.cluster.Member
+import com.kent.main.RoleType
+import akka.actor.ActorPath
+import akka.cluster.ClusterEvent._
 
 class HaDataStorager extends Actor {
   import com.kent.ddata.HaDataStorager._
@@ -46,13 +50,27 @@ class HaDataStorager extends Actor {
   val WWFIDK = LWWMapKey[WorkflowInstance]("WWFIids")
   //xml文件信息
   val XmlFileDK = LWWMapKey[Long]("xmlFiles")
+  //master actor信息
+  val RoleDK = LWWMapKey[RoleContent]("roles")
+    override def preStart(): Unit = {
+    // 订阅集群事件
+    cluster.subscribe(self, initialStateMode = InitialStateAsEvents,
+      classOf[MemberUp], classOf[UnreachableMember], classOf[MemberEvent])
+  }
   
   def receive: Actor.Receive = operaWorkflow  orElse 
                                operaCoordinator orElse 
                                operaRWFI orElse 
                                operaWWFI orElse
-                               operaXmlFile
-  /**
+                               operaXmlFile orElse
+                               operareRole orElse
+                               operaMemberEvent
+  
+    
+   def operaMemberEvent:Receive = {
+    case MemberUp(member) => println("""*****************yyyyyyyy******""")
+  }
+   /**
    * 工作流存储操作
    */
   def operaWorkflow:Receive = {
@@ -61,14 +79,14 @@ class HaDataStorager extends Actor {
     case RemoveWorkflow(wfname) => 
       replicator ! Update(WorkflowDK, LWWMap.empty[WorkflowInfo], writeMajority, request = Some(sender)) ( _ - wfname)
     case UpdateSuccess(WorkflowDK, Some(replyTo: ActorRef)) => 
-      println("update success wf")
+      //println("update success wf")
     case GetWorkflows() =>
       replicator ! Get(WorkflowDK, readMajority, request = Some(sender))
     case g @ GetSuccess(WorkflowDK, Some(replyTo: ActorRef)) =>
       val wfs = g.get(WorkflowDK).getEntries().asScala.map(_._2).toList
       replyTo ! wfs
     case NotFound(WorkflowDK, Some(replyTo: ActorRef)) => // key workflows does not exist
-      println("NotFound wf")
+      //println("NotFound wf")
       replyTo ! List[WorkflowInfo]()
   }
   /**
@@ -81,14 +99,14 @@ class HaDataStorager extends Actor {
     case RemoveCoordinator(coorName) =>
       replicator ! Update(CoordinatorDK, LWWMap.empty[Coordinator], writeMajority, request = Some(sender)) ( _ - coorName)
     case UpdateSuccess(CoordinatorDK, Some(replyTo: ActorRef)) => 
-      println("update success coor")
+      //println("update success coor")
     case GetCoordinators() =>
       replicator ! Get(CoordinatorDK, readMajority, request = Some(sender))
     case g @ GetSuccess(CoordinatorDK, Some(replyTo: ActorRef)) =>
       val coors = g.get(CoordinatorDK).getEntries().asScala.map(_._2).toList
       replyTo ! coors
     case NotFound(CoordinatorDK, Some(replyTo: ActorRef)) => // key workflows does not exist
-      println("NotFound coor")
+      //println("NotFound coor")
       replyTo ! List[Coordinator]()
   }
   /**
@@ -100,14 +118,14 @@ class HaDataStorager extends Actor {
     case RemoveRWFI(wfiId) =>
       replicator ! Update(RWFIDK, LWWMap.empty[WorkflowInstance], writeMajority, request = Some(sender)) ( _ - wfiId)
     case UpdateSuccess(RWFIDK, Some(replyTo: ActorRef)) => 
-      println("update success RWFI")
+      //println("update success RWFI")
     case GetRWFIs() =>
       replicator ! Get(RWFIDK, readMajority, request = Some(sender))
     case g @ GetSuccess(RWFIDK, Some(replyTo: ActorRef)) =>
       val wfis = g.get(RWFIDK).getEntries().asScala.map(_._2).toList
       replyTo ! wfis
     case NotFound(RWFIDK, Some(replyTo: ActorRef)) => // key workflows does not exist
-      println("NotFound RWFIDK")
+      //println("NotFound RWFIDK")
       replyTo ! List[WorkflowInstance]()
   }
   /**
@@ -119,14 +137,14 @@ class HaDataStorager extends Actor {
     case RemoveWWFI(wfiId) =>
       replicator ! Update(WWFIDK, LWWMap.empty[WorkflowInstance], writeMajority, request = Some(sender)) ( _ - wfiId)
     case UpdateSuccess(WWFIDK, Some(replyTo: ActorRef)) => 
-      println("update success WWFI")
+      //println("update success WWFI")
     case GetWWFIs() =>
       replicator ! Get(WWFIDK, readMajority, request = Some(sender))
     case g @ GetSuccess(WWFIDK, Some(replyTo: ActorRef)) =>
       val wfis = g.get(WWFIDK).getEntries().asScala.map(_._2).toList
       replyTo ! wfis
     case NotFound(WWFIDK, Some(replyTo: ActorRef)) => // key workflows does not exist
-      println("NotFound WWFIDK")
+      //println("NotFound WWFIDK")
       replyTo ! List[WorkflowInstance]()
   }
   /**
@@ -138,20 +156,50 @@ class HaDataStorager extends Actor {
     case RemoveXmlFile(filename) =>
       replicator ! Update(XmlFileDK, LWWMap.empty[Long], writeMajority, request = Some(sender)) ( _ - filename)
     case UpdateSuccess(XmlFileDK, Some(replyTo: ActorRef)) => 
-      println("update success XmlFile")
+      //println("update success XmlFile")
     case GetXmlFiles() =>
       replicator ! Get(XmlFileDK, readMajority, request = Some(sender))
     case g @ GetSuccess(XmlFileDK, Some(replyTo: ActorRef)) =>
       val xmlfiles = g.get(XmlFileDK).getEntries().asScala.toMap
       replyTo ! xmlfiles
     case NotFound(XmlFileDK, Some(replyTo: ActorRef)) => // key workflows does not exist
-      println("NotFound XmlFileDK")
+      //println("NotFound XmlFileDK")
       replyTo ! Map[String, Long]()
   }
-  
-   
+  /**
+   * 各个角色的actor信息
+   */
+  //implicit def path2String(p: ActorPath):String = p.toString()
+  def operareRole:Receive = {
+    case AddRole(sdr, roleType) =>
+      replicator ! Update(RoleDK, LWWMap.empty[RoleContent], writeMajority, request = Some(sender)) ( 
+          _ + (getHostPostStr(sdr) -> RoleContent(roleType,sdr)))
+    case removeRole(sdr) =>
+      replicator ! Update(RoleDK, LWWMap.empty[RoleContent], writeMajority, request = Some(sender)) ( _ - getHostPostStr(sdr))
+    case UpdateSuccess(RoleDK, Some(replyTo: ActorRef)) => 
+      println("update success role")
+    case GetRoles() =>
+      replicator ! Get(RoleDK, readMajority, request = Some(sender))
+    case g @ GetSuccess(RoleDK, Some(replyTo: ActorRef)) =>
+      val roles = g.get(RoleDK).getEntries().asScala.toMap
+      replyTo ! roles
+    case NotFound(RoleDK, Some(replyTo: ActorRef)) => // key workflows does not exist
+      println("NotFound role")
+      replyTo ! Map[String, RoleContent]()
+  }
+  /**
+   * 根据actor获取到“host:port"字符串
+   */
+  private def getHostPostStr(sdr: ActorRef): String = {
+    s"${sdr.path.address.host}:${sdr.path.address.port}" 
+  }
 }
 object HaDataStorager extends App{
+  
+  case class RoleContent(roleType: String, sdr:ActorRef)
+  case class AddRole(sdr: ActorRef, roleType:String)
+  case class removeRole(sdr: ActorRef)
+  case class GetRoles()
   
   case class AddWorkflow(wf: WorkflowInfo)
   case class RemoveWorkflow(wfname: String)
@@ -172,6 +220,7 @@ object HaDataStorager extends App{
   case class AddXmlFile(filename: String, lastModTime: Long)
   case class RemoveXmlFile(filename: String)
   case class GetXmlFiles()
+  
   //获取到的分布式数据集合
   case class DistributeData(
       workflows: List[WorkflowInfo],

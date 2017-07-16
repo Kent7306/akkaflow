@@ -82,7 +82,7 @@ class HttpServer extends ClusterRole {
     case event@ShutdownCluster() => getResponseFromMaster(sender, event)
                               Thread.sleep(5000)
                               HttpServer.shutdwon()
-    case event@CollectClusterInfo() => getResponseFromMaster(sender,event)
+    case event@CollectClusterActorInfo() => getResponseFromMaster(sender,event)
     case event@RemoveWorkFlow(_) =>  getResponseFromWorkflowManager(sender, event)
     case event@AddWorkFlow(_) => getResponseFromWorkflowManager(sender, event)
     case event@ReRunWorkflowInstance(_) => getResponseFromWorkflowManager(sender, event)
@@ -107,7 +107,7 @@ object HttpServer extends App{
   // 创建一个Config对象
   val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + httpConf(1))
       .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + httpConf(0)))
-      .withFallback(ConfigFactory.parseString("akka.cluster.roles = [http-server]"))
+      .withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [${RoleType.HTTP_SERVER}]"))
       .withFallback(defaultConf)
   
   implicit val system = ActorSystem("akkaflow", config)
@@ -115,7 +115,7 @@ object HttpServer extends App{
   implicit val materializer = ActorMaterializer()
     // needed for the future flatMap/onComplete in the end
   implicit val executionContext = system.dispatcher
-  val httpServer = system.actorOf(HttpServer.props,"http-server")
+  val httpServer = system.actorOf(HttpServer.props,RoleType.HTTP_SERVER)
   
   private def handleRequestWithActor(event: Any): Route = {
     val data = (httpServer ? event).mapTo[ResponseData] 
@@ -211,7 +211,7 @@ object HttpServer extends App{
           if(action == "shutdown"){
             handleRequestWithActor(ShutdownCluster())
           }else if(action == "get"){
-            handleRequestWithActor(CollectClusterInfo())
+            handleRequestWithActor(CollectClusterActorInfo())
           }else{
         	  handleRequestWithActor("fail","action参数有误",null)                     
           }

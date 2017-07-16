@@ -21,12 +21,12 @@ object MasterStandbyStartup extends App{
   // 创建一个Config对象
   val config = ConfigFactory.parseString(portConf)
       .withFallback(ConfigFactory.parseString(hostConf))
-      .withFallback(ConfigFactory.parseString("akka.cluster.roles = [master]"))
+      .withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [${RoleType.MASTER}]"))
       .withFallback(defaultConf)
   // 创建一个ActorSystem实例
   val system = ActorSystem("akkaflow", config)
   Master.config =config
   Master.system = system
-  val master = system.actorOf(Master.props, name = "master")
+  val master = system.actorOf(Master.props, name = RoleType.MASTER)
   master ! StartIfActive(false)
 }

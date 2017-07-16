@@ -22,8 +22,14 @@ class Parent extends Actor {
     case a: String => 
       println("p: " + a)
       implicit val timeout = Timeout(10 seconds)
-      val aa = (child ? a).mapTo[String]
+      val aa = (child ? "111").mapTo[String]
+      val bb = (child ? "222").mapTo[String]
+    	val cc = (child ? "333").mapTo[String]
+    	val dd = (child ? "444").mapTo[String]
       aa.map { x => println("return: " + x) }
+      bb.map { x => println("return: " + x) }
+      cc.map { x => println("return: " + x) }
+      dd.map { x => println("return: " + x) }
       
   }
 }
@@ -32,7 +38,8 @@ class Child extends Actor {
   def receive: Actor.Receive = {
     case a:String => 
       println("c: "+ a)
-      println(self.path.name)
-      sender ! "------"
+      Thread.sleep(3000)
+      println(sender.path.address.host+"*****")
+      sender ! a
   }
 }

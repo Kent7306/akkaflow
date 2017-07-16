@@ -278,7 +278,7 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * 收集集群信息
    */
-  def collectClusterInfo(): ActorInfo = {
+  def collectActorInfo(): ActorInfo = {
     import com.kent.pub.Event.ActorType._
     val ai = new ActorInfo()
     ai.name = self.path.name+s"(${self.hashCode()})"
@@ -309,26 +309,14 @@ class WorkFlowManager extends Actor with ActorLogging{
     case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)
     case ManualNewAndExecuteWorkFlowInstance(name, params) => sender ! this.manualNewAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
-    case KillWorkFlowInstance(id) =>  val sdr = sender
-                                      this.killWorkFlowInstance(id).andThen{
-                                        case Success(x) => sdr ! x
-                                      }
-    case KllAllWorkFlow() => val sdr = sender
-                             this.killAllWorkFlow().andThen{
-                                case Success(x) => sdr ! x
-                              }
-    case KillWorkFlow(wfName) => val sdr = sender
-                                 this.killWorkFlow(wfName).andThen{
-                                        case Success(x) => sdr ! x
-                                      }
-    case ReRunWorkflowInstance(wfiId: String) => val sdr = sender
-                                                 this.reRun(wfiId).andThen{
-                                                    case Success(x) => sdr ! x  
-                                                }
+    case KillWorkFlowInstance(id) =>  this.killWorkFlowInstance(id) pipeTo sender
+    case KllAllWorkFlow() => this.killAllWorkFlow() pipeTo sender
+    case KillWorkFlow(wfName) => this.killWorkFlow(wfName) pipeTo sender
+    case ReRunWorkflowInstance(wfiId: String) => this.reRun(wfiId) pipeTo sender
     case GetManagers(wfm, cm) => 
       coordinatorManager = cm
       context.watch(coordinatorManager)
-    case CollectClusterInfo() => sender ! GetClusterInfo(collectClusterInfo())
+    case CollectActorInfo() => sender ! GetActorInfo(collectActorInfo())
     case GetWaittingInstances() => sender ! getWaittingNodeInfo()
     case Terminated(arf) => if(coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")
   }
@@ -344,7 +332,6 @@ object WorkFlowManager{
     if(wfs != null){
     	wfm.workflows = wfs.map { x => x.name -> x }.toMap      
     }
-    println(waittingWIFs+"********************"+waittingWIFs.size)
     if(waittingWIFs != null){
     	wfm.waittingWorkflowInstance ++= waittingWIFs      
     }

@@ -38,17 +38,15 @@ class Worker extends ClusterRole {
       log.info("Member is Removed: {} after {}", member.address, previousStatus)
     case state: CurrentClusterState =>
     case CreateAction(ani) => sender ! createActionActor(ani)
-    case KillAllActionActor() => 
-      var sdr = sender
-      killAllActionActor().andThen{case Success(x) => sdr ! x}
-    case CollectClusterInfo() => sender ! GetClusterInfo(collectClusterInfo())
+    case KillAllActionActor() => killAllActionActor() pipeTo sender
+    case CollectActorInfo() => sender ! GetActorInfo(collectActorInfo())
     case ShutdownCluster() => Worker.curActorSystems.foreach { _.terminate() }
     case _:MemberEvent => // ignore 
   }
   /**
    * 收集集群信息
    */
-  def collectClusterInfo(): ActorInfo = {
+  def collectActorInfo(): ActorInfo = {
     import com.kent.pub.Event.ActorType._
     val ai = new ActorInfo()
     ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
@@ -73,7 +71,7 @@ class Worker extends ClusterRole {
   }
   def killAllActionActor():Future[Boolean] = {
     val resultsF = context.children.map { x => (x ? Kill()).mapTo[ActionExecuteResult] }.toList
-    val rsF = Future.sequence(resultsF).map { x => true }
+    val rsF = Future.sequence(resultsF).map { x => true}
     rsF
   }
   
@@ -114,12 +112,12 @@ object Worker extends App {
     val portConf = "akka.remote.netty.tcp.port=" + info._2
     val config = ConfigFactory.parseString(hostConf)
         .withFallback(ConfigFactory.parseString(portConf))
-        .withFallback(ConfigFactory.parseString("akka.cluster.roles = [worker]"))
+        .withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [${RoleType.WORKER}]"))
         .withFallback(defaultConf)
     Worker.config = config
       val system = ActorSystem("akkaflow", config)
       Worker.curActorSystems = Worker.curActorSystems :+ system
-      val worker = system.actorOf(Worker.props, name = "worker")
+      val worker = system.actorOf(Worker.props, name = RoleType.WORKER)
   }
   
   def props = Props[Worker]

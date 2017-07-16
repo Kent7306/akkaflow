@@ -65,43 +65,43 @@ class Master extends ClusterRole {
     //创建集群高可用数据分布式数据寄存器
     Master.haDataStorager = context.actorOf(Props[HaDataStorager],"ha-data")
   }
+  /**
+   * 
+   */
+  private def operaAfterRoleMemberUp(member: Member, roleType: String, f:ActorRef => Unit){
+    if(member.hasRole(roleType)){
+      val path = RootActorPath(member.address) /"user" / roleType
+        val result = context.actorSelection(path).resolveOne(20 second)
+        result.andThen { 
+          case Success(x) => 
+            Master.haDataStorager ! AddRole(x, roleType)
+            f(x)
+        }
+    }
+  }
+  
   
   def receive: Actor.Receive = { 
     case MemberUp(member) => 
       register(member, getHttpServerPath)
-      //设置httpserver引用
-      if(member.hasRole("http-server")){
-        val path = getHttpServerPath(member).get
-        val result = context.actorSelection(path).resolveOne(20 second)
-        result.andThen { 
-          case Success(x) => this.httpServerRef = x 
-        }
-      }
+      //若当前是活动master，则设置httpserver引用
+      operaAfterRoleMemberUp(member, RoleType.HTTP_SERVER,x => {
+        	this.httpServerRef = x 
+        	this.httpServerRef ! SwitchActiveMaster()          
+      })
       //设置其他master引用
-      if(member.hasRole("master")){
-        val path = RootActorPath(member.address) /"user" / "master"
-        	val result = context.actorSelection(path).resolveOne(20 second)
-        			result.andThen {
-        			case Success(x) => 
-        			  if(x != self){
-        			    println("增加master")
-        				  this.otherMaster = x
-        				  //备份主节点监控活动主节点
-        				  if(!this.isActiveMember) {
-        				    println("开始监控活动master")
-        				    context.watch(x)
-        				  }
-        			  }
-        	}          
-      }
-
+      operaAfterRoleMemberUp(member, RoleType.MASTER,x => {
+			  if(x != self){
+				  this.otherMaster = x
+			    println("另外的master节点，开始对其进行监控")
+			    context.watch(x)
+			  }
+      })
+     //worker
+      operaAfterRoleMemberUp(member, RoleType.WORKER,x => {})
+      
       log.info("Member is Up: {}", member.address)
     case UnreachableMember(member) =>
-      println("member 不能到达："+member.address)
-      //移除master引用
-     /* if(member.hasRole("master")){
-        this.otherMaster = null
-      }*/
       log.info("Member detected as Unreachable: {}", member)
     case MemberRemoved(member, previousStatus) =>
       log.info("Member is Removed: {} after {}", member.address, previousStatus)
@@ -117,28 +117,37 @@ class Master extends ClusterRole {
       if(!isStarted && isActiveMember) {
         startActors()
       }
-    case StartIfActive(isAM) => if(isAM) active() else standby()
+    case StartIfActive(isAM) => 
+      println("StartIfActive **************************")
+      (if(isAM) active() else standby()) pipeTo sender
     //worker终止，更新缓存的ActorRef
     case Terminated(ar) => 
       //若是worker，则删除
       roler = roler.filterNot(_ == ar)
       println("down掉的：" + ar)
       println("监控的master:" + otherMaster)
-      //若是活动主节点，则需要激活当前备份节点
-      if(ar == otherMaster){
+      //若终止的是活动主节点，则需要激活当前备份节点
+      if(ar == otherMaster && !this.isActiveMember){
         println("开始切换到活动master")
         otherMaster = null
         this.active()
       }
-      
+    case KillAllActionActor() => 
+      val kwaFl = this.roler.map { worker => (worker ? KillAllActionActor()).mapTo[Boolean] }.toList
+		  val kwalF = Future.sequence(kwaFl)
+		  kwalF pipeTo sender
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
     case RemoveWorkFlow(wfId) => workflowManager ! RemoveWorkFlow(wfId)
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
     case AskWorker(host: String) => sender ! GetWorker(allocateWorker(host: String))
     case ReRunWorkflowInstance(id: String) => workflowManager ! ReRunWorkflowInstance(id)
     case ShutdownCluster() =>  shutdownCluster(sender)
-    case CollectClusterInfo() => collectClusterInfo(sender)
-                               
+    case CollectClusterActorInfo() => 
+      val sdr = sender
+      collectClusterActorInfo().andThen { case Success(x) => 
+        sdr ! ResponseData("success","成功获取集群信息", x.getClusterInfo()) 
+      }
+    case CollectActorInfo() => sender ! GetActorInfo(collectActorInfo())
   }
   /**
    * 请求得到新的worker，动态分配
@@ -171,6 +180,47 @@ class Master extends ClusterRole {
    * 作为活动主节点启动
    */
   def active():Future[Boolean] = {
+    /**
+     * 准备集群环境
+     */
+    def prepareMasterEnv(){
+      //是否集群中存在活动的主节点
+      //需要同步
+      val rolesF = (Master.haDataStorager ? GetRoles()).mapTo[Map[String, HaDataStorager.RoleContent]]
+      val maF= rolesF.map{mp => 
+        val mastActOpt = mp.find{case (x,y) => y.roleType == RoleType.MASTER_ACTIVE}
+        mastActOpt
+      }
+      val ma = Await.result(maF, 20 second)
+      //存在但并不等于本actor
+      if (ma.isDefined && ma.get._2.sdr != self) {
+        this.otherMaster = ma.get._2.sdr
+      }
+      //需要同步
+  		if(this.otherMaster!= null){
+  			//把其他master设置为备份主节点  
+  		  val rsTmpF = (this.otherMaster ? StartIfActive(false)).mapTo[Boolean]
+  		  val rsTmp = Await.result(rsTmpF, 20 second)
+  		  if(!rsTmp) throw new Exception("设置其他master备份节点失败")
+  		  //通知workers杀死所有的子actionactor  
+  		  val klF = (this.otherMaster ? KillAllActionActor()).mapTo[List[Boolean]]
+  		  val kl = Await.result(klF, 20 second)
+  		}
+    }
+    /**
+     * 获取集群分布数据
+     */
+    def getDData():Future[DistributeData] = {
+      for {
+        wfs <- (Master.haDataStorager ? GetWorkflows()).mapTo[List[WorkflowInfo]]
+        coors <- (Master.haDataStorager ? GetCoordinators()).mapTo[List[Coordinator]]
+        rWFIs <- (Master.haDataStorager ? GetRWFIs()).mapTo[List[WorkflowInstance]]
+  	    wWFIs <- (Master.haDataStorager ? GetWWFIs()).mapTo[List[WorkflowInstance]]
+  	    xmlFiles <- (Master.haDataStorager ? GetXmlFiles()).mapTo[Map[String,Long]]
+      } yield DistributeData(wfs,coors,rWFIs,wWFIs,xmlFiles)
+    }
+    prepareMasterEnv()
+   
     import com.kent.main.Master._
     //mysql持久化参数配置
     val mysqlConfig = (config.getString("workflow.mysql.user"),
@@ -196,38 +246,38 @@ class Master extends ClusterRole {
                       config.getString(("workflow.xml-loader.coordinator-dir")),
                       config.getInt("workflow.xml-loader.scan-interval")
                     )
-    
     this.isActiveMember = true
-    //通知http-server
-    if(this.httpServerRef != null){
-      this.httpServerRef ! SwitchActiveMaster()
-    }
-    
-    //把其他master设置为备份主节点
-		if(this.otherMaster!= null){
-		  this.otherMaster ! StartIfActive(false)
-		}
-		//通知workers杀死所有的子actionactor  //这里不需要同步
-		val kwaF = this.roler.map { worker => (worker ? KillAllActionActor()).mapTo[Boolean] }
     //获取distributed数据来构建子actors
     val ddataF = getDData()
     ddataF.map{ 
       case DistributeData(wfs,coors,rwfis, wwfis,xmlFiles) => 
         //创建持久化管理器
-        Master.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
+        if(Master.persistManager == null){
+        	Master.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
+        }
         //创建邮件发送器
-        Master.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
+        if(Master.emailSender == null){
+        	Master.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
+        }
         //创建日志记录器
-        Master.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+        if(Master.logRecorder == null){
+          Master.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+        }
         //创建xml装载器
-        xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2, xmlLoaderConfig._3, xmlFiles)),"xml-loader")
+        if(xmlLoader == null){
+        	xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2, xmlLoaderConfig._3, xmlFiles)),"xml-loader")
+        }
         //创建coordinator管理器
-        coors.foreach { x => x.cron = CronComponent(x.cronStr,x.startDate,x.endDate) }
-        coordinatorManager = context.actorOf(Props(CoordinatorManager(coors)),"cm")
+        if(coordinatorManager == null){
+          coors.foreach { x => x.cron = CronComponent(x.cronStr,x.startDate,x.endDate) }
+          coordinatorManager = context.actorOf(Props(CoordinatorManager(coors)),"cm")
+        }
         //创建workflow管理器
-        rwfis.foreach { _.reset() }
-        val allwwfis = rwfis ++ wwfis
-        workflowManager = context.actorOf(Props(WorkFlowManager(wfs, allwwfis)),"wfm")
+        if(workflowManager == null){
+          rwfis.foreach { _.reset() }
+          val allwwfis = rwfis ++ wwfis
+          workflowManager = context.actorOf(Props(WorkFlowManager(wfs, allwwfis)),"wfm")
+        }
         Thread.sleep(3000)
         coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
         workflowManager ! GetManagers(workflowManager,coordinatorManager)
@@ -236,6 +286,13 @@ class Master extends ClusterRole {
         if(roler.size > 0){
           startActors()  
         }
+        
+        //通知http-server
+        if(this.httpServerRef != null){
+          this.httpServerRef ! SwitchActiveMaster()
+        }
+        //设置
+        Master.haDataStorager ! AddRole(self, RoleType.MASTER_ACTIVE)
 		    true
     }
   }
@@ -253,55 +310,52 @@ class Master extends ClusterRole {
    * 设置为standby角色
    */
   def standby():Future[Boolean] = {
+    println("设置为备份节点")
+	  this.isStarted = false
 	  this.isActiveMember = false
-    val rs = if(isActiveMember){
-      val rF1 = (this.xmlLoader ? Stop()).mapTo[Boolean]
-      var rF2 = (this.coordinatorManager ? Stop()).mapTo[Boolean]
-      var rF3 = (this.workflowManager ? Stop()).mapTo[Boolean]
-      val list = List(rF1, rF2, rF3)
-      val rF = Future.sequence(list).map { x => if(x.filter { !_ }.size > 0) false else true }
-      rF
-    }else {
-      Future{true}
-    }
-    rs
+    val rF1 = if(xmlLoader != null) (xmlLoader ? Stop()).mapTo[Boolean] else Future{true}
+    var rF2 = if(coordinatorManager != null) (coordinatorManager ? Stop()).mapTo[Boolean] else Future{true}
+    var rF3 = if(workflowManager != null) (workflowManager ? Stop()).mapTo[Boolean] else Future{true}
+    val list = List(rF1, rF2, rF3)
+    val rF = Future.sequence(list).map { x => if(x.filter { !_ }.size > 0) false else true }
+    Master.haDataStorager ! AddRole(self, RoleType.MASTER_STANDBY)
+    rF
   }
-  private def getDData():Future[DistributeData] = {
-    for {
-      wfs <- (Master.haDataStorager ? GetWorkflows()).mapTo[List[WorkflowInfo]]
-      coors <- (Master.haDataStorager ? GetCoordinators()).mapTo[List[Coordinator]]
-      rWFIs <- (Master.haDataStorager ? GetRWFIs()).mapTo[List[WorkflowInstance]]
-	    wWFIs <- (Master.haDataStorager ? GetWWFIs()).mapTo[List[WorkflowInstance]]
-	    xmlFiles <- (Master.haDataStorager ? GetXmlFiles()).mapTo[Map[String,Long]]
-    } yield DistributeData(wfs,coors,rWFIs,wWFIs,xmlFiles)
-  }
-  
-  def collectClusterInfo(sdr: ActorRef) = {
+  /**
+   * 收集集群actor信息
+   */
+  def collectClusterActorInfo(): Future[ActorInfo] = {
     import com.kent.pub.Event.ActorType._
     var allActorInfo = new ActorInfo()
     allActorInfo.name = "top"
     allActorInfo.atype = ROLE
-    
-    val mai = collectMasterInfo()
     //获取本master的信息
-    allActorInfo.subActors = allActorInfo.subActors :+ mai
-    ???
-    //获取worker的actor信息
-    val workerResultFs = this.roler.map { x => 
-      (x ? CollectClusterInfo()).mapTo[GetClusterInfo].map{case GetClusterInfo(y) => y} 
-    }.toList
-    val resultLF = Future.sequence(workerResultFs)
-    resultLF.andThen{
-      case Success(x) => 
-      allActorInfo.subActors = allActorInfo.subActors ++ x
-      sdr ! ResponseData("success","成功获取集群信息", allActorInfo.getClusterInfo())
+    val maiF = (self ? CollectActorInfo()).mapTo[GetActorInfo]
+    //获取另外备份master的信息
+    val omaiF = if(otherMaster != null){
+      (otherMaster ? CollectActorInfo()).mapTo[GetActorInfo]
+    }else{
+      null
     }
+    //获取worker的actor信息
+    val waisF = this.roler.map { x => (x ? CollectActorInfo()).mapTo[GetActorInfo]}.toList
     
+    val allAIsF = if(omaiF == null){
+      waisF ++ (maiF  :: Nil)
+    }else{
+      waisF ++ (maiF :: omaiF :: Nil)
+    }
+    val allAiF = Future.sequence(allAIsF).map{ list =>
+      val list2 = list.map { case GetActorInfo(x) => x}
+      allActorInfo.subActors = allActorInfo.subActors ++ list2
+      allActorInfo
+    }
+    allAiF
   }
   /**
    * 收集本Master节点的actor信息
    */
-  private def collectMasterInfo():ActorInfo = {
+  private def collectActorInfo():ActorInfo = {
     import com.kent.pub.Event.ActorType._
     val ai = new ActorInfo()
     ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
@@ -325,6 +379,16 @@ class Master extends ClusterRole {
       lr.atype = DEAMO
       ai.subActors  = ai.subActors :+ lr
     }
+    if(Master.haDataStorager != null){
+      val ha = new ActorInfo()
+      ha.name = Master.haDataStorager.path.name+s"(${Master.haDataStorager.hashCode()})"
+      ha.atype = DEAMO
+      ai.subActors  = ai.subActors :+ ha
+      val lr = new ActorInfo()
+      lr.name = Master.haDataStorager.path.name+s"(${Master.haDataStorager.hashCode()})"
+      lr.atype = DEAMO
+      ai.subActors  = ai.subActors :+ lr
+    }
     if(xmlLoader != null){
       val xl = new ActorInfo()
       xl.name = xmlLoader.path.name+s"(${xmlLoader.hashCode()})"
@@ -338,14 +402,12 @@ class Master extends ClusterRole {
       ai.subActors  = ai.subActors :+ cm
     }
     if(workflowManager != null){
-      val wmResultF = (workflowManager ? CollectClusterInfo())
-        .mapTo[GetClusterInfo].map { 
-        case GetClusterInfo(x) => x 
+      val wmResultF = (workflowManager ? CollectActorInfo()).mapTo[GetActorInfo].map { 
+        case GetActorInfo(x) => x 
       }
       val wfresult = Await.result(wmResultF, 20 seconds)
-      ai.subActors :+ wfresult
+      ai.subActors = ai.subActors :+ wfresult
     }
-    
     ai
   }
   
@@ -356,8 +418,8 @@ class Master extends ClusterRole {
      result.andThen{
         case Success(x) => 
                   roler.foreach { _ ! ShutdownCluster() }
-                   sdr ! ResponseData("success","worker角色与master角色已关闭",null)
-                   Master.system.terminate()
+                  sdr ! ResponseData("success","worker角色与master角色已关闭",null)
+                  Master.system.terminate()
       }
   }
 }

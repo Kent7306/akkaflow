@@ -57,8 +57,9 @@ object Event {
   case class ResponseData(result:String, msg: String, data: Any)
   case class SwitchActiveMaster()
   //收集集群信息
-  case class CollectClusterInfo()
-  case class GetClusterInfo(ai: ActorInfo)
+  case class CollectClusterActorInfo()
+  case class GetActorInfo(ai: ActorInfo)
+  case class CollectActorInfo()
   
   class ActorInfo extends Serializable{
 	  import com.kent.pub.Event.ActorType._
