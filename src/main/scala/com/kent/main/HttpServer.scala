@@ -68,17 +68,14 @@ class HttpServer extends ClusterRole {
     case MemberRemoved(member, previousStatus) =>
     case state: CurrentClusterState =>
     case _:MemberEvent => // ignore 
-    case Registration() => {
-      //worker请求注册
-      context watch sender
-      roler = roler :+ sender
-      log.info("注册master角色: " + sender)
-    }
     case Terminated(ar) => 
       //若是worker，则删除
-      roler = roler.filterNot(_ == ar)
-      println("down掉的Master：" + ar)
-    case SwitchActiveMaster() => activeMaster = sender
+      if(ar == activeMaster){
+        ???
+      }
+    case SwitchActiveMaster() => 
+      activeMaster = sender
+      context.watch(activeMaster)
     case event@ShutdownCluster() => getResponseFromMaster(sender, event)
                               Thread.sleep(5000)
                               HttpServer.shutdwon()

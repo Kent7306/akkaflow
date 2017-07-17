@@ -35,19 +35,22 @@ import com.kent.workflow.WorkflowInstance
 import com.kent.coordinate.Coordinator
 import com.kent.coordinate.CronComponent
 import scala.concurrent.Await
+import akka.actor.ExtendedActorSystem
+import akka.actor.Extension
+import akka.actor.ExtensionKey
+import akka.cluster.Cluster
 
 
-class Master extends ClusterRole {
+class Master(var isActiveMember:Boolean) extends ClusterRole {
   var coordinatorManager: ActorRef = _
   var workflowManager: ActorRef = _
   var xmlLoader: ActorRef = _
   var httpServerRef:ActorRef = _
+  var workers = List[ActorRef]()
   //其他
   var otherMaster:ActorRef = _
   //是否已经启动了
   var isStarted = false
-  //是否是活动节点
-  var isActiveMember = true
   implicit val timeout = Timeout(20 seconds)
   /**
    * 监控策略  
@@ -56,51 +59,59 @@ class Master extends ClusterRole {
   override def supervisorStrategy = OneForOneStrategy(){
     case _:Exception => akka.actor.SupervisorStrategy.Escalate
   }
-  init()
-    
+  //创建集群高可用数据分布式数据寄存器
+  Master.haDataStorager = context.actorOf(Props[HaDataStorager],"ha-data")
+  //
+  Cluster(context.system).registerOnMemberUp({
+    if(isActiveMember) active() else standby()
+  })
+
   /**
-   * 初始化
+   * 角色加入的操作
    */
-  def init(){
-    //创建集群高可用数据分布式数据寄存器
-    Master.haDataStorager = context.actorOf(Props[HaDataStorager],"ha-data")
-  }
-  /**
-   * 
-   */
-  private def operaAfterRoleMemberUp(member: Member, roleType: String, f:ActorRef => Unit){
+  private def operaAfterRoleMemberUp(member: Member, roleType: String, f:(ActorRef,String) => Unit){
     if(member.hasRole(roleType)){
       val path = RootActorPath(member.address) /"user" / roleType
         val result = context.actorSelection(path).resolveOne(20 second)
         result.andThen { 
           case Success(x) => 
-            Master.haDataStorager ! AddRole(x, roleType)
-            f(x)
+            f(x,roleType)
         }
     }
   }
   
-  
   def receive: Actor.Receive = { 
     case MemberUp(member) => 
-      register(member, getHttpServerPath)
-      //若当前是活动master，则设置httpserver引用
-      operaAfterRoleMemberUp(member, RoleType.HTTP_SERVER,x => {
-        	this.httpServerRef = x 
-        	this.httpServerRef ! SwitchActiveMaster()          
+      log.info("Member is Up: {}", member.address)
+      //httpserver
+      operaAfterRoleMemberUp(member, RoleType.HTTP_SERVER,(x,rt) => {
+        val hostPortKey = member.address.host.get + ":" + member.address.port.get
+        Master.haDataStorager ! AddRole(hostPortKey, x, rt)
+        this.httpServerRef = x
+        //注册
+        this.httpServerRef ! SwitchActiveMaster()
+        log.info(s"${RoleType.HTTP_SERVER}角色已成功启动并注册")
       })
-      //设置其他master引用
-      operaAfterRoleMemberUp(member, RoleType.MASTER,x => {
-			  if(x != self){
+     //worker
+      operaAfterRoleMemberUp(member, RoleType.WORKER,(ar,rt) => {
+        val hostPortKey = member.address.host.get + ":" + member.address.port.get
+        Master.haDataStorager ! AddRole(hostPortKey, ar, rt)
+        context watch ar
+        workers = workers :+ ar
+        log.info(s"有新节点角色${RoleType.WORKER}注册：已注册数量: ${workers.size}, 当前注册${RoleType.WORKER}: 路径：${ar}")
+        if(!isStarted && isActiveMember) {
+          startActors()
+        }
+        
+      })
+      //另一个Master启动
+      operaAfterRoleMemberUp(member,RoleType.MASTER,(x,rt) => {
+        if(x != self && member.hasRole(rt)){
 				  this.otherMaster = x
-			    println("另外的master节点，开始对其进行监控")
+			    println("监控另一个Master:"+x)
 			    context.watch(x)
 			  }
       })
-     //worker
-      operaAfterRoleMemberUp(member, RoleType.WORKER,x => {})
-      
-      log.info("Member is Up: {}", member.address)
     case UnreachableMember(member) =>
       log.info("Member detected as Unreachable: {}", member)
     case MemberRemoved(member, previousStatus) =>
@@ -108,32 +119,21 @@ class Master extends ClusterRole {
     case state: CurrentClusterState =>
     
     case _:MemberEvent => // ignore 
-    //worker请求注册
-    case Registration() =>
-      context watch sender
-      roler = roler :+ sender
-      log.info("注册Worker: " + sender)
-      log.info("当前注册的Worker数量: " + roler.size)
-      if(!isStarted && isActiveMember) {
-        startActors()
-      }
-    case StartIfActive(isAM) => 
-      println("StartIfActive **************************")
-      (if(isAM) active() else standby()) pipeTo sender
+    case StartIfActive(isAM) => (if(isAM) active() else standby()) pipeTo sender
     //worker终止，更新缓存的ActorRef
     case Terminated(ar) => 
       //若是worker，则删除
-      roler = roler.filterNot(_ == ar)
-      println("down掉的：" + ar)
-      println("监控的master:" + otherMaster)
+      workers = workers.filterNot(_ == ar)
       //若终止的是活动主节点，则需要激活当前备份节点
       if(ar == otherMaster && !this.isActiveMember){
-        println("开始切换到活动master")
+        log.info(s"${RoleType.MASTER_STANDBY}节点准备切换到${RoleType.MASTER_ACTIVE}节点")
+        val hostPortKey = ar.path.address.host.get + ":" + ar.path.address.port.get
+        Master.haDataStorager ! removeRole(hostPortKey)
         otherMaster = null
         this.active()
       }
     case KillAllActionActor() => 
-      val kwaFl = this.roler.map { worker => (worker ? KillAllActionActor()).mapTo[Boolean] }.toList
+      val kwaFl = this.workers.map { worker => (worker ? KillAllActionActor()).mapTo[Boolean] }.toList
 		  val kwalF = Future.sequence(kwaFl)
 		  kwalF pipeTo sender
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
@@ -153,31 +153,20 @@ class Master extends ClusterRole {
    * 请求得到新的worker，动态分配
    */
   private def allocateWorker(host: String):ActorRef = {
-    if(roler.size > 0) {
+    if(workers.size > 0) {
       //host为-1情况下，随机分配
       if(host == "-1") {
-        roler(Random.nextInt(roler.size))
+        workers(Random.nextInt(workers.size))
       }else{ //指定host分配
-      	val list = roler.map { _.path.address.host.get }.toList
-      	if(list.size > 0) roler(Random.nextInt(list.size)) else null
+      	val list = workers.map { _.path.address.host.get }.toList
+      	if(list.size > 0) workers(Random.nextInt(list.size)) else null
       }
     }else{
       null
     }
   }
-  
-    /**
-   * 获取http-server的路径
-   */
-  private def getHttpServerPath(member: Member):Option[ActorPath] = {
-    if(member.hasRole("http-server")){
-    	Some(RootActorPath(member.address) /"user" / "http-server")    
-    }else{
-      None
-    }
-  }
   /**
-   * 作为活动主节点启动
+   * 作为活动主节点启动	
    */
   def active():Future[Boolean] = {
     /**
@@ -186,7 +175,7 @@ class Master extends ClusterRole {
     def prepareMasterEnv(){
       //是否集群中存在活动的主节点
       //需要同步
-      val rolesF = (Master.haDataStorager ? GetRoles()).mapTo[Map[String, HaDataStorager.RoleContent]]
+      val rolesF = (Master.haDataStorager ? GetRoles()).mapTo[Map[String, RoleContent]]
       val maF= rolesF.map{mp => 
         val mastActOpt = mp.find{case (x,y) => y.roleType == RoleType.MASTER_ACTIVE}
         mastActOpt
@@ -278,21 +267,22 @@ class Master extends ClusterRole {
           val allwwfis = rwfis ++ wwfis
           workflowManager = context.actorOf(Props(WorkFlowManager(wfs, allwwfis)),"wfm")
         }
-        Thread.sleep(3000)
+        Thread.sleep(4000)
         coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
         workflowManager ! GetManagers(workflowManager,coordinatorManager)
-        log.info("初始化成功")
-        //若存在worker，则启动
-        if(roler.size > 0){
-          startActors()  
-        }
         
         //通知http-server
         if(this.httpServerRef != null){
           this.httpServerRef ! SwitchActiveMaster()
         }
         //设置
-        Master.haDataStorager ! AddRole(self, RoleType.MASTER_ACTIVE)
+        Master.haDataStorager ! AddRole(getHostPortKey(), self, RoleType.MASTER_ACTIVE)
+        log.info(s"当前节点角色为${RoleType.MASTER_ACTIVE}，已启动成功")
+        
+        //若存在worker，则启动
+        if(workers.size > 0){
+          startActors()  
+        }
 		    true
     }
   }
@@ -304,13 +294,12 @@ class Master extends ClusterRole {
   	coordinatorManager ! Start()
   	workflowManager ! Start()
   	xmlLoader ! Start() 
-  	log.info("开始启动运行...")
+  	log.info("开始运行...")
   }
   /**
    * 设置为standby角色
    */
   def standby():Future[Boolean] = {
-    println("设置为备份节点")
 	  this.isStarted = false
 	  this.isActiveMember = false
     val rF1 = if(xmlLoader != null) (xmlLoader ? Stop()).mapTo[Boolean] else Future{true}
@@ -318,7 +307,9 @@ class Master extends ClusterRole {
     var rF3 = if(workflowManager != null) (workflowManager ? Stop()).mapTo[Boolean] else Future{true}
     val list = List(rF1, rF2, rF3)
     val rF = Future.sequence(list).map { x => if(x.filter { !_ }.size > 0) false else true }
-    Master.haDataStorager ! AddRole(self, RoleType.MASTER_STANDBY)
+    Master.haDataStorager ! AddRole(getHostPortKey(), self, RoleType.MASTER_STANDBY)
+    log.info(s"当前节点角色为${RoleType.MASTER_STANDBY}，已启动成功")
+    
     rF
   }
   /**
@@ -338,7 +329,7 @@ class Master extends ClusterRole {
       null
     }
     //获取worker的actor信息
-    val waisF = this.roler.map { x => (x ? CollectActorInfo()).mapTo[GetActorInfo]}.toList
+    val waisF = this.workers.map { x => (x ? CollectActorInfo()).mapTo[GetActorInfo]}.toList
     
     val allAIsF = if(omaiF == null){
       waisF ++ (maiF  :: Nil)
@@ -417,14 +408,14 @@ class Master extends ClusterRole {
      val result = (workflowManager ? KllAllWorkFlow()).mapTo[ResponseData]
      result.andThen{
         case Success(x) => 
-                  roler.foreach { _ ! ShutdownCluster() }
+                  workers.foreach { _ ! ShutdownCluster() }
                   sdr ! ResponseData("success","worker角色与master角色已关闭",null)
                   Master.system.terminate()
       }
   }
 }
 object Master{
-  def props = Props[Master]
+  def apply(isActiveMember: Boolean) = new Master(isActiveMember)
   var persistManager:ActorRef = _
   var emailSender: ActorRef = _
   var logRecorder: ActorRef = _

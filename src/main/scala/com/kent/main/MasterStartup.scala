@@ -3,6 +3,7 @@ package com.kent.main
 import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import com.kent.pub.Event._
+import akka.actor.Props
 
 object MasterStartup extends App{
   val defaultConf = ConfigFactory.load()
@@ -19,6 +20,6 @@ object MasterStartup extends App{
   val system = ActorSystem("akkaflow", config)
   Master.config = config
   Master.system = system
-  val master = system.actorOf(Master.props, name = RoleType.MASTER)
-  master ! StartIfActive(true)
+  val master = system.actorOf(Props(Master(true)), name = RoleType.MASTER)
+  //master ! StartIfActive(true)
 }

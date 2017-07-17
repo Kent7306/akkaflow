@@ -27,6 +27,6 @@ object MasterStandbyStartup extends App{
   val system = ActorSystem("akkaflow", config)
   Master.config =config
   Master.system = system
-  val master = system.actorOf(Master.props, name = RoleType.MASTER)
-  master ! StartIfActive(false)
+  val master = system.actorOf(Props(Master(false)), name = RoleType.MASTER)
+  //master ! StartIfActive(false)
 }

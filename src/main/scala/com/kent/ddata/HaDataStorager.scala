@@ -29,6 +29,8 @@ import akka.cluster.Member
 import com.kent.main.RoleType
 import akka.actor.ActorPath
 import akka.cluster.ClusterEvent._
+import akka.actor.RootActorPath
+import com.kent.main.Master
 
 class HaDataStorager extends Actor {
   import com.kent.ddata.HaDataStorager._
@@ -63,13 +65,8 @@ class HaDataStorager extends Actor {
                                operaRWFI orElse 
                                operaWWFI orElse
                                operaXmlFile orElse
-                               operareRole orElse
-                               operaMemberEvent
-  
-    
-   def operaMemberEvent:Receive = {
-    case MemberUp(member) => println("""*****************yyyyyyyy******""")
-  }
+                               operareRole
+
    /**
    * 工作流存储操作
    */
@@ -171,34 +168,26 @@ class HaDataStorager extends Actor {
    */
   //implicit def path2String(p: ActorPath):String = p.toString()
   def operareRole:Receive = {
-    case AddRole(sdr, roleType) =>
+    case AddRole(hostPortKey, sdr, roleType) =>
       replicator ! Update(RoleDK, LWWMap.empty[RoleContent], writeMajority, request = Some(sender)) ( 
-          _ + (getHostPostStr(sdr) -> RoleContent(roleType,sdr)))
-    case removeRole(sdr) =>
-      replicator ! Update(RoleDK, LWWMap.empty[RoleContent], writeMajority, request = Some(sender)) ( _ - getHostPostStr(sdr))
+          _ + (hostPortKey -> RoleContent(roleType,sdr)))
+    case removeRole(hostPortKey) =>
+      replicator ! Update(RoleDK, LWWMap.empty[RoleContent], writeMajority, request = Some(sender)) ( _ - hostPortKey)
     case UpdateSuccess(RoleDK, Some(replyTo: ActorRef)) => 
-      println("update success role")
     case GetRoles() =>
       replicator ! Get(RoleDK, readMajority, request = Some(sender))
     case g @ GetSuccess(RoleDK, Some(replyTo: ActorRef)) =>
       val roles = g.get(RoleDK).getEntries().asScala.toMap
       replyTo ! roles
     case NotFound(RoleDK, Some(replyTo: ActorRef)) => // key workflows does not exist
-      println("NotFound role")
       replyTo ! Map[String, RoleContent]()
-  }
-  /**
-   * 根据actor获取到“host:port"字符串
-   */
-  private def getHostPostStr(sdr: ActorRef): String = {
-    s"${sdr.path.address.host}:${sdr.path.address.port}" 
   }
 }
 object HaDataStorager extends App{
   
   case class RoleContent(roleType: String, sdr:ActorRef)
-  case class AddRole(sdr: ActorRef, roleType:String)
-  case class removeRole(sdr: ActorRef)
+  case class AddRole(hostPortKey: String, sdr: ActorRef, roleType:String)
+  case class removeRole(hostPortKey: String)
   case class GetRoles()
   
   case class AddWorkflow(wf: WorkflowInfo)

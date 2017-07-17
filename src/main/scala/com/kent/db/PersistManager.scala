@@ -30,7 +30,6 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
    */
   def init(){
     var content = ""
-    log.info("检查库表情况...")
     Source.fromFile(this.getClass.getResource("/").getPath + "../config/create_table.sql").foreach { content += _ }
     val sqls = content.split(";").filter { _.trim() !="" }.toList
     try {
@@ -46,7 +45,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     }
     
     connection.setAutoCommit(true)
-    log.info("初始化数据库成功...")
+    log.info("检查数据库成功...")
   }
   /**
    * 开启持久化

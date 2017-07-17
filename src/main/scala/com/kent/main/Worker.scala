@@ -31,7 +31,7 @@ class Worker extends ClusterRole {
   init()
   import com.kent.main.Worker._
   def receive: Actor.Receive = {
-    case MemberUp(member) => register(member, getMasterPath)
+    case MemberUp(member) => 
     case UnreachableMember(member) =>
       log.info("Member detected as Unreachable: {}", member)
     case MemberRemoved(member, previousStatus) =>
@@ -73,17 +73,6 @@ class Worker extends ClusterRole {
     val resultsF = context.children.map { x => (x ? Kill()).mapTo[ActionExecuteResult] }.toList
     val rsF = Future.sequence(resultsF).map { x => true}
     rsF
-  }
-  
-  /**
-   * 获取master的路径
-   */
-  def getMasterPath(member: Member):Option[ActorPath] = {
-    if(member.hasRole("master")){
-    	Some(RootActorPath(member.address) /"user" / "master")    
-    }else{
-      None
-    }
   }
   
   def init(){
