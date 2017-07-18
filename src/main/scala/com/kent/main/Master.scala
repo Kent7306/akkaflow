@@ -61,57 +61,17 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
   }
   //创建集群高可用数据分布式数据寄存器
   Master.haDataStorager = context.actorOf(Props[HaDataStorager],"ha-data")
-  //
+  /**
+   * 当集群节点可用时
+   */
   Cluster(context.system).registerOnMemberUp({
     if(isActiveMember) active() else standby()
   })
-
-  /**
-   * 角色加入的操作
-   */
-  private def operaAfterRoleMemberUp(member: Member, roleType: String, f:(ActorRef,String) => Unit){
-    if(member.hasRole(roleType)){
-      val path = RootActorPath(member.address) /"user" / roleType
-        val result = context.actorSelection(path).resolveOne(20 second)
-        result.andThen { 
-          case Success(x) => 
-            f(x,roleType)
-        }
-    }
-  }
   
   def receive: Actor.Receive = { 
     case MemberUp(member) => 
       log.info("Member is Up: {}", member.address)
-      //httpserver
-      operaAfterRoleMemberUp(member, RoleType.HTTP_SERVER,(x,rt) => {
-        val hostPortKey = member.address.host.get + ":" + member.address.port.get
-        Master.haDataStorager ! AddRole(hostPortKey, x, rt)
-        this.httpServerRef = x
-        //注册
-        this.httpServerRef ! SwitchActiveMaster()
-        log.info(s"${RoleType.HTTP_SERVER}角色已成功启动并注册")
-      })
-     //worker
-      operaAfterRoleMemberUp(member, RoleType.WORKER,(ar,rt) => {
-        val hostPortKey = member.address.host.get + ":" + member.address.port.get
-        Master.haDataStorager ! AddRole(hostPortKey, ar, rt)
-        context watch ar
-        workers = workers :+ ar
-        log.info(s"有新节点角色${RoleType.WORKER}注册：已注册数量: ${workers.size}, 当前注册${RoleType.WORKER}: 路径：${ar}")
-        if(!isStarted && isActiveMember) {
-          startActors()
-        }
-        
-      })
-      //另一个Master启动
-      operaAfterRoleMemberUp(member,RoleType.MASTER,(x,rt) => {
-        if(x != self && member.hasRole(rt)){
-				  this.otherMaster = x
-			    println("监控另一个Master:"+x)
-			    context.watch(x)
-			  }
-      })
+      registerRoleMember(member)
     case UnreachableMember(member) =>
       log.info("Member detected as Unreachable: {}", member)
     case MemberRemoved(member, previousStatus) =>
@@ -149,6 +109,42 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       }
     case CollectActorInfo() => sender ! GetActorInfo(collectActorInfo())
   }
+  /**
+   * 注册角色节点
+   */
+  def registerRoleMember(member: Member){
+    //httpserver
+    operaAfterRoleMemberUp(member, RoleType.HTTP_SERVER,(x,rt) => {
+      val hostPortKey = member.address.host.get + ":" + member.address.port.get
+      Master.haDataStorager ! AddRole(hostPortKey, x, rt)
+      this.httpServerRef = x
+      //注册
+      log.info(s"注册新角色${rt}节点")
+      if(this.isActiveMember)
+        this.httpServerRef ! SwitchActiveMaster()
+    })
+   //worker
+    operaAfterRoleMemberUp(member, RoleType.WORKER,(ar,rt) => {
+      val hostPortKey = member.address.host.get + ":" + member.address.port.get
+      Master.haDataStorager ! AddRole(hostPortKey, ar, rt)
+      context watch ar
+      workers = workers :+ ar
+      log.info(s"注册新角色${rt}节点，已注册数量: ${workers.size}, 当前注册${RoleType.WORKER}:节点路径：${ar}")
+      if(!isStarted && isActiveMember) {
+        startActors()
+      }
+      
+    })
+    //另一个Master启动
+    operaAfterRoleMemberUp(member,RoleType.MASTER,(x,rt) => {
+      if(x != self && member.hasRole(rt)){
+			  this.otherMaster = x
+		    log.info(s"注册新角色${rt}节点, 进行监控, 节点路径:$x")
+		    context.watch(x)
+		  }
+    })
+  }
+  
   /**
    * 请求得到新的worker，动态分配
    */
@@ -243,6 +239,8 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         //创建持久化管理器
         if(Master.persistManager == null){
         	Master.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
+        	val rsF = (Master.persistManager ? Start()).mapTo[Boolean]
+        	val rs = Await.result(rsF, 20 seconds)
         }
         //创建邮件发送器
         if(Master.emailSender == null){

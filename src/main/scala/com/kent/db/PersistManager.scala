@@ -17,35 +17,39 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging{
   implicit var connection: Connection = null
   def receive = passive
-  if(isEnabled){
-	  //注册Driver
-	  Class.forName("com.mysql.jdbc.Driver")
-	  //得到连接
-	  connection = DriverManager.getConnection(url, username, pwd)
-    context.become(active)
-    init()
-  }
   /**
    * init
    */
-  def init(){
-    var content = ""
-    Source.fromFile(this.getClass.getResource("/").getPath + "../config/create_table.sql").foreach { content += _ }
-    val sqls = content.split(";").filter { _.trim() !="" }.toList
-    try {
-      connection.setAutoCommit(false)
-    	val stat = connection.createStatement()
-      val results = sqls.map { stat.execute(_) }.toList
-      connection.commit()
-    } catch {
-      case e: Exception => 
-          connection.rollback()
-          e.printStackTrace()
-          throw new Exception("执行初始化建表sql失败")
+  def start(): Boolean = {
+    if(isEnabled){
+      //注册Driver
+	    Class.forName("com.mysql.jdbc.Driver")
+	    //得到连接
+	    connection = DriverManager.getConnection(url, username, pwd)
+      var content = ""
+      Source.fromFile(this.getClass.getResource("/").getPath + "../config/create_table.sql").foreach { content += _ }
+      val sqls = content.split(";").filter { _.trim() !="" }.toList
+      try {
+        connection.setAutoCommit(false)
+      	val stat = connection.createStatement()
+        val results = sqls.map { stat.execute(_) }.toList
+        connection.commit()
+      } catch {
+        case e: Exception => 
+            connection.rollback()
+            log.error("执行初始化建表sql失败,数据库功能将不开启...")
+            e.printStackTrace()
+            return false
+      }
+      
+      connection.setAutoCommit(true)
+      context.become(active)
+      log.info("检查数据库成功...")
+      true
+    }else{
+      log.warning("数据库功能未开启...")
+      false
     }
-    
-    connection.setAutoCommit(true)
-    log.info("检查数据库成功...")
   }
   /**
    * 开启持久化
@@ -60,6 +64,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
    * 取消持久化
    */
   def passive: Actor.Receive = {
+    case Start() => sender ! this.start()
     case Get(obj) => sender ! None
     case _ => //do nothing!!!
   }

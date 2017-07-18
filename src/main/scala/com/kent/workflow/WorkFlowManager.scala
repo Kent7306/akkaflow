@@ -204,7 +204,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     true
   }
   /**
-   * 手动kill掉工作流实例
+   * kill掉指定工作流实例
    */
   def killWorkFlowInstance(id: String): Future[ResponseData] = {
     if(!workflowActors.get(id).isEmpty){
@@ -223,7 +223,7 @@ class WorkFlowManager extends Actor with ActorLogging{
     }
   }
   /**
-   * 手动kill掉工作流（包含其所有的运行实例）
+   * kill掉指定工作流（包含其所有的运行实例）
    */
   def killWorkFlow(wfName: String): Future[ResponseData] = {
     val result = workflowActors.filter(_._2._1 == wfName).map(x => killWorkFlowInstance(x._1)).toList
@@ -233,7 +233,7 @@ class WorkFlowManager extends Actor with ActorLogging{
    resultF 
   }
   /**
-   * 手动kill所有工作流
+   * kill所有工作流
    */
   def killAllWorkFlow(): Future[ResponseData] = {
     val result = workflowActors.map(x => killWorkFlowInstance(x._1)).toList
