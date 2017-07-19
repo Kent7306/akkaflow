@@ -31,8 +31,10 @@ import akka.actor.ActorPath
 import akka.cluster.ClusterEvent._
 import akka.actor.RootActorPath
 import com.kent.main.Master
+import com.kent.pub.ActorTool
+import com.kent.pub.Event.CollectActorInfo
 
-class HaDataStorager extends Actor {
+class HaDataStorager extends ActorTool{
   import com.kent.ddata.HaDataStorager._
   //#read-write-majority
   implicit val timeout1 = 5.seconds
@@ -60,7 +62,7 @@ class HaDataStorager extends Actor {
       classOf[MemberUp], classOf[UnreachableMember], classOf[MemberEvent])
   }
   
-  def receive: Actor.Receive = operaWorkflow  orElse 
+  def indivivalReceive: Actor.Receive = operaWorkflow  orElse 
                                operaCoordinator orElse 
                                operaRWFI orElse 
                                operaWWFI orElse
@@ -182,6 +184,7 @@ class HaDataStorager extends Actor {
     case NotFound(RoleDK, Some(replyTo: ActorRef)) => // key workflows does not exist
       replyTo ! Map[String, RoleContent]()
   }
+  
 }
 object HaDataStorager extends App{
   

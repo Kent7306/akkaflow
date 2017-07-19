@@ -24,8 +24,11 @@ import org.json4s.DefaultFormats
 import java.util.Date
 import akka.actor.Cancellable
 import com.kent.ddata.HaDataStorager._
+import com.kent.pub.ClusterRole.ActorInfo
+import com.kent.pub.ClusterRole.ActorType._
+import com.kent.pub.ActorTool
 
-class WorkFlowManager extends Actor with ActorLogging{
+class WorkFlowManager extends ActorTool{
   /**
    * 工作流信息
    * [wfName, workflowInfo]
@@ -44,7 +47,6 @@ class WorkFlowManager extends Actor with ActorLogging{
   var coordinatorManager: ActorRef = _
   //调度器
   var scheduler: Cancellable = _
-  implicit val timeout = Timeout(20 seconds)
   /**
    * 初始化
    */
@@ -276,22 +278,6 @@ class WorkFlowManager extends Actor with ActorLogging{
     }
   }
   /**
-   * 收集集群信息
-   */
-  def collectActorInfo(): ActorInfo = {
-    import com.kent.pub.Event.ActorType._
-    val ai = new ActorInfo()
-    ai.name = self.path.name+s"(${self.hashCode()})"
-    ai.atype = DEAMO
-    ai.subActors = context.children.map { x =>
-      val aiTmp = new ActorInfo()
-      aiTmp.name = x.path.name
-      aiTmp.atype = ACTOR
-      aiTmp
-    }.toList
-    ai
-  }
-  /**
    * 获取等待队列信息
    */
   def getWaittingNodeInfo():ResponseData = {
@@ -301,7 +287,7 @@ class WorkFlowManager extends Actor with ActorLogging{
   /**
    * receive方法
    */
-  def receive: Actor.Receive = {
+  def indivivalReceive: Actor.Receive = {
     case Start() => this.start()
     case Stop() => sender ! this.stop();context.stop(self)
     case AddWorkFlow(content) => sender ! this.add(content, true)
@@ -316,7 +302,6 @@ class WorkFlowManager extends Actor with ActorLogging{
     case GetManagers(wfm, cm) => 
       coordinatorManager = cm
       context.watch(coordinatorManager)
-    case CollectActorInfo() => sender ! GetActorInfo(collectActorInfo())
     case GetWaittingInstances() => sender ! getWaittingNodeInfo()
     case Terminated(arf) => if(coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")
   }

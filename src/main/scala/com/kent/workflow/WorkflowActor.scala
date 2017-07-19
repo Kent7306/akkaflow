@@ -24,8 +24,9 @@ import scala.util.Random
 import com.kent.main.Master
 import com.kent.pub.Event._
 import scala.util.Success
+import com.kent.pub.ActorTool
 
-class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with ActorLogging {
+class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	import com.kent.workflow.WorkflowActor._
   
   var workflowManageAcotrRef:ActorRef = _
@@ -200,7 +201,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends Actor with A
     }
   }
   
-  def receive: Actor.Receive = {
+  def indivivalReceive: Actor.Receive = {
     case Start() => workflowManageAcotrRef = sender;start()
     case Kill() => kill(sender)
     

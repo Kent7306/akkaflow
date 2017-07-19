@@ -2,7 +2,7 @@ package com.kent.main
 
 import akka.actor.Actor
 import akka.cluster.ClusterEvent._
-import com.kent.main.ClusterRole.Registration
+import com.kent.pub.ClusterRole.Registration
 import akka.actor.Terminated
 import scala.concurrent.duration._
 import akka.actor.ActorRef
@@ -39,11 +39,15 @@ import akka.actor.ExtendedActorSystem
 import akka.actor.Extension
 import akka.actor.ExtensionKey
 import akka.cluster.Cluster
+import com.kent.pub.ClusterRole.ActorInfo
+import com.kent.pub.ClusterRole.ActorType._
+import com.kent.pub.ActorTool
+import com.kent.pub.ClusterRole
 
 
 
 class Master(var isActiveMember:Boolean) extends ClusterRole {
-  import com.kent.main.ClusterRole.RStatus._
+  import com.kent.pub.ClusterRole.RStatus._
   var coordinatorManager: ActorRef = _
   var workflowManager: ActorRef = _
   var xmlLoader: ActorRef = _
@@ -53,7 +57,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
   var otherMaster:ActorRef = _
   //角色状态
   var status:RStatus = R_PREPARE
-  implicit val timeout = Timeout(20 seconds)
   /**
    * 监控策略  
    */
@@ -70,7 +73,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     if(isActiveMember) active() else standby()
   })
   
-  def receive: Actor.Receive = { 
+  def indivivalReceive: Actor.Receive = { 
     case MemberUp(member) => 
       log.info("Member is Up: {}", member.address)
       registerRoleMember(member)
@@ -82,7 +85,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     
     case _:MemberEvent => // ignore 
     case StartIfActive(isAM) => (if(isAM) active() else standby()) pipeTo sender
-    //worker终止，更新缓存的ActorRef
     case Terminated(ar) => 
       //若是worker，则删除
       workers = workers.filterNot(_ == ar)
@@ -95,7 +97,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         this.active()
       }
     case KillAllActionActor() => 
-println("******************KillAllActionActor")
       val kwaFl = this.workers.map { worker => (worker ? KillAllActionActor()).mapTo[Boolean] }.toList
 		  val kwalF = Future.sequence(kwaFl)
 		  kwalF pipeTo sender
@@ -110,7 +111,6 @@ println("******************KillAllActionActor")
       collectClusterActorInfo().andThen { case Success(x) => 
         sdr ! ResponseData("success","成功获取集群信息", x.getClusterInfo()) 
       }
-    case CollectActorInfo() => sender ! GetActorInfo(collectActorInfo())
   }
   /**
    * 注册角色节点
@@ -191,7 +191,6 @@ println("******************KillAllActionActor")
   		  val rsTmp = Await.result(rsTmpF, 20 second)
   		  if(!rsTmp) throw new Exception("设置其他master备份节点失败")
   		  //通知workers杀死所有的子actionactor  
-  	println("***********------"+this.otherMaster)
   		  val klF = (this.otherMaster ? KillAllActionActor()).mapTo[List[Boolean]]
   		  val kl = Await.result(klF, 20 second)
   		}
@@ -328,7 +327,6 @@ println("******************KillAllActionActor")
    * 收集集群actor信息
    */
   def collectClusterActorInfo(): Future[ActorInfo] = {
-    import com.kent.pub.Event.ActorType._
     var allActorInfo = new ActorInfo()
     allActorInfo.name = "top"
     allActorInfo.atype = ROLE
@@ -355,65 +353,6 @@ println("******************KillAllActionActor")
     }
     allAiF
   }
-  /**
-   * 收集本Master节点的actor信息
-   */
-  private def collectActorInfo():ActorInfo = {
-    import com.kent.pub.Event.ActorType._
-    val ai = new ActorInfo()
-    ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
-    ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
-    ai.atype = ROLE
-    val mt = if(isActiveMember) "active" else "standby"
-    ai.name = self.path.name + s"(${mt}:${ai.ip}:${ai.port})"
-    if(Master.emailSender != null){
-      val es = new ActorInfo()
-      es.name = Master.emailSender.path.name+s"(${Master.emailSender.hashCode()})"
-      es.atype = DEAMO
-      ai.subActors  = ai.subActors :+ es
-    }
-    if(Master.persistManager != null){
-      val pm = new ActorInfo()
-      pm.name = Master.persistManager.path.name+s"(${Master.persistManager.hashCode()})"
-      pm.atype = DEAMO
-      ai.subActors  = ai.subActors :+ pm
-      val lr = new ActorInfo()
-      lr.name = Master.logRecorder.path.name+s"(${Master.logRecorder.hashCode()})"
-      lr.atype = DEAMO
-      ai.subActors  = ai.subActors :+ lr
-    }
-    if(Master.haDataStorager != null){
-      val ha = new ActorInfo()
-      ha.name = Master.haDataStorager.path.name+s"(${Master.haDataStorager.hashCode()})"
-      ha.atype = DEAMO
-      ai.subActors  = ai.subActors :+ ha
-      val lr = new ActorInfo()
-      lr.name = Master.haDataStorager.path.name+s"(${Master.haDataStorager.hashCode()})"
-      lr.atype = DEAMO
-      ai.subActors  = ai.subActors :+ lr
-    }
-    if(xmlLoader != null){
-      val xl = new ActorInfo()
-      xl.name = xmlLoader.path.name+s"(${xmlLoader.hashCode()})"
-      xl.atype = DEAMO
-      ai.subActors  = ai.subActors :+ xl
-    }
-    if(coordinatorManager != null){
-      val cm = new ActorInfo()
-      cm.name = coordinatorManager.path.name+s"(${coordinatorManager.hashCode()})"
-      cm.atype = DEAMO
-      ai.subActors  = ai.subActors :+ cm
-    }
-    if(workflowManager != null){
-      val wmResultF = (workflowManager ? CollectActorInfo()).mapTo[GetActorInfo].map { 
-        case GetActorInfo(x) => x 
-      }
-      val wfresult = Await.result(wmResultF, 20 seconds)
-      ai.subActors = ai.subActors :+ wfresult
-    }
-    ai
-  }
-  
   def shutdownCluster(sdr: ActorRef) = {
      coordinatorManager ! Stop()
      xmlLoader ! Stop()

@@ -5,6 +5,7 @@ import com.kent.workflow.node.ActionNodeInstance
 import com.kent.workflow.WorkflowInstance
 import com.kent.workflow.WorkflowInfo.WStatus._
 import com.kent.workflow.node.NodeInfo.Status._
+import com.kent.pub.ClusterRole.ActorInfo
 
 object Event {
   //master
@@ -61,32 +62,4 @@ object Event {
   case class CollectClusterActorInfo()
   case class GetActorInfo(ai: ActorInfo)
   case class CollectActorInfo()
-  
-  class ActorInfo extends Serializable{
-	  import com.kent.pub.Event.ActorType._
-    var name: String = _
-    var ip: String = _
-    var port: Int = _
-    var atype: ActorType = ACTOR
-    var subActors:List[ActorInfo] = List()
-    
-    def getClusterInfo():List[Map[String, String]] = {
-	    var l:List[Map[String, String]] = List()
-	    val l1 = this.subActors.map { x => 
-	      val m = Map("name" -> x.name, "ip" -> x.ip, "port" -> s"${x.port}", "atype" -> s"${x.atype.id}", "pname" -> name)
-	      m
-	    }.toList  
-	    val l2 = this.subActors.flatMap { x => x.getClusterInfo() }.toList
-	    l = l ++ l1
-	    l = l ++ l2
-	    l
-	  }
-    
-  }
-  object ActorType extends Enumeration {
-	  type ActorType = Value
-			  val ROLE,DEAMO,ACTOR = Value
-  }
-  
-  
 }

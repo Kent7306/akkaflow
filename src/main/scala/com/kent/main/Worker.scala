@@ -24,15 +24,18 @@ import scala.concurrent.Future
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.util.Success
+import com.kent.pub.ClusterRole.ActorInfo
+import com.kent.pub.ClusterRole.ActorType._
+import com.kent.pub.ActorTool
+import com.kent.pub.ClusterRole
 
 class Worker extends ClusterRole {
   var runningActionActors = Map[String,ActorRef]()
   
   val i = 0
-  implicit val timeout = Timeout(20 seconds)
   init()
   import com.kent.main.Worker._
-  def receive: Actor.Receive = {
+  def indivivalReceive: Actor.Receive = {
     case MemberUp(member) => 
     case UnreachableMember(member) =>
       log.info("Member detected as Unreachable: {}", member)
@@ -42,27 +45,8 @@ class Worker extends ClusterRole {
     case CreateAction(ani) => sender ! createActionActor(ani)
     case RemoveAction(name) => runningActionActors = runningActionActors - name
     case KillAllActionActor() => killAllActionActor() pipeTo sender
-    case CollectActorInfo() => sender ! GetActorInfo(collectActorInfo())
     case ShutdownCluster() => Worker.curActorSystems.foreach { _.terminate() }
     case _:MemberEvent => // ignore 
-  }
-  /**
-   * 收集集群信息
-   */
-  def collectActorInfo(): ActorInfo = {
-    import com.kent.pub.Event.ActorType._
-    val ai = new ActorInfo()
-    ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
-    ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
-    ai.name = self.path.name + s"(${ai.ip}:${ai.port})"
-    ai.atype = ROLE
-    ai.subActors = context.children.map { x =>
-      val aiTmp = new ActorInfo()
-      aiTmp.name = x.path.name + s"(${x.hashCode()})"
-      aiTmp.atype = if(x.path.name == "log-recorder") DEAMO else ACTOR
-      aiTmp
-    }.toList
-    ai
   }
   /**
    * 创建action actor

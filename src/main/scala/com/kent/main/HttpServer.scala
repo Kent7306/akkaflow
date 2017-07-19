@@ -12,20 +12,20 @@ import scala.io.StdIn
 import com.typesafe.config.ConfigFactory
 import akka.actor.Actor
 import akka.cluster.ClusterEvent._
-import com.kent.main.ClusterRole.Registration
+import com.kent.pub.ClusterRole.Registration
 import akka.actor.Props
 import akka.actor.RootActorPath
 import akka.util.Timeout
 import scala.concurrent.duration._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.Http.ServerBinding
+import com.kent.pub.ClusterRole
 import com.kent.pub.Event._
 import akka.actor.ActorRef
-import scala.util.Success
 import akka.actor.Terminated
+import scala.util.Success
 
 class HttpServer extends ClusterRole {
-  implicit val timeout = Timeout(20 seconds)
   var activeMaster:ActorRef = _
   import scala.concurrent.ExecutionContext.Implicits.global
   private def getResponseFromWorkflowManager(sdr: ActorRef,event: Any) = {
@@ -62,7 +62,7 @@ class HttpServer extends ClusterRole {
     }
   }
   
-  def receive: Actor.Receive = {
+  def indivivalReceive: Actor.Receive = {
     case MemberUp(member) => 
     case UnreachableMember(member) =>
     case MemberRemoved(member, previousStatus) =>

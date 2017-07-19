@@ -12,13 +12,13 @@ import com.kent.main.Worker
 import com.kent.pub.Event._
 import scala.util.Success
 import scala.concurrent.Future
+import com.kent.pub.ActorTool
 
-class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with ActorLogging {
+class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   var workflowActorRef: ActorRef = _
   var isKilled = false
-  def receive: Actor.Receive = {
+  def indivivalReceive: Actor.Receive = {
     case Start() => start()
-        
     case Kill() => actionNodeInstance.kill(); isKilled = true; terminate(sender, KILLED, "节点被kill掉了")
   }
   /**

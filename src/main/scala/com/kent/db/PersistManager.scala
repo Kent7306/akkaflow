@@ -13,10 +13,11 @@ import java.sql.ResultSet
 import scala.io.Source
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import com.kent.pub.ActorTool
 
-class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging{
+class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends ActorTool{
   implicit var connection: Connection = null
-  def receive = passive
+  def indivivalReceive = passive
   /**
    * init
    */
@@ -43,7 +44,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
       }
       
       connection.setAutoCommit(true)
-      context.become(active)
+      context.become(active orElse commonReceice)
       log.info("检查数据库成功...")
       true
     }else{
@@ -59,6 +60,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     case Delete(obj) => obj.delete
     case Get(obj) => sender ! obj.getEntity
     case Query(str) => sender ! queryList(str)
+    case CollectActorInfo() => sender ! collectActorInfo()
   }
   /**
    * 取消持久化

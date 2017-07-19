@@ -17,17 +17,18 @@ import akka.actor.Cancellable
 import com.kent.pub.Event._
 import com.kent.main.Master
 import com.kent.ddata.HaDataStorager.AddXmlFile
+import com.kent.pub.ActorTool
 
-class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends Actor with ActorLogging{
+class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends ActorTool{
   var fileMap: Map[String,Long] = Map()
   var scheduler:Cancellable = _;
-  implicit val timeout = Timeout(20 seconds)
   
-  def receive: Actor.Receive = {
+  def indivivalReceive: Actor.Receive = {
     case Start() => start()
     case Stop() => 
       sender ! stop()
       context.stop(self)
+    case CollectActorInfo() => sender ! collectActorInfo()
   }
   def start():Boolean = {
     this.scheduler = context.system.scheduler.schedule(0 millis, interval seconds){

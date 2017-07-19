@@ -9,17 +9,18 @@ import com.kent.util.Util
 import com.kent.util.Util._
 import com.kent.db.LogRecorder.LogMsg
 import com.kent.pub.Daoable
+import com.kent.pub.ActorTool
 
-class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging with Daoable[Any] {
+class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends ActorTool with Daoable[Any] {
   implicit var connection: Connection = null
   
-  def receive = print2Console
+  def indivivalReceive = print2Console
   if(isEnabled){
 	  //注册Driver
 	  Class.forName("com.mysql.jdbc.Driver")
 	  //得到连接
 	  connection = DriverManager.getConnection(url, username, pwd)
-    context.become(print2DB)
+    context.become(print2DB orElse commonReceice)
   }
   /**
    * 开启打印到数据库
