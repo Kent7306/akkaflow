@@ -14,8 +14,9 @@ import scala.io.Source
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.kent.pub.ActorTool
+import com.kent.pub.DaemonActor
 
-class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends ActorTool{
+class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends DaemonActor{
   implicit var connection: Connection = null
   def indivivalReceive = passive
   /**
@@ -60,7 +61,6 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     case Delete(obj) => obj.delete
     case Get(obj) => sender ! obj.getEntity
     case Query(str) => sender ! queryList(str)
-    case CollectActorInfo() => sender ! collectActorInfo()
   }
   /**
    * 取消持久化

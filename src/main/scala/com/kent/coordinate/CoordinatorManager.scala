@@ -14,13 +14,14 @@ import scala.concurrent.duration._
 import akka.util.Timeout
 import scala.util.Success
 import com.kent.ddata.HaDataStorager._
+import com.kent.pub.ActorTool
+import com.kent.pub.DaemonActor
 
-class CoordinatorManager extends Actor with ActorLogging{
+class CoordinatorManager extends DaemonActor{
   var coordinators: Map[String, Coordinator] = Map()
   var workflowManager: ActorRef = _
   //调度器
   var scheduler: Cancellable = _
-  implicit val timeout = Timeout(20 seconds)
   /**
    * 初始化
    */
@@ -115,7 +116,7 @@ class CoordinatorManager extends Actor with ActorLogging{
   /**
    * receive方法
    */
-  def receive: Actor.Receive = {
+  def indivivalReceive: Actor.Receive = {
     case Start() => this.start()
     case Stop() => sender ! this.stop(); context.stop(self)
     case AddCoor(content) => sender ! this.add(content, true)

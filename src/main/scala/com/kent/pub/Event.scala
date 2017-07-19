@@ -5,7 +5,7 @@ import com.kent.workflow.node.ActionNodeInstance
 import com.kent.workflow.WorkflowInstance
 import com.kent.workflow.WorkflowInfo.WStatus._
 import com.kent.workflow.node.NodeInfo.Status._
-import com.kent.pub.ClusterRole.ActorInfo
+import com.kent.pub.ActorTool.ActorInfo
 
 object Event {
   //master
@@ -60,6 +60,5 @@ object Event {
   case class SwitchActiveMaster()
   //收集集群信息
   case class CollectClusterActorInfo()
-  case class GetActorInfo(ai: ActorInfo)
   case class CollectActorInfo()
 }

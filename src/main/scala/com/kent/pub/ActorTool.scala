@@ -4,21 +4,25 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import com.kent.pub.Event._
 import com.kent.pub.ClusterRole._
-import com.kent.pub.ClusterRole.ActorType._
 import akka.pattern.{ ask, pipe }
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.util.Timeout
 import scala.concurrent.Future
 import scala.concurrent.Await
-
+import com.kent.pub.ActorTool.ActorInfo
+/**
+ * Actor扩展类
+ */
 abstract class ActorTool extends Actor with ActorLogging{
+	import com.kent.pub.ActorTool.ActorType._
   implicit val timeout = Timeout(20 seconds)
   val askTimeout = 20 seconds
+  val actorType = ACTOR
   
   def indivivalReceive: Actor.Receive
   
-  def receive: Actor.Receive = indivivalReceive  orElse commonReceice
+  def receive: Actor.Receive = commonReceice orElse indivivalReceive
   
   
   def commonReceice: Actor.Receive = {
@@ -29,17 +33,14 @@ abstract class ActorTool extends Actor with ActorLogging{
    */
   def collectActorInfo():ActorInfo = {
 		val ai = new ActorInfo()
-    if(this.isInstanceOf[ClusterRole]){
+    if(this.actorType == ROLE){
       ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
       ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
-      ai.atype = ROLE
       ai.name = s"${self.path.name}(${ai.ip}:${ai.port})"
     }else{
-      ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
-      ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
-      ai.atype = ROLE
       ai.name = s"${self.path.name}(${self.hashCode()})"
     }
+		ai.atype = this.actorType
     val caiFs = context.children.map { child =>
       (child ? CollectActorInfo()).mapTo[ActorInfo]
     }.toList
@@ -48,4 +49,33 @@ abstract class ActorTool extends Actor with ActorLogging{
     ai.subActors = cais
     ai
   }
+}
+
+object ActorTool {
+    object ActorType extends Enumeration {
+	  type ActorType = Value
+			  val ROLE,DAEMO,ACTOR = Value
+  }
+  class ActorInfo extends Serializable{
+	  import com.kent.pub.ActorTool.ActorType._
+    var name: String = _
+    var ip: String = _
+    var port: Int = _
+    var atype: ActorType = ACTOR
+    var subActors:List[ActorInfo] = List()
+    
+    def getClusterInfo():List[Map[String, String]] = {
+	    var l:List[Map[String, String]] = List()
+	    val l1 = this.subActors.map { x => 
+	      val m = Map("name" -> x.name, "ip" -> x.ip, "port" -> s"${x.port}", "atype" -> s"${x.atype.id}", "pname" -> name)
+	      m
+	    }.toList  
+	    val l2 = this.subActors.flatMap { x => x.getClusterInfo() }.toList
+	    l = l ++ l1
+	    l = l ++ l2
+	    l
+	  }
+    
+  }
+  
 }

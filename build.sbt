@@ -1,5 +1,5 @@
 name := "akkaflow"
-version := "2.4.2"
+version := "2.5.0"
 scalaVersion := "2.11.8"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 

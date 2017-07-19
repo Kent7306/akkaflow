@@ -24,8 +24,6 @@ import scala.concurrent.Future
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.util.Success
-import com.kent.pub.ClusterRole.ActorInfo
-import com.kent.pub.ClusterRole.ActorType._
 import com.kent.pub.ActorTool
 import com.kent.pub.ClusterRole
 

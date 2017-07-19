@@ -24,11 +24,10 @@ import org.json4s.DefaultFormats
 import java.util.Date
 import akka.actor.Cancellable
 import com.kent.ddata.HaDataStorager._
-import com.kent.pub.ClusterRole.ActorInfo
-import com.kent.pub.ClusterRole.ActorType._
 import com.kent.pub.ActorTool
+import com.kent.pub.DaemonActor
 
-class WorkFlowManager extends ActorTool{
+class WorkFlowManager extends DaemonActor{
   /**
    * 工作流信息
    * [wfName, workflowInfo]
@@ -65,7 +64,8 @@ class WorkFlowManager extends ActorTool{
 		      val runningInstanceNum = workflowActors.map{case (x,(y,z)) => y}
 		                              .filter { _.workflow.name == wfi.workflow.name }.size
 		      if(runningInstanceNum < wfi.workflow.instanceLimit){
-		        waittingWorkflowInstance.-=(wfi)
+		        Thread.sleep(200)  //????
+		        waittingWorkflowInstance -= wfi
 		        Master.haDataStorager ! RemoveWWFI(wfi.id)
 		        return Some(wfi)
 		      }

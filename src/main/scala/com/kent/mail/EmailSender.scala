@@ -4,25 +4,26 @@ import akka.actor.ActorLogging
 import akka.actor.Actor
 import com.kent.pub.Event._
 import org.apache.commons.mail.HtmlEmail
+import com.kent.pub.ActorTool
+import com.kent.pub.DaemonActor
 
 /**
  * Email发送actor
  */
-class EmailSender(hostName: String, port: Int, account: String, pwd: String, isEnabled: Boolean) extends Actor with ActorLogging {
-  def receive = passive
-  if(isEnabled) context.become(active)
+class EmailSender(hostName: String, port: Int, account: String, pwd: String, isEnabled: Boolean) extends DaemonActor {
+  def indivivalReceive = passive
+  if(isEnabled) context.become(active orElse commonReceice)
   /**
    * 开启
    */
   def active: Actor.Receive = {
     case x:EmailMessage =>  sendEmailSync(x)
-    case _:Any =>
   }
   /**
    * 取消
    */
   def passive: Actor.Receive = {
-    case _ => //do nothing!!!
+    case x:EmailMessage =>  //do nothing!!!
   }
   
   /**

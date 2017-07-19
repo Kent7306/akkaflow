@@ -15,10 +15,13 @@ import scala.util.Success
 import akka.cluster.ClusterEvent.MemberEvent
 import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
+import com.kent.pub.ActorTool.ActorInfo
+import com.kent.pub.ActorTool.ActorType._
 
 abstract class ClusterRole extends ActorTool {
   // 创建一个Cluster实例
   implicit val cluster = Cluster(context.system) 
+  override val actorType = ROLE
   
   override def preStart(): Unit = {
     // 订阅集群事件
@@ -58,31 +61,4 @@ object ClusterRole {
 		type RStatus = Value
 		val R_PREPARE, R_INITING, R_INITED, R_STARTED = Value
 	}
-    object ActorType extends Enumeration {
-	  type ActorType = Value
-			  val ROLE,DEAMO,ACTOR = Value
-  }
-   class ActorInfo extends Serializable{
-	  import com.kent.pub.ClusterRole.ActorType._
-    var name: String = _
-    var ip: String = _
-    var port: Int = _
-    var atype: ActorType = ACTOR
-    var subActors:List[ActorInfo] = List()
-    
-    def getClusterInfo():List[Map[String, String]] = {
-	    var l:List[Map[String, String]] = List()
-	    val l1 = this.subActors.map { x => 
-	      val m = Map("name" -> x.name, "ip" -> x.ip, "port" -> s"${x.port}", "atype" -> s"${x.atype.id}", "pname" -> name)
-	      m
-	    }.toList  
-	    val l2 = this.subActors.flatMap { x => x.getClusterInfo() }.toList
-	    l = l ++ l1
-	    l = l ++ l2
-	    l
-	  }
-    
-  }
-  
-  
 }

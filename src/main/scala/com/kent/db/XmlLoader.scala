@@ -18,8 +18,9 @@ import com.kent.pub.Event._
 import com.kent.main.Master
 import com.kent.ddata.HaDataStorager.AddXmlFile
 import com.kent.pub.ActorTool
+import com.kent.pub.DaemonActor
 
-class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends ActorTool{
+class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends DaemonActor{
   var fileMap: Map[String,Long] = Map()
   var scheduler:Cancellable = _;
   
@@ -28,7 +29,6 @@ class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends A
     case Stop() => 
       sender ! stop()
       context.stop(self)
-    case CollectActorInfo() => sender ! collectActorInfo()
   }
   def start():Boolean = {
     this.scheduler = context.system.scheduler.schedule(0 millis, interval seconds){

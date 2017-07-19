@@ -10,8 +10,9 @@ import com.kent.util.Util._
 import com.kent.db.LogRecorder.LogMsg
 import com.kent.pub.Daoable
 import com.kent.pub.ActorTool
+import com.kent.pub.DaemonActor
 
-class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends ActorTool with Daoable[Any] {
+class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends DaemonActor with Daoable[Any] {
   implicit var connection: Connection = null
   
   def indivivalReceive = print2Console

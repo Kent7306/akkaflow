@@ -39,8 +39,8 @@ import akka.actor.ExtendedActorSystem
 import akka.actor.Extension
 import akka.actor.ExtensionKey
 import akka.cluster.Cluster
-import com.kent.pub.ClusterRole.ActorInfo
-import com.kent.pub.ClusterRole.ActorType._
+import com.kent.pub.ActorTool.ActorInfo
+import com.kent.pub.ActorTool.ActorType._
 import com.kent.pub.ActorTool
 import com.kent.pub.ClusterRole
 
@@ -331,15 +331,15 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     allActorInfo.name = "top"
     allActorInfo.atype = ROLE
     //获取本master的信息
-    val maiF = (self ? CollectActorInfo()).mapTo[GetActorInfo]
+    val maiF = (self ? CollectActorInfo()).mapTo[ActorInfo]
     //获取另外备份master的信息
     val omaiF = if(otherMaster != null){
-      (otherMaster ? CollectActorInfo()).mapTo[GetActorInfo]
+      (otherMaster ? CollectActorInfo()).mapTo[ActorInfo]
     }else{
       null
     }
     //获取worker的actor信息
-    val waisF = this.workers.map { x => (x ? CollectActorInfo()).mapTo[GetActorInfo]}.toList
+    val waisF = this.workers.map { x => (x ? CollectActorInfo()).mapTo[ActorInfo]}.toList
     
     val allAIsF = if(omaiF == null){
       waisF ++ (maiF  :: Nil)
@@ -347,8 +347,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       waisF ++ (maiF :: omaiF :: Nil)
     }
     val allAiF = Future.sequence(allAIsF).map{ list =>
-      val list2 = list.map { case GetActorInfo(x) => x}
-      allActorInfo.subActors = allActorInfo.subActors ++ list2
+      allActorInfo.subActors = allActorInfo.subActors ++ list
       allActorInfo
     }
     allAiF

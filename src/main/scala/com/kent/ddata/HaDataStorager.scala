@@ -33,8 +33,9 @@ import akka.actor.RootActorPath
 import com.kent.main.Master
 import com.kent.pub.ActorTool
 import com.kent.pub.Event.CollectActorInfo
+import com.kent.pub.DaemonActor
 
-class HaDataStorager extends ActorTool{
+class HaDataStorager extends DaemonActor{
   import com.kent.ddata.HaDataStorager._
   //#read-write-majority
   implicit val timeout1 = 5.seconds
