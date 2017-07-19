@@ -92,6 +92,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends Actor with Act
   def terminate(ar: ActorRef, status: Status, msg: String){
 		ar ! ActionExecuteResult(status, msg) 
 		Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,s"执行完毕")
+		context.parent ! RemoveAction(actionNodeInstance.name)
 		context.stop(self) 
   }
 }

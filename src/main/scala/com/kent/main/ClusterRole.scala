@@ -51,4 +51,12 @@ object ClusterRole {
   case class Response(status: String, msg: String, data: Any) extends Serializable
   case class Registration() extends Serializable
   case class UnRegistration() extends Serializable
+    /**
+   * MASTER 状态枚举
+   */
+	object RStatus extends Enumeration {
+		type RStatus = Value
+		val R_PREPARE, R_INITING, R_INITED, R_STARTED = Value
+	}
+  
 }

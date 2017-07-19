@@ -303,7 +303,7 @@ class WorkFlowManager extends Actor with ActorLogging{
    */
   def receive: Actor.Receive = {
     case Start() => this.start()
-    case Stop() => sender ! this.stop()
+    case Stop() => sender ! this.stop();context.stop(self)
     case AddWorkFlow(content) => sender ! this.add(content, true)
     case RemoveWorkFlow(name) => sender ! this.remove(name)
     case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)

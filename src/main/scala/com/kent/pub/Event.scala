@@ -48,6 +48,7 @@ object Event {
   
   //worker
   case class CreateAction(ani: ActionNodeInstance)
+  case class RemoveAction(name: String)
   case class KillAllActionActor()
   //action actor
   case class ActionExecuteResult(status: Status, msg: String) extends Serializable

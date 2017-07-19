@@ -41,7 +41,9 @@ import akka.actor.ExtensionKey
 import akka.cluster.Cluster
 
 
+
 class Master(var isActiveMember:Boolean) extends ClusterRole {
+  import com.kent.main.ClusterRole.RStatus._
   var coordinatorManager: ActorRef = _
   var workflowManager: ActorRef = _
   var xmlLoader: ActorRef = _
@@ -49,8 +51,8 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
   var workers = List[ActorRef]()
   //其他
   var otherMaster:ActorRef = _
-  //是否已经启动了
-  var isStarted = false
+  //角色状态
+  var status:RStatus = R_PREPARE
   implicit val timeout = Timeout(20 seconds)
   /**
    * 监控策略  
@@ -93,6 +95,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         this.active()
       }
     case KillAllActionActor() => 
+println("******************KillAllActionActor")
       val kwaFl = this.workers.map { worker => (worker ? KillAllActionActor()).mapTo[Boolean] }.toList
 		  val kwalF = Future.sequence(kwaFl)
 		  kwalF pipeTo sender
@@ -130,7 +133,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       context watch ar
       workers = workers :+ ar
       log.info(s"注册新角色${rt}节点，已注册数量: ${workers.size}, 当前注册${RoleType.WORKER}:节点路径：${ar}")
-      if(!isStarted && isActiveMember) {
+      if(status == R_INITED && isActiveMember) {
         startActors()
       }
       
@@ -188,6 +191,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
   		  val rsTmp = Await.result(rsTmpF, 20 second)
   		  if(!rsTmp) throw new Exception("设置其他master备份节点失败")
   		  //通知workers杀死所有的子actionactor  
+  	println("***********------"+this.otherMaster)
   		  val klF = (this.otherMaster ? KillAllActionActor()).mapTo[List[Boolean]]
   		  val kl = Await.result(klF, 20 second)
   		}
@@ -204,6 +208,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
   	    xmlFiles <- (Master.haDataStorager ? GetXmlFiles()).mapTo[Map[String,Long]]
       } yield DistributeData(wfs,coors,rWFIs,wWFIs,xmlFiles)
     }
+    this.status = R_INITING
     prepareMasterEnv()
    
     import com.kent.main.Master._
@@ -276,8 +281,10 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         //设置
         Master.haDataStorager ! AddRole(getHostPortKey(), self, RoleType.MASTER_ACTIVE)
         log.info(s"当前节点角色为${RoleType.MASTER_ACTIVE}，已启动成功")
+        this.status = R_INITED
         
         //若存在worker，则启动
+        workers.foreach { x => println("*****"+x) }
         if(workers.size > 0){
           startActors()  
         }
@@ -288,7 +295,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
    * 启动已经准备好的actors（必须为活动主节点）
    */
   private def startActors(){
-    isStarted = true
+    this.status = R_STARTED
   	coordinatorManager ! Start()
   	workflowManager ! Start()
   	xmlLoader ! Start() 
@@ -298,16 +305,23 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
    * 设置为standby角色
    */
   def standby():Future[Boolean] = {
-	  this.isStarted = false
+	  this.status = R_PREPARE
 	  this.isActiveMember = false
     val rF1 = if(xmlLoader != null) (xmlLoader ? Stop()).mapTo[Boolean] else Future{true}
     var rF2 = if(coordinatorManager != null) (coordinatorManager ? Stop()).mapTo[Boolean] else Future{true}
     var rF3 = if(workflowManager != null) (workflowManager ? Stop()).mapTo[Boolean] else Future{true}
     val list = List(rF1, rF2, rF3)
-    val rF = Future.sequence(list).map { x => if(x.filter { !_ }.size > 0) false else true }
-    Master.haDataStorager ! AddRole(getHostPortKey(), self, RoleType.MASTER_STANDBY)
-    log.info(s"当前节点角色为${RoleType.MASTER_STANDBY}，已启动成功")
-    
+    val rF = Future.sequence(list).map { x => 
+      this.xmlLoader = null
+      this.coordinatorManager = null
+      this.workflowManager = null
+      if(x.filter { !_ }.size > 0) false else true 
+    }
+    rF.map{x => 
+      Master.haDataStorager ! AddRole(getHostPortKey(), self, RoleType.MASTER_STANDBY)
+      log.info(s"当前节点角色为${RoleType.MASTER_STANDBY}，已启动成功")     
+      x
+    }
     rF
   }
   /**

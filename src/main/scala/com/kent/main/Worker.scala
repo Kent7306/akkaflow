@@ -26,6 +26,8 @@ import scala.concurrent.duration._
 import scala.util.Success
 
 class Worker extends ClusterRole {
+  var runningActionActors = Map[String,ActorRef]()
+  
   val i = 0
   implicit val timeout = Timeout(20 seconds)
   init()
@@ -38,6 +40,7 @@ class Worker extends ClusterRole {
       log.info("Member is Removed: {} after {}", member.address, previousStatus)
     case state: CurrentClusterState =>
     case CreateAction(ani) => sender ! createActionActor(ani)
+    case RemoveAction(name) => runningActionActors = runningActionActors - name
     case KillAllActionActor() => killAllActionActor() pipeTo sender
     case CollectActorInfo() => sender ! GetActorInfo(collectActorInfo())
     case ShutdownCluster() => Worker.curActorSystems.foreach { _.terminate() }
@@ -67,11 +70,15 @@ class Worker extends ClusterRole {
   def createActionActor(actionNodeInstance: ActionNodeInstance):ActorRef = {
 		val actionActorRef = context.actorOf(Props(ActionActor(actionNodeInstance)) , 
 		    actionNodeInstance.name)
+		runningActionActors = runningActionActors + (actionNodeInstance.name -> actionActorRef)
 		actionActorRef
   }
   def killAllActionActor():Future[Boolean] = {
-    val resultsF = context.children.map { x => (x ? Kill()).mapTo[ActionExecuteResult] }.toList
-    val rsF = Future.sequence(resultsF).map { x => true}
+    val resultsF = runningActionActors.map { case (x,y) => (y ? Kill()).mapTo[ActionExecuteResult] }.toList
+    val rsF = Future.sequence(resultsF).map { x => 
+      this.runningActionActors = Map.empty[String, ActorRef]
+      true
+    }
     rsF
   }
   

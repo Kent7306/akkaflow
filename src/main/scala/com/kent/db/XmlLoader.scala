@@ -25,7 +25,9 @@ class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends A
   
   def receive: Actor.Receive = {
     case Start() => start()
-    case Stop() => sender ! stop()
+    case Stop() => 
+      sender ! stop()
+      context.stop(self)
   }
   def start():Boolean = {
     this.scheduler = context.system.scheduler.schedule(0 millis, interval seconds){

@@ -117,7 +117,7 @@ class CoordinatorManager extends Actor with ActorLogging{
    */
   def receive: Actor.Receive = {
     case Start() => this.start()
-    case Stop() => sender ! this.stop()
+    case Stop() => sender ! this.stop(); context.stop(self)
     case AddCoor(content) => sender ! this.add(content, true)
     case RemoveCoor(name) => sender ! this.remove(name)
     case WorkFlowExecuteResult(wfName, status) => this.setCoordinatorDepend(wfName, status)
