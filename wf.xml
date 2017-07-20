@@ -4,7 +4,7 @@ mail-level: 邮件的发送 级别
 mail-receivers: 收件人
  -->
 <work-flow name="wf_join_1" mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" 
-   mail-receivers="15018735011@163.com,492005267@qq.com">
+   mail-receivers="15018735011@163.com,492005267@qq.com"  instance-limit="1">
      <start name="start_node_1" to="fork_node" />
      <fork name="fork_node">
          <path to="action_node_1" />
