@@ -29,10 +29,10 @@ class CoordinatorManager extends DaemonActor{
   /**
    * 增
    */
-  def add(content: String, isSaved: Boolean): ResponseData = {
+  def add(xmlStr: String, isSaved: Boolean): ResponseData = {
     var coor:Coordinator = null
     try {
-    	coor = Coordinator(content)      
+    	coor = Coordinator(xmlStr)      
     } catch{
       case e: Exception => e.printStackTrace()
       return ResponseData("fail","content解析错误", null)
@@ -42,7 +42,7 @@ class CoordinatorManager extends DaemonActor{
   /**
    * 新增coordinator
    */
-  def add(coor: Coordinator, isSaved: Boolean): ResponseData = {
+  private def add(coor: Coordinator, isSaved: Boolean): ResponseData = {
 		if(isSaved) Master.persistManager ! Save(coor)
 		Master.haDataStorager ! AddCoordinator(coor)
 		if(coordinators.get(coor.name).isEmpty){
@@ -119,7 +119,7 @@ class CoordinatorManager extends DaemonActor{
   def indivivalReceive: Actor.Receive = {
     case Start() => this.start()
     case Stop() => sender ! this.stop(); context.stop(self)
-    case AddCoor(content) => sender ! this.add(content, true)
+    case AddCoor(xmlStr) => sender ! this.add(xmlStr, true)
     case RemoveCoor(name) => sender ! this.remove(name)
     case WorkFlowExecuteResult(wfName, status) => this.setCoordinatorDepend(wfName, status)
     case GetManagers(wfm, cm) => this.workflowManager = wfm

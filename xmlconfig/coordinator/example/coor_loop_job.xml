@@ -1,5 +1,5 @@
 <coordinator name="coor_loop_job" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" 
-    is-enabled="true" dir="/example"
+    is-enabled="false" dir="/example"
     desc="每5分钟启动">    
     <trigger>
         <cron config="*/5 * * * * *"/>

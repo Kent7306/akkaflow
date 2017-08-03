@@ -5,7 +5,9 @@ import akka.actor.ActorSystem
 import akka.remote.ContainerFormats.ActorRef
 import com.typesafe.config.ConfigFactory
 import com.kent.pub.Event._
-
+/**
+ * 作为备份主节点启动
+ */
 object MasterStandbyStartup extends App{
   def props = Props[Master]
   var curSystem:ActorSystem = _
@@ -25,8 +27,5 @@ object MasterStandbyStartup extends App{
       .withFallback(defaultConf)
   // 创建一个ActorSystem实例
   val system = ActorSystem("akkaflow", config)
-  Master.config =config
-  Master.system = system
   val master = system.actorOf(Props(Master(false)), name = RoleType.MASTER)
-  //master ! StartIfActive(false)
 }

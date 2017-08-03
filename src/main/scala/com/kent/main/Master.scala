@@ -43,6 +43,7 @@ import com.kent.pub.ActorTool.ActorInfo
 import com.kent.pub.ActorTool.ActorType._
 import com.kent.pub.ActorTool
 import com.kent.pub.ClusterRole
+import akka.actor.PoisonPill
 
 
 
@@ -77,13 +78,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     case MemberUp(member) => 
       log.info("Member is Up: {}", member.address)
       registerRoleMember(member)
-    case UnreachableMember(member) =>
-      log.info("Member detected as Unreachable: {}", member)
-    case MemberRemoved(member, previousStatus) =>
-      log.info("Member is Removed: {} after {}", member.address, previousStatus)
-    case state: CurrentClusterState =>
-    
-    case _:MemberEvent => // ignore 
     case StartIfActive(isAM) => (if(isAM) active() else standby()) pipeTo sender
     case Terminated(ar) => 
       //若是worker，则删除
@@ -168,32 +162,41 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
    * 作为活动主节点启动	
    */
   def active():Future[Boolean] = {
-    /**
-     * 准备集群环境
-     */
-    def prepareMasterEnv(){
+    //准备集群环境
+    def prepareMasterEnv(): Future[Boolean] = {
       //是否集群中存在活动的主节点
       //需要同步
       val rolesF = (Master.haDataStorager ? GetRoles()).mapTo[Map[String, RoleContent]]
-      val maF= rolesF.map{mp => 
+      val isMExistedF = rolesF.map{mp => 
         val mastActOpt = mp.find{case (x,y) => y.roleType == RoleType.MASTER_ACTIVE}
         mastActOpt
-      }
-      val ma = Await.result(maF, 20 second)
-      //存在但并不等于本actor
-      if (ma.isDefined && ma.get._2.sdr != self) {
-        this.otherMaster = ma.get._2.sdr
+      }.map{ maOpt =>
+        //存在但并且不等于本actor
+        if (maOpt.isDefined && maOpt.get._2.sdr != self){
+          this.otherMaster = maOpt.get._2.sdr
+    		  true
+        }else{
+          false
+        }
       }
       //需要同步
-  		if(this.otherMaster!= null){
-  			//把其他master设置为备份主节点  
-  		  val rsTmpF = (this.otherMaster ? StartIfActive(false)).mapTo[Boolean]
-  		  val rsTmp = Await.result(rsTmpF, 20 second)
-  		  if(!rsTmp) throw new Exception("设置其他master备份节点失败")
-  		  //通知workers杀死所有的子actionactor  
-  		  val klF = (this.otherMaster ? KillAllActionActor()).mapTo[List[Boolean]]
-  		  val kl = Await.result(klF, 20 second)
-  		}
+      //把其他master设置为备份主节点  
+      val stbyF = (this.otherMaster ? StartIfActive(false)).mapTo[Boolean]
+      //通知workers杀死所有的子actionactor 
+      val klF = (this.otherMaster ? KillAllActionActor()).mapTo[List[Boolean]].map { l => 
+        if(l.filter { !_ }.size > 0)false else true 
+      }
+      
+      isMExistedF.flatMap { case isExi => 
+        if(isExi){
+          stbyF.flatMap { x => 
+            if(!x) throw new Exception("设置其他master备份节点失败") 
+            klF
+          }
+        }else{
+          Future{true}
+        }
+      }
     }
     /**
      * 获取集群分布数据
@@ -208,9 +211,10 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       } yield DistributeData(wfs,coors,rWFIs,wWFIs,xmlFiles)
     }
     this.status = R_INITING
-    prepareMasterEnv()
-   
-    import com.kent.main.Master._
+    val isPreparedF = prepareMasterEnv()
+    Await.result(isPreparedF, 20 seconds)
+    
+    val config = context.system.settings.config
     //mysql持久化参数配置
     val mysqlConfig = (config.getString("workflow.mysql.user"),
                       config.getString("workflow.mysql.password"),
@@ -283,7 +287,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         this.status = R_INITED
         
         //若存在worker，则启动
-        workers.foreach { x => println("*****"+x) }
         if(workers.size > 0){
           startActors()  
         }
@@ -352,16 +355,27 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     }
     allAiF
   }
+  /**
+   * 关闭集群
+   */
   def shutdownCluster(sdr: ActorRef) = {
-     coordinatorManager ! Stop()
-     xmlLoader ! Stop()
-     val result = (workflowManager ? KllAllWorkFlow()).mapTo[ResponseData]
-     result.andThen{
-        case Success(x) => 
-                  workers.foreach { _ ! ShutdownCluster() }
-                  sdr ! ResponseData("success","worker角色与master角色已关闭",null)
-                  Master.system.terminate()
+     if(coordinatorManager!=null) coordinatorManager ! Stop()
+     if(xmlLoader!=null) xmlLoader ! Stop()
+     if(workflowManager!=null){
+       val result = (workflowManager ? KllAllWorkFlow()).mapTo[ResponseData]
+       result.andThen{
+       case Success(x) => 
+        workers.foreach { _ ! ShutdownCluster() }
+        sdr ! ResponseData("success","worker角色与master角色已关闭",null)
+        if(otherMaster != null){
+          otherMaster ! ShutdownCluster()
+        }
+        context.system.terminate()
       }
+     }else{
+       context.system.terminate()
+     }
+     
   }
 }
 object Master{
@@ -370,6 +384,4 @@ object Master{
   var emailSender: ActorRef = _
   var logRecorder: ActorRef = _
   var haDataStorager: ActorRef = _
-  var config:Config = _
-  var system:ActorSystem = _
 }

@@ -4,7 +4,9 @@ import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import com.kent.pub.Event._
 import akka.actor.Props
-
+/**
+ * 作为活动主节点启动（若已存在活动主节点，则把该节点设置为备份主节点）
+ */
 object MasterStartup extends App{
   val defaultConf = ConfigFactory.load()
   val masterConf = defaultConf.getString("workflow.nodes.master").split(":")
@@ -18,8 +20,5 @@ object MasterStartup extends App{
       .withFallback(defaultConf)
   // 创建一个ActorSystem实例
   val system = ActorSystem("akkaflow", config)
-  Master.config = config
-  Master.system = system
   val master = system.actorOf(Props(Master(true)), name = RoleType.MASTER)
-  //master ! StartIfActive(true)
 }

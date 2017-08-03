@@ -1,14 +1,14 @@
-<coordinator name="coor_import_item" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" 
-    is-enabled="false" dir="/example"
+<coordinator name="coor_test" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" 
+    is-enabled="true" dir="/example"
     desc="每分钟启动">    
     <trigger>
         <cron config="* * * * * *"/>
-    </trigger>
+    </trigger>  
     <workflow-list>
-      <workflow path="wf_import_item"></workflow>
+      <workflow path="wf_test"></workflow>   
     </workflow-list>
     <param-list>
         <param name="yestoday" value="${time.today|yyyy-MM-dd|-1 day}"/>
         <param name="stadate" value="2017-03-04"/>
     </param-list>
-</coordinator>
+</coordinator>     

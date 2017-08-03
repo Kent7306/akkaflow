@@ -24,7 +24,9 @@ import com.kent.pub.Event._
 import akka.actor.ActorRef
 import akka.actor.Terminated
 import scala.util.Success
-
+/**
+ * http接口服务角色
+ */
 class HttpServer extends ClusterRole {
   var activeMaster:ActorRef = _
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -63,13 +65,8 @@ class HttpServer extends ClusterRole {
   }
   
   def indivivalReceive: Actor.Receive = {
-    case MemberUp(member) => 
-    case UnreachableMember(member) =>
-    case MemberRemoved(member, previousStatus) =>
-    case state: CurrentClusterState =>
-    case _:MemberEvent => // ignore 
     case Terminated(ar) => 
-      //若是worker，则删除
+      //若是活动节点，则删除
       if(ar == activeMaster){
         ???
       }
@@ -108,7 +105,6 @@ object HttpServer extends App{
       .withFallback(defaultConf)
   
   implicit val system = ActorSystem("akkaflow", config)
-  val curActorSystem = system
   implicit val materializer = ActorMaterializer()
     // needed for the future flatMap/onComplete in the end
   implicit val executionContext = system.dispatcher

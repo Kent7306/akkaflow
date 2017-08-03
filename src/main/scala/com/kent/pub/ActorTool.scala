@@ -20,37 +20,33 @@ abstract class ActorTool extends Actor with ActorLogging{
   val askTimeout = 20 seconds
   val actorType = ACTOR
   
+  def receive: Actor.Receive = indivivalReceive orElse commonReceice
+  /**
+   * 私有消息事件处理
+   */
   def indivivalReceive: Actor.Receive
-  
-  def receive: Actor.Receive = commonReceice orElse indivivalReceive
-  
-  
+  /**
+   * 公共消息事件处理
+   */
   def commonReceice: Actor.Receive = {
-    case CollectActorInfo() => sender ! collectActorInfo()
+    case CollectActorInfo() => collectActorInfo() pipeTo sender
+    case x => log.warning(s"${self.path}接收到未知消息:${x}")
   }
   /**
    * 该actor包括子actor的信息
    */
-  def collectActorInfo():ActorInfo = {
+  def collectActorInfo():Future[ActorInfo] = {
 		val ai = new ActorInfo()
-    if(this.actorType == ROLE){
-      ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
-      ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
-      ai.name = s"${self.path.name}(${ai.ip}:${ai.port})"
-    }else{
-      ai.name = s"${self.path.name}(${self.hashCode()})"
-    }
+    ai.name = s"${self.path.name}(${self.hashCode()})"
 		ai.atype = this.actorType
-    val caiFs = context.children.map { child =>
-      (child ? CollectActorInfo()).mapTo[ActorInfo]
-    }.toList
+    val caiFs = context.children.map { child => (child ? CollectActorInfo()).mapTo[ActorInfo]}.toList
     val caisF = Future.sequence(caiFs)
-    val cais = Await.result(caisF, askTimeout)
-    ai.subActors = cais
-    ai
+    caisF.map { x => ai.subActors = x ;ai}
   }
 }
-
+/**
+ * Actor类型
+ */
 object ActorTool {
     object ActorType extends Enumeration {
 	  type ActorType = Value
@@ -63,7 +59,9 @@ object ActorTool {
     var port: Int = _
     var atype: ActorType = ACTOR
     var subActors:List[ActorInfo] = List()
-    
+    /**
+     * 获取actor层级信息
+     */
     def getClusterInfo():List[Map[String, String]] = {
 	    var l:List[Map[String, String]] = List()
 	    val l1 = this.subActors.map { x => 

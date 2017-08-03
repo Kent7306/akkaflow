@@ -17,18 +17,45 @@ import akka.cluster.ClusterEvent.MemberUp
 import akka.cluster.ClusterEvent.UnreachableMember
 import com.kent.pub.ActorTool.ActorInfo
 import com.kent.pub.ActorTool.ActorType._
+import com.kent.pub.Event._
+import akka.actor.Actor
+import scala.concurrent.Future
+import akka.pattern.{ ask, pipe }
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Await
+import akka.cluster.ClusterEvent.MemberRemoved
+import akka.cluster.ClusterEvent.CurrentClusterState
 
+/**
+ * 集群角色抽象类
+ */
 abstract class ClusterRole extends ActorTool {
-  // 创建一个Cluster实例
   implicit val cluster = Cluster(context.system) 
   override val actorType = ROLE
+  
+  override def commonReceice = clusterReceice orElse super.commonReceice 
+  
+  private def clusterReceice: Actor.Receive = {
+    case MemberUp(member) => 
+      log.info("Member is Up: {}", member.address)
+    case UnreachableMember(member) =>
+      log.info("Member detected as Unreachable: {}", member)
+    case MemberRemoved(member, previousStatus) =>
+      log.info("Member is Removed: {} after {}", member.address, previousStatus)
+    case state: CurrentClusterState =>
+    case _:MemberEvent => // ignore 
+    case ShutdownCluster() => context.system.terminate()
+  }
   
   override def preStart(): Unit = {
     // 订阅集群事件
     cluster.subscribe(self, initialStateMode = InitialStateAsEvents,
-      classOf[MemberUp], classOf[UnreachableMember], classOf[MemberEvent])
+    classOf[MemberUp], classOf[UnreachableMember], classOf[MemberEvent])
   }
-  
+  /**
+   * 得到角色的ip与端口串
+   */
   def getHostPortKey():String = {
     val host = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
     val port = context.system.settings.config.getString("akka.remote.netty.tcp.port")
@@ -46,6 +73,23 @@ abstract class ClusterRole extends ActorTool {
             f(x,roleType)
         }
     }
+  }
+  override def collectActorInfo():Future[ActorInfo] = {
+    val ai = new ActorInfo()
+    ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
+    ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
+    ai.name = s"${self.path.name}(${ai.ip}:${ai.port})"
+		ai.atype = this.actorType
+    val caiFs = context.children.map { child => (child ? CollectActorInfo()).mapTo[ActorInfo] }.toList
+    val caisF = Future.sequence(caiFs)
+    caisF.map { x => ai.subActors = x ;ai}
+  }
+  
+  /**
+   * 关闭角色
+   */
+  def shutdownCluster(){
+    context.system.terminate()
   }
 }
 

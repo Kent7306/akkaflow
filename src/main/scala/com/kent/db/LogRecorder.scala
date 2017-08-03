@@ -29,8 +29,7 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
   def print2DB: Actor.Receive = {
     case Info(ctype, sid, content) => logging("INFO", ctype, sid, Util.escapeStr(content))
     case Warn(ctype, sid, content) => logging("WARN", ctype, sid, Util.escapeStr(content))
-    case Error(ctype, sid, content) => 
-        logging("ERROR", ctype, sid, Util.escapeStr(content))
+    case Error(ctype, sid, content) => logging("ERROR", ctype, sid, Util.escapeStr(content))
   }
   
   var messageList:List[LogMsg] = List()

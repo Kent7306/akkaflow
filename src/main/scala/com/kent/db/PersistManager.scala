@@ -68,7 +68,8 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
   def passive: Actor.Receive = {
     case Start() => sender ! this.start()
     case Get(obj) => sender ! None
-    case _ => //do nothing!!!
+    case Save(obj) => 
+    case Delete(obj) => 
   }
   /**
    * 查询结果数组

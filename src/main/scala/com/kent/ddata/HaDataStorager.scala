@@ -57,13 +57,13 @@ class HaDataStorager extends DaemonActor{
   val XmlFileDK = LWWMapKey[Long]("xmlFiles")
   //master actor信息
   val RoleDK = LWWMapKey[RoleContent]("roles")
-    override def preStart(): Unit = {
+  /*override def preStart(): Unit = {
     // 订阅集群事件
     cluster.subscribe(self, initialStateMode = InitialStateAsEvents,
       classOf[MemberUp], classOf[UnreachableMember], classOf[MemberEvent])
-  }
+  }*/
   
-  def indivivalReceive: Actor.Receive = operaWorkflow  orElse 
+  def indivivalReceive: Actor.Receive = operaWorkflow orElse 
                                operaCoordinator orElse 
                                operaRWFI orElse 
                                operaWWFI orElse

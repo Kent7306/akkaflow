@@ -23,7 +23,6 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
 	//存放参数原始信息
   var paramList: List[Tuple2[String, String]] = List()
   var cron: CronComponent = _
-  var content: String = _
   var cronStr: String = _
   var startDate: Date = _
   var isEnabled: Boolean = true
@@ -112,7 +111,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
       if(rs.next()){
         val json = parse(rs.getString("param"))
         newCoor.paramList = for{ JObject(ele) <- json; (k, JString(v)) <- ele} yield (k,v)
-        newCoor.content = rs.getString("content")
+        newCoor.xmlStr = rs.getString("xml_str")
         val cronStr = rs.getString("cron")
         val stime = getStandarTimeWithStr(rs.getString("stime"))
         val etime = getStandarTimeWithStr(rs.getString("etime"))
@@ -151,7 +150,6 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     conn.setAutoCommit(false)
     //保存父目录
     dir.newLeafNode(name)
-    //${withQuate(transformJsonStr(content))}  // xml content has not yet been saved
     val insertSql = s"""insert into coordinator values(
                     ${withQuate(name)},${withQuate(paramStr)},
                     ${withQuate(dir.dirname)},
@@ -193,10 +191,10 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   
 }
 object Coordinator {
-  def apply(content: String): Coordinator =  pareseXmlNode(content)
+  def apply(xmlStr: String): Coordinator =  pareseXmlNode(xmlStr)
   
-  def pareseXmlNode(content: String): Coordinator = {
-    val node = XML.loadString(content)
+  def pareseXmlNode(xmlStr: String): Coordinator = {
+    val node = XML.loadString(xmlStr)
     val nameOpt = node.attribute("name")
     if(nameOpt.isEmpty || nameOpt.get.text.trim() == ""){
       throw new Exception("[coordinator]属性name为空")
@@ -234,7 +232,7 @@ object Coordinator {
     import com.kent.coordinate.Coordinator.Status._
     coor.status = ACTIVE
     coor.workflows = workflows
-    coor.xmlStr = content
+    coor.xmlStr = xmlStr
     coor
   }
   /**
