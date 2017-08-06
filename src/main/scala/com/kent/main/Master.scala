@@ -44,6 +44,7 @@ import com.kent.pub.ActorTool.ActorType._
 import com.kent.pub.ActorTool
 import com.kent.pub.ClusterRole
 import akka.actor.PoisonPill
+import jnr.ffi.annotations.Synchronized
 
 
 
@@ -73,7 +74,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
   Cluster(context.system).registerOnMemberUp({
     if(isActiveMember) active() else standby()
   })
-  
   def indivivalReceive: Actor.Receive = { 
     case MemberUp(member) => 
       log.info("Member is Up: {}", member.address)
@@ -118,7 +118,8 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       //注册
       log.info(s"注册新角色${rt}节点")
       if(this.isActiveMember)
-        this.httpServerRef ! SwitchActiveMaster()
+        this.httpServerRef ! SwitchActiveMaster(
+            )
     })
    //worker
     operaAfterRoleMemberUp(member, RoleType.WORKER,(ar,rt) => {
@@ -127,14 +128,13 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       context watch ar
       workers = workers :+ ar
       log.info(s"注册新角色${rt}节点，已注册数量: ${workers.size}, 当前注册${RoleType.WORKER}:节点路径：${ar}")
-      if(status == R_INITED && isActiveMember) {
-        startActors()
-      }
-      
+  	  if(status == R_INITED && isActiveMember) {
+  		  startDaemons()
+  	  }
     })
     //另一个Master启动
     operaAfterRoleMemberUp(member,RoleType.MASTER,(x,rt) => {
-      if(x != self && member.hasRole(rt)){
+      if(x != self){
 			  this.otherMaster = x
 		    log.info(s"注册新角色${rt}节点, 进行监控, 节点路径:$x")
 		    context.watch(x)
@@ -288,7 +288,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         
         //若存在worker，则启动
         if(workers.size > 0){
-          startActors()  
+          startDaemons()  
         }
 		    true
     }
@@ -296,12 +296,12 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
   /**
    * 启动已经准备好的actors（必须为活动主节点）
    */
-  private def startActors(){
-    this.status = R_STARTED
-  	coordinatorManager ! Start()
-  	workflowManager ! Start()
-  	xmlLoader ! Start() 
-  	log.info("开始运行...")
+  private def startDaemons(){
+    	this.status = R_STARTED
+			coordinatorManager ! Start()
+			workflowManager ! Start()
+			xmlLoader ! Start() 
+			log.info("开始运行...")
   }
   /**
    * 设置为standby角色

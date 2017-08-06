@@ -30,7 +30,7 @@ abstract class ActorTool extends Actor with ActorLogging{
    */
   def commonReceice: Actor.Receive = {
     case CollectActorInfo() => collectActorInfo() pipeTo sender
-    case x => log.warning(s"${self.path}接收到未知消息:${x}")
+    //case x => log.warning(s"${self.path}接收到未知消息:${x}")
   }
   /**
    * 该actor包括子actor的信息

@@ -88,8 +88,9 @@ object Worker extends App {
         .withFallback(ConfigFactory.parseString(portConf))
         .withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [${RoleType.WORKER}]"))
         .withFallback(defaultConf)
-      val system = ActorSystem("akkaflow", config)
-      val worker = system.actorOf(Worker.props, name = RoleType.WORKER)
+    Worker.config = config
+    val system = ActorSystem("akkaflow", config)
+    val worker = system.actorOf(Worker.props, name = RoleType.WORKER)
   }
   def props = Props[Worker]
 }

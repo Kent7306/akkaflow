@@ -64,7 +64,6 @@ class WorkFlowManager extends DaemonActor{
 		      val runningInstanceNum = workflowActors.map{case (x,(y,z)) => y}
 		                              .filter { _.workflow.name == wfi.workflow.name }.size
 		      if(runningInstanceNum < wfi.workflow.instanceLimit){
-		        Thread.sleep(200)  //????
 		        waittingWorkflowInstance -= wfi
 		        Master.haDataStorager ! RemoveWWFI(wfi.id)
 		        return Some(wfi)
@@ -75,7 +74,7 @@ class WorkFlowManager extends DaemonActor{
 		  
 		  
       Master.logRecorder ! Info("WorkFlowManager",null,s"启动扫描...")
-      this.scheduler = context.system.scheduler.schedule(200 millis, 200 millis){
+      this.scheduler = context.system.scheduler.schedule(200 millis, 2000 millis){
 		    val wfiOpt = getSatisfiedWFIfromWaitingWFIs()
 		    if(!wfiOpt.isEmpty){
 		      val wfi = wfiOpt.get

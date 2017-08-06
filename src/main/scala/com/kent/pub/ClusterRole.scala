@@ -67,10 +67,11 @@ abstract class ClusterRole extends ActorTool {
   def operaAfterRoleMemberUp(member: Member, roleType: String, f:(ActorRef,String) => Unit){
     if(member.hasRole(roleType)){
       val path = RootActorPath(member.address) /"user" / roleType
-        val result = context.actorSelection(path).resolveOne(20 second)
-        result.andThen{ 
-          case Success(x) => 
+        val resultF = context.actorSelection(path).resolveOne()
+        resultF.andThen{ case Success(x) => 
+          this.synchronized{
             f(x,roleType)
+          }
         }
     }
   }

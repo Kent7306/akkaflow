@@ -44,7 +44,10 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
       
       if(executeResult.exitValue() == 0) true else false
     }catch{
-      case e:Exception => Worker.logRecorder ! Error("NodeInstance", this.id, e.getMessage);false
+      case e:Exception => 
+        e.printStackTrace();
+        Worker.logRecorder ! Error("NodeInstance", this.id, e.getMessage)
+        false
     }
   }
 
