@@ -60,7 +60,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     	waitingNodes = waitingNodes.enqueue(sn.get)
     	//启动队列
     	this.scheduler = context.system.scheduler.schedule(0 millis, 100 millis){
-    		this.scan()
+    		self ! Tick()
     	}
     }else{
       Master.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "找不到开始节点")
@@ -69,7 +69,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	/**
 	 * 扫描
 	 */
-  def scan(){
+  def tick(){
     //s
     if(waitingNodes.size > 0){
     	val(ni, queue) = waitingNodes.dequeue
@@ -79,12 +79,12 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     }
     //动作节点执行超时处理
     if(runningActors.size > 0){  
-      val timeoutNodes = runningActors.filter(_._2.nodeInfo.timeout != -1)
-          .filter(x => Util.nowTime - x._2.startTime.getTime > x._2.nodeInfo.timeout*1000)
+      val timeoutNodes = runningActors.filter{ case (ar,nodeInstance) => nodeInstance.nodeInfo.timeout != -1}
+          .filter{case (ar, nodeInstance) => Util.nowTime - nodeInstance.startTime.getTime > nodeInstance.nodeInfo.timeout*1000}
           .map(_._2.nodeInfo.name).toList
       if(timeoutNodes.size > 0){
         Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, "以下动作节点超时：["+timeoutNodes.mkString(",")+"], 杀死当前工作流")
-        this.kill()
+        this.terminateWithKill()
       }
     }
   }
@@ -121,7 +121,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	      if(worker == null){
 	        Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, s"无法为节点${actionNodeInstance.nodeInfo.name}分配worker")
 	        actionNodeInstance.status = FAILED
-	        this.fail()
+	        this.terminateWithFail()
 	      }else{
 	        actionNodeInstance.allocateHost = worker.path.address.host.get
 	        (worker ? CreateAction(actionNodeInstance)).mapTo[ActorRef].map{ af =>
@@ -138,23 +138,20 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	 * kill掉所有子actor
 	 */
   def killRunningNodeActors(callback: (WorkflowActor,List[ActionExecuteResult]) => Unit){
-	  implicit val timeout = Timeout(20 seconds)
-	  
 	  //kill掉所有运行的actionactor
-	  val futures = runningActors.map(x => {
-	    val result = ask(x._1, Kill()).mapTo[ActionExecuteResult]
-	                .recover{ case e: Exception => 
-	                    x._1 ! PoisonPill
+	  val futures = runningActors.map{case (ar, nodeInstance) => {
+	    val result = (ar ? Kill()).mapTo[ActionExecuteResult].recover{ case e: Exception => 
+	                    ar ! PoisonPill
 	                    ActionExecuteResult(FAILED,"节点超时")
 	                 }
-		  result.map { y => 
-		      val node = runningActors(x._1)
-		      node.status = y.status
+		  result.map { rs => 
+		      val node = runningActors(ar)
+		      node.status = rs.status
 		      node.endTime = Util.nowDate
-		      node.executedMsg = y.msg
-		      y 
+		      node.executedMsg = rs.msg
+		      rs
 		  }
-	  }).toList
+	  }}.toList
 	  val futuresSeq = Future.sequence(futures).andThen {
 	    case Success(x) => callback(this, x)
 	  }
@@ -185,7 +182,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   /**
    * 默默kill
    */
-  def kill(){
+  def terminateWithKill(){
     this.workflowInstance.status = W_KILLED
     killRunningNodeActors{ (wfa,aerList) => 
       wfa.terminate()
@@ -194,12 +191,26 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   /**
    * 执行失败
    */
-  def fail(){
+  def terminateWithFail(){
     this.workflowInstance.status = W_FAILED 
     this.killRunningNodeActors{(wfa,aerList) => 
       wfa.terminate()
     }
   }
+  def terminateWith(status: WStatus, msg: String):Future[Boolean] = {
+    this.workflowInstance.status = status
+    this.workflowInstance.endTime = Util.nowDate
+    status match {
+      case W_SUCCESSED => 
+        Master.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, msg)
+      case _ =>
+        Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, msg)
+    }
+    
+    
+    ???
+  }
+  
   
   def indivivalReceive: Actor.Receive = {
     case Start() => workflowManageAcotrRef = sender;start()
@@ -208,10 +219,11 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     case ActionExecuteRetryTimes(times) => handleActionRetryTimes(times, sender)
     case ActionExecuteResult(status, msg) => handleActionResult(status, msg, sender)
     case EmailMessage(toUsers, subject, htmlText) => 
-    val users = if(toUsers == null || toUsers.size == 0) workflowInstance.workflow.mailReceivers else toUsers
-    if(users.size > 0){
-    	Master.emailSender ! EmailMessage(users, subject, htmlText)      
-    }
+      val users = if(toUsers == null || toUsers.size == 0) workflowInstance.workflow.mailReceivers else toUsers
+      if(users.size > 0){
+      	Master.emailSender ! EmailMessage(users, subject, htmlText)      
+      }
+    case Tick() => tick()
   }
 }
 
