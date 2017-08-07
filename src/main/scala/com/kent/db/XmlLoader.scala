@@ -29,10 +29,11 @@ class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends D
     case Stop() => 
       sender ! stop()
       context.stop(self)
+    case Tick() => this.loadXmlFiles()
   }
   def start():Boolean = {
     this.scheduler = context.system.scheduler.schedule(0 millis, interval seconds){
-      this.loadXmlFiles()
+      self ! Tick()
     }
     true
   }

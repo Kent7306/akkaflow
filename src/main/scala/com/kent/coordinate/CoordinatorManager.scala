@@ -92,12 +92,18 @@ class CoordinatorManager extends DaemonActor{
    * 启动
    */
   def start(): Boolean = {
-		  import com.kent.coordinate.Coordinator.Status._
       Master.logRecorder ! Info("CoordinatorManager",null,s"启动扫描...")
       this.scheduler = context.system.scheduler.schedule(0 millis,  200 millis){
-        coordinators.filter { _._2.status == ACTIVE }.foreach { _._2.execute(workflowManager) }
+        self ! Tick()
       }
     true
+  }
+  /**
+   * 扫描
+   */
+  def tick() = {
+    import com.kent.coordinate.Coordinator.Status._
+    coordinators.filter { _._2.status == ACTIVE }.foreach { _._2.execute(workflowManager) }
   }
   /**
    * 停止
@@ -123,6 +129,7 @@ class CoordinatorManager extends DaemonActor{
     case RemoveCoor(name) => sender ! this.remove(name)
     case WorkFlowExecuteResult(wfName, status) => this.setCoordinatorDepend(wfName, status)
     case GetManagers(wfm, cm) => this.workflowManager = wfm
+    case Tick() => tick()
   }
 }
 

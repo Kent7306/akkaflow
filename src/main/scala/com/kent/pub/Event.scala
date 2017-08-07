@@ -8,6 +8,8 @@ import com.kent.workflow.node.NodeInfo.Status._
 import com.kent.pub.ActorTool.ActorInfo
 
 object Event {
+  //pub
+  case class Tick()
   //master
   case class GetWorker(worker: ActorRef)
   case class AskWorker(host: String)

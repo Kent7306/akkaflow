@@ -55,38 +55,41 @@ class WorkFlowManager extends DaemonActor{
    * 启动
    */
   def start(): Boolean = {
-		  import com.kent.coordinate.Coordinator.Status._
-		  /**
-		   * 从等待队列中找到满足运行的工作流实例
-		   */
-		  def getSatisfiedWFIfromWaitingWFIs(): Option[WorkflowInstance] = {
-		    for(wfi <- waittingWorkflowInstance){
-		      val runningInstanceNum = workflowActors.map{case (x,(y,z)) => y}
-		                              .filter { _.workflow.name == wfi.workflow.name }.size
-		      if(runningInstanceNum < wfi.workflow.instanceLimit){
-		        waittingWorkflowInstance -= wfi
-		        Master.haDataStorager ! RemoveWWFI(wfi.id)
-		        return Some(wfi)
-		      }
-		    }
-		    None
-		  }
-		  
-		  
       Master.logRecorder ! Info("WorkFlowManager",null,s"启动扫描...")
       this.scheduler = context.system.scheduler.schedule(200 millis, 2000 millis){
-		    val wfiOpt = getSatisfiedWFIfromWaitingWFIs()
-		    if(!wfiOpt.isEmpty){
-		      val wfi = wfiOpt.get
-		      val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
-		    		Master.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
-    				workflowActors = workflowActors + (wfi.id -> (wfi,wfActorRef))
-    				Master.haDataStorager ! AddRWFI(wfi)
-  	  			wfActorRef ! Start()
-		    }
+		    self ! Tick()
       }
     true
   }
+  /**
+   * 扫描等待队列
+   */
+  def tick(){
+    import com.kent.coordinate.Coordinator.Status._
+		//从等待队列中找到满足运行的工作流实例
+	  def getSatisfiedWFIfromWaitingWFIs(): Option[WorkflowInstance] = {
+	    for(wfi <- waittingWorkflowInstance){
+	      val runningInstanceNum = workflowActors.map{case (x,(y,z)) => y}
+	                              .filter { _.workflow.name == wfi.workflow.name }.size
+	      if(runningInstanceNum < wfi.workflow.instanceLimit){
+	        waittingWorkflowInstance -= wfi
+	        Master.haDataStorager ! RemoveWWFI(wfi.id)
+	        return Some(wfi)
+	      }
+	    }
+	    None
+	  }
+    val wfiOpt = getSatisfiedWFIfromWaitingWFIs()
+    if(!wfiOpt.isEmpty){
+      val wfi = wfiOpt.get
+      val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
+    		Master.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
+				workflowActors = workflowActors + (wfi.id -> (wfi,wfActorRef))
+				Master.haDataStorager ! AddRWFI(wfi)
+  			wfActorRef ! Start()
+    }
+  }
+  
   def stop():Boolean = {
     if(scheduler == null || scheduler.isCancelled) true else scheduler.cancel()
   }
@@ -303,6 +306,7 @@ class WorkFlowManager extends DaemonActor{
       context.watch(coordinatorManager)
     case GetWaittingInstances() => sender ! getWaittingNodeInfo()
     case Terminated(arf) => if(coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")
+    case Tick() => tick()
   }
 }
 
