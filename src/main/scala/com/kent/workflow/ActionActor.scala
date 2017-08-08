@@ -17,14 +17,18 @@ import com.kent.workflow.node.ActionNodeInstance
 
 class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   var workflowActorRef: ActorRef = _
-  var isKilled = false
   def indivivalReceive: Actor.Receive = {
     case Start() => start()
     //外界kill
     case Kill() => kill(sender)
+    //
+    case Termination() => terminate(workflowActorRef)
   }
   
   def start(){
+    actionNodeInstance.actionActor = this
+    workflowActorRef = sender
+    //异步执行
     def asynExcute(){
       val result = actionNodeInstance.execute()
       val executedStatus = if(result) SUCCESSED else FAILED
@@ -32,14 +36,17 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
       actionNodeInstance.status = executedStatus
   		actionNodeInstance.executedMsg = if(executedStatus == FAILED) "节点执行失败" else "节点执行成功"
   		//日志记录
-  		if(executedStatus == FAILED && !isKilled){
+  		if(executedStatus == FAILED){
   		  Worker.logRecorder ! Error("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg) 
-  		}else if(executedStatus == SUCCESSED && !isKilled){
+  		}else if(executedStatus == SUCCESSED){
   			Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg)    		  
   		}
-      terminate(workflowActorRef)
+      if(context != null){
+        println("11111"+self+"   "+ context)
+        self ! Termination()
+      }
     }
-    
+    //起独立线程运行
     val thread = new Thread(new Runnable() {
   		def run() {
   		  	asynExcute()
@@ -53,66 +60,6 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
     actionNodeInstance.executedMsg = "手工杀死节点"
     terminate(sdr)
   }
-  
-  /**
-   * 启动
-   */
-/*  def start(){
-    workflowActorRef = sender
-    
-    def asynExcute():Unit = {
-      Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,s"开始执行")
-      var executedStatus: Status = FAILED
-      var msg:String = null
-      for(i <- 0 to actionNodeInstance.nodeInfo.retryTimes; if executedStatus == FAILED)
-      {
-        //汇报执行重试
-        if(i > 0 && !isKilled){
-          workflowActorRef ! ActionExecuteRetryTimes(i)
-          Worker.logRecorder ! Warn("NodeInstance",actionNodeInstance.id,s"第${i}次重试")
-        }
-        actionNodeInstance.hasRetryTimes = i
-        //开始执行
-        var result = false
-        try{
-        	result = actionNodeInstance.execute()          
-        }catch{
-          case e: Exception => e.printStackTrace();result = false
-        }
-    	  executedStatus = if(result) SUCCESSED else FAILED
-    	  actionNodeInstance.status = executedStatus
-    		actionNodeInstance.executedMsg = if(executedStatus == FAILED) "节点执行失败" else "节点执行成功"
-    		//日志记录
-    		if(executedStatus == FAILED && !isKilled){
-    		  Worker.logRecorder ! Error("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg) 
-    		}else if(executedStatus == SUCCESSED && !isKilled){
-    			Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg)    		  
-    		}
-    		//执行失败后，再次执行前间隔
-    		if(executedStatus == FAILED && actionNodeInstance.nodeInfo.retryTimes > actionNodeInstance.hasRetryTimes && !isKilled) {
-    			Worker.logRecorder ! Warn("NodeInstance",actionNodeInstance.id,s"等待${actionNodeInstance.nodeInfo.interval}秒...")
-    			for(n <- 0 to actionNodeInstance.nodeInfo.interval; if !isKilled){
-    				Thread.sleep(1000)    			  
-    			}
-    		}
-    		//执行kill
-    		if(isKilled){
-          return
-        }
-    		
-      }
-      if(context != null && !isKilled) terminate(workflowActorRef, actionNodeInstance.status, actionNodeInstance.executedMsg)
-    }
-    
-    val thread = new Thread(new Runnable() {
-  		def run() {
-  		  	asynExcute()
-  		}
-	  },s"action_${actionNodeInstance.id}_${actionNodeInstance.name}")
-    thread.start()
-    
-  }*/
-  
   /**
    * 发送邮件
    */
@@ -126,7 +73,6 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
 		//结束
     ar ! ActionExecuteResult(actionNodeInstance.status,actionNodeInstance.executedMsg) 
 		Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg)
-		//???
 		context.parent ! RemoveAction(actionNodeInstance.name)
 		context.stop(self) 
   }

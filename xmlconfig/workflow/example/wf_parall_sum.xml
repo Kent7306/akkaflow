@@ -17,7 +17,8 @@
                 <content>
                 <![CDATA[
                     #!/usr/bin/perl
-                    dfdfdf
+                    sleep 2;
+                    exit 1;  
                     `mkdir -p tmp/${param:stadate}`;
                     open(FH, '>>', 'tmp/${param:stadate}/num.txt') or die;
                     my $i=0;

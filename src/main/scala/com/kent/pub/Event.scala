@@ -55,6 +55,7 @@ object Event {
   case class KillAllActionActor()
   //action actor
   case class ActionExecuteResult(status: Status, msg: String) extends Serializable
+  case class Termination()
   
   //http-server
   case class ResponseData(result:String, msg: String, data: Any)

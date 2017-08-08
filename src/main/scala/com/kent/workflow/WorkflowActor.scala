@@ -29,7 +29,7 @@ import com.kent.pub.ActorTool
 class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	import com.kent.workflow.WorkflowActor._
   
-  var workflowManageAcotrRef:ActorRef = _
+  var workflowManageActorRef:ActorRef = _
   //正在运行的节点actor
 	var runningActors: Map[ActorRef, ActionNodeInstance] = Map()
 	//节点等待执行队列
@@ -45,7 +45,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   /**
    * 启动workflow
    */
-  def start(){
+  def start():Boolean = {
 	  log.info(s"[workflow:${this.workflowInstance.actorName}开始启动")
 	  this.workflowInstance.status = W_RUNNING
 	  //节点替换参数
@@ -62,15 +62,17 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     	this.scheduler = context.system.scheduler.schedule(0 millis, 100 millis){
     		self ! Tick()
     	}
+    	true
     }else{
       Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, "找不到开始节点")
+      false
     }
   }
 	/**
 	 * 扫描
 	 */
   def tick(){
-    //s
+    //扫描等待队列
     if(waitingNodes.size > 0){
     	val(ni, queue) = waitingNodes.dequeue
     	waitingNodes = queue
@@ -84,35 +86,25 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
           .map(_._2.nodeInfo.name).toList
       if(timeoutNodes.size > 0){
         Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, "以下动作节点超时：["+timeoutNodes.mkString(",")+"], 杀死当前工作流")
-        this.terminateWithKill()
+        this.terminateWith(W_KILLED, "杀死当前工作流实例")
       }
     }
   }
   /**
    * 处理action节点的返回状态????
    */
- private def handleActionResult(ani: ActionNodeInstance, actionSender: ActorRef){
+ private def handleActionResult(sta: Status, msg: String, actionSender: ActorRef){
     val ni = runningActors(actionSender)
-    runningActors = runningActors.filter(_._1 != actionSender).toMap
+    runningActors = runningActors.filter{case (ar, nodeInstance) => ar != actionSender}.toMap
     ni.status = sta
     ni.executedMsg = msg
     ni.terminate(this)
     ni.postTerminate()
  }
- /**
-  * 处理action节点返回的执行次数
-  */
-/* private def handleActionRetryTimes(times: Int, actionSender: ActorRef){
-   val ni = runningActors(actionSender).asInstanceOf[ActionNodeInstance]
-   ni.hasRetryTimes = times
-   Master.persistManager ! Save(ni.deepClone())
- }*/
- 
-
 	/**
 	 * 创建并开始actor节点
 	 */
-	def createAndStartActionActor(actionNodeInstance: ActionNodeInstance):Boolean = {
+	def createAndStartActionActor(actionNodeInstance: ActionNodeInstance):Future[Boolean] = {
 	  //获取worker
 	  def getWorker():Future[Option[ActorRef]] = {
 		  val masterRef = context.actorSelection(context.parent.path.parent)
@@ -120,8 +112,6 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   	    case x => x
   	  }
 	  }
-	  
-	  
 	  val wF = getWorker()
 	  wF.map { 
 	    case wOpt if wOpt.isDefined =>  
@@ -133,38 +123,21 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   	        af ! Start()
   	      } 
         }
+  	    true
 	    case wOpt if wOpt.isEmpty => 
-	      ???
-	      
+	      Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, s"无法为节点${actionNodeInstance.nodeInfo.name}分配worker")
+	      terminateWith(W_FAILED, "因无发分配woker而执行失败")
+	      false
 	  }
-	  
-	  true
-	  /*(masterRef ? AskWorker(actionNodeInstance.nodeInfo.host)).mapTo[GetWorker].map{ 
-	    //获取worker
-	    case GetWorker(worker) => 
-	      if(worker == null){
-	        Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, s"无法为节点${actionNodeInstance.nodeInfo.name}分配worker")
-	        actionNodeInstance.status = FAILED
-	        this.terminateWithFail()
-	      }else{
-	        actionNodeInstance.allocateHost = worker.path.address.host.get
-	        (worker ? CreateAction(actionNodeInstance)).mapTo[ActorRef].map{ af =>
-	          if(af != null){
-    	        runningActors += (af -> actionNodeInstance)
-    	        af ! Start()
-    	      } 
-	        }
-	      }
-	  }
-		true*/
 	}
 	/**
 	 * kill掉所有运行action
 	 */
-  def killAllRunningAction():Future[List[ActionExecuteResult]] = {
+  private def killAllRunningAction():Future[List[ActionExecuteResult]] = {
 	  val futures = runningActors.map{case (ar, nodeInstance) => {
 	    val result = (ar ? Kill()).mapTo[ActionExecuteResult].recover{ case e: Exception => 
 	                    ar ! PoisonPill
+	                    Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, s"杀死actor:${ar}超时，将强制杀死")
 	                    ActionExecuteResult(FAILED,"节点超时")
 	                 }
 		  result.map { rs => 
@@ -185,7 +158,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	  runningActors = Map()
 	  this.waitingNodes = Queue()
 	  this.workflowInstance.endTime = Util.nowDate
-	  workflowManageAcotrRef ! WorkFlowInstanceExecuteResult(workflowInstance)
+	  workflowManageActorRef ! WorkFlowInstanceExecuteResult(workflowInstance)
 	  //保存工作流实例
 	  Master.persistManager ! Save(workflowInstance.deepClone())
 	  context.stop(self)
@@ -195,7 +168,8 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
    */
   private def kill(sdr: ActorRef) = terminateWith(sdr, W_KILLED, "手动杀死工作流")
 
-  def terminateWith(sdr:ActorRef, status: WStatus, msg: String) = {
+  def terminateWith(status: WStatus, msg: String):Unit = terminateWith(workflowManageActorRef, status, msg)
+  def terminateWith(sdr:ActorRef, status: WStatus, msg: String){
     this.workflowInstance.status = status
     this.workflowInstance.endTime = Util.nowDate
     val resultF = status match {
@@ -211,7 +185,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   	  runningActors = Map()
   	  this.waitingNodes = Queue()
   	  this.workflowInstance.endTime = Util.nowDate
-  	  sdr ! WorkFlowInstanceExecuteResult(workflowInstance.deepCloneAs[WorkflowInstance])
+  	  sdr ! WorkFlowInstanceExecuteResult(workflowInstance.deepClone())
   	  //保存工作流实例
   	  Master.persistManager ! Save(workflowInstance.deepClone())
   	  context.stop(self) 
@@ -220,11 +194,11 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   
   
   def indivivalReceive: Actor.Receive = {
-    case Start() => workflowManageAcotrRef = sender;start()
+    case Start() => workflowManageActorRef = sender;start()
     case Kill() => kill(sender)
     
     //case ActionExecuteRetryTimes(times) => handleActionRetryTimes(times, sender)
-    case ActionExecuteResult(ani: ActionNodeInstance) => handleActionResult(ani, sender)
+    case ActionExecuteResult(sta, msg) => handleActionResult(sta, msg, sender)
     case EmailMessage(toUsers, subject, htmlText) => 
       val users = if(toUsers == null || toUsers.size == 0) workflowInstance.workflow.mailReceivers else toUsers
       if(users.size > 0){

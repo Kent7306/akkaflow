@@ -15,10 +15,7 @@ class KillNodeInstance (override val nodeInfo: KillNodeInfo) extends ControlNode
   def getNextNodes(wfi: WorkflowInstance): List[NodeInstance] = List()
   
   override def terminate(wfa: WorkflowActor): Boolean = {
-    println("KILL! 执行workflow名称："+wfa.workflowInstance.workflow.name+"执行完毕."+"actor名称: "+ wfa.workflowInstance.actorName)
-    wfa.workflowInstance.status = W_KILLED
-    this.status = SUCCESSED
-    wfa.killRunningNodeActors((wfaa,aesList) => wfaa.terminate())
+    wfa.terminateWith(W_KILLED, "该工作流主动杀死自己")
     true
   }
 
