@@ -97,7 +97,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
     case RemoveWorkFlow(wfId) => workflowManager ! RemoveWorkFlow(wfId)
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
-    case AskWorker(host: String) => sender ! GetWorker(allocateWorker(host: String))
+    case AskWorker(host: String) => sender ! allocateWorker(host: String)
     case ReRunWorkflowInstance(id: String) => workflowManager ! ReRunWorkflowInstance(id)
     case ShutdownCluster() =>  shutdownCluster(sender)
     case CollectClusterActorInfo() => 
@@ -145,17 +145,18 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
   /**
    * 请求得到新的worker，动态分配
    */
-  private def allocateWorker(host: String):ActorRef = {
+  private def allocateWorker(host: String):Option[ActorRef] = {
     if(workers.size > 0) {
       //host为-1情况下，随机分配
       if(host == "-1") {
-        workers(Random.nextInt(workers.size))
+        Some(workers(Random.nextInt(workers.size)))
       }else{ //指定host分配
       	val list = workers.map { _.path.address.host.get }.toList
-      	if(list.size > 0) workers(Random.nextInt(list.size)) else null
+      	if(list.size > 0) 
+      	  Some(workers(Random.nextInt(list.size))) else None
       }
     }else{
-      null
+      None
     }
   }
   /**

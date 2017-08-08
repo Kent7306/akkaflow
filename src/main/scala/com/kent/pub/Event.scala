@@ -11,7 +11,7 @@ object Event {
   //pub
   case class Tick()
   //master
-  case class GetWorker(worker: ActorRef)
+  case class GetWorker(workerOpt: Option[ActorRef])
   case class AskWorker(host: String)
   case class ShutdownCluster()
   //cm
@@ -55,7 +55,6 @@ object Event {
   case class KillAllActionActor()
   //action actor
   case class ActionExecuteResult(status: Status, msg: String) extends Serializable
-  case class ActionExecuteRetryTimes(times: Int) extends Serializable
   
   //http-server
   case class ResponseData(result:String, msg: String, data: Any)

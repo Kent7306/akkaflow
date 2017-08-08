@@ -63,7 +63,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     		self ! Tick()
     	}
     }else{
-      Master.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "找不到开始节点")
+      Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, "找不到开始节点")
     }
   }
 	/**
@@ -91,7 +91,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   /**
    * 处理action节点的返回状态????
    */
- private def handleActionResult(sta: Status, msg: String, actionSender: ActorRef){
+ private def handleActionResult(ani: ActionNodeInstance, actionSender: ActorRef){
     val ni = runningActors(actionSender)
     runningActors = runningActors.filter(_._1 != actionSender).toMap
     ni.status = sta
@@ -102,20 +102,44 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
  /**
   * 处理action节点返回的执行次数
   */
- private def handleActionRetryTimes(times: Int, actionSender: ActorRef){
+/* private def handleActionRetryTimes(times: Int, actionSender: ActorRef){
    val ni = runningActors(actionSender).asInstanceOf[ActionNodeInstance]
    ni.hasRetryTimes = times
    Master.persistManager ! Save(ni.deepClone())
- }
+ }*/
  
 
 	/**
 	 * 创建并开始actor节点
 	 */
 	def createAndStartActionActor(actionNodeInstance: ActionNodeInstance):Boolean = {
-	  implicit val timeout = Timeout(20 seconds)
-	  val masterRef = context.actorSelection(context.parent.path.parent)
-	  (masterRef ? AskWorker(actionNodeInstance.nodeInfo.host)).mapTo[GetWorker].map{ 
+	  //获取worker
+	  def getWorker():Future[Option[ActorRef]] = {
+		  val masterRef = context.actorSelection(context.parent.path.parent)
+	    (masterRef ? AskWorker(actionNodeInstance.nodeInfo.host)).mapTo[Option[ActorRef]].map{ 
+  	    case x => x
+  	  }
+	  }
+	  
+	  
+	  val wF = getWorker()
+	  wF.map { 
+	    case wOpt if wOpt.isDefined =>  
+  	    val worker = wOpt.get
+  	    actionNodeInstance.allocateHost = worker.path.address.host.get
+	      (worker ? CreateAction(actionNodeInstance.deepCloneAs[ActionNodeInstance])).mapTo[ActorRef].map{ af =>
+          if(af != null){
+  	        runningActors += (af -> actionNodeInstance)
+  	        af ! Start()
+  	      } 
+        }
+	    case wOpt if wOpt.isEmpty => 
+	      ???
+	      
+	  }
+	  
+	  true
+	  /*(masterRef ? AskWorker(actionNodeInstance.nodeInfo.host)).mapTo[GetWorker].map{ 
 	    //获取worker
 	    case GetWorker(worker) => 
 	      if(worker == null){
@@ -132,13 +156,12 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	        }
 	      }
 	  }
-		true
+		true*/
 	}
 	/**
-	 * kill掉所有子actor
+	 * kill掉所有运行action
 	 */
-  def killRunningNodeActors(callback: (WorkflowActor,List[ActionExecuteResult]) => Unit){
-	  //kill掉所有运行的actionactor
+  def killAllRunningAction():Future[List[ActionExecuteResult]] = {
 	  val futures = runningActors.map{case (ar, nodeInstance) => {
 	    val result = (ar ? Kill()).mapTo[ActionExecuteResult].recover{ case e: Exception => 
 	                    ar ! PoisonPill
@@ -152,9 +175,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 		      rs
 		  }
 	  }}.toList
-	  val futuresSeq = Future.sequence(futures).andThen {
-	    case Success(x) => callback(this, x)
-	  }
+	  Future.sequence(futures).andThen {case Success(x) => x}
 	}
   /**
 	 * 终止当前工作流actor
@@ -172,43 +193,29 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   /**
    * 手动kill，并反馈给发送的actor
    */
-  private def kill(sdr: ActorRef){
-    this.workflowInstance.status = W_KILLED
-    killRunningNodeActors{ (wfa,aerList) => 
-      sdr ! aerList
-      wfa.terminate()
-    }
-  }
-  /**
-   * 默默kill
-   */
-  def terminateWithKill(){
-    this.workflowInstance.status = W_KILLED
-    killRunningNodeActors{ (wfa,aerList) => 
-      wfa.terminate()
-    }
-  }
-  /**
-   * 执行失败
-   */
-  def terminateWithFail(){
-    this.workflowInstance.status = W_FAILED 
-    this.killRunningNodeActors{(wfa,aerList) => 
-      wfa.terminate()
-    }
-  }
-  def terminateWith(status: WStatus, msg: String):Future[Boolean] = {
+  private def kill(sdr: ActorRef) = terminateWith(sdr, W_KILLED, "手动杀死工作流")
+
+  def terminateWith(sdr:ActorRef, status: WStatus, msg: String) = {
     this.workflowInstance.status = status
     this.workflowInstance.endTime = Util.nowDate
-    status match {
+    val resultF = status match {
       case W_SUCCESSED => 
         Master.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, msg)
+        Future{true}
       case _ =>
         Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, msg)
+        killAllRunningAction().map { l => if(l.filter { case ActionExecuteResult(sta,msg) => sta == FAILED}.size > 0) false else true }
     }
-    
-    
-    ???
+    resultF.map { x => 
+      scheduler.cancel()
+  	  runningActors = Map()
+  	  this.waitingNodes = Queue()
+  	  this.workflowInstance.endTime = Util.nowDate
+  	  sdr ! WorkFlowInstanceExecuteResult(workflowInstance.deepCloneAs[WorkflowInstance])
+  	  //保存工作流实例
+  	  Master.persistManager ! Save(workflowInstance.deepClone())
+  	  context.stop(self) 
+    }
   }
   
   
@@ -216,8 +223,8 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     case Start() => workflowManageAcotrRef = sender;start()
     case Kill() => kill(sender)
     
-    case ActionExecuteRetryTimes(times) => handleActionRetryTimes(times, sender)
-    case ActionExecuteResult(status, msg) => handleActionResult(status, msg, sender)
+    //case ActionExecuteRetryTimes(times) => handleActionRetryTimes(times, sender)
+    case ActionExecuteResult(ani: ActionNodeInstance) => handleActionResult(ani, sender)
     case EmailMessage(toUsers, subject, htmlText) => 
       val users = if(toUsers == null || toUsers.size == 0) workflowInstance.workflow.mailReceivers else toUsers
       if(users.size > 0){

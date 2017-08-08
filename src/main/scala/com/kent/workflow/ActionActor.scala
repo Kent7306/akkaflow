@@ -13,20 +13,52 @@ import com.kent.pub.Event._
 import scala.util.Success
 import scala.concurrent.Future
 import com.kent.pub.ActorTool
+import com.kent.workflow.node.ActionNodeInstance
 
 class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   var workflowActorRef: ActorRef = _
   var isKilled = false
   def indivivalReceive: Actor.Receive = {
     case Start() => start()
-    case Kill() => actionNodeInstance.kill(); isKilled = true; terminate(sender, KILLED, "节点被kill掉了")
+    //外界kill
+    case Kill() => kill(sender)
   }
+  
+  def start(){
+    def asynExcute(){
+      val result = actionNodeInstance.execute()
+      val executedStatus = if(result) SUCCESSED else FAILED
+      actionNodeInstance.hasRetryTimes += 1
+      actionNodeInstance.status = executedStatus
+  		actionNodeInstance.executedMsg = if(executedStatus == FAILED) "节点执行失败" else "节点执行成功"
+  		//日志记录
+  		if(executedStatus == FAILED && !isKilled){
+  		  Worker.logRecorder ! Error("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg) 
+  		}else if(executedStatus == SUCCESSED && !isKilled){
+  			Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg)    		  
+  		}
+      terminate(workflowActorRef)
+    }
+    
+    val thread = new Thread(new Runnable() {
+  		def run() {
+  		  	asynExcute()
+  		}
+	  },s"action_${actionNodeInstance.id}_${actionNodeInstance.name}")
+    thread.start()
+  }
+  def kill(sdr:ActorRef){
+    actionNodeInstance.kill();
+    actionNodeInstance.status = KILLED
+    actionNodeInstance.executedMsg = "手工杀死节点"
+    terminate(sdr)
+  }
+  
   /**
    * 启动
    */
-  def start(){
+/*  def start(){
     workflowActorRef = sender
-    actionNodeInstance.actionActor = this
     
     def asynExcute():Unit = {
       Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,s"开始执行")
@@ -79,7 +111,8 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
 	  },s"action_${actionNodeInstance.id}_${actionNodeInstance.name}")
     thread.start()
     
-  }
+  }*/
+  
   /**
    * 发送邮件
    */
@@ -89,9 +122,11 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   /**
    * 结束
    */
-  def terminate(ar: ActorRef, status: Status, msg: String){
-		ar ! ActionExecuteResult(status, msg) 
-		Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,s"执行完毕")
+  def terminate(ar:ActorRef){
+		//结束
+    ar ! ActionExecuteResult(actionNodeInstance.status,actionNodeInstance.executedMsg) 
+		Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg)
+		//???
 		context.parent ! RemoveAction(actionNodeInstance.name)
 		context.stop(self) 
   }
