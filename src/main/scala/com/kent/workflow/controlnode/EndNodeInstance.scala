@@ -14,11 +14,7 @@ class EndNodeInstance(override val nodeInfo: EndNodeInfo) extends ControlNodeIns
   def getNextNodes(wfi: WorkflowInstance): List[NodeInstance] = List()
   
   override def terminate(wfa: WorkflowActor): Boolean = {
-    this.status =  SUCCESSED
-    this.endTime = Util.nowDate
-    println("workflow名称："+wfa.workflowInstance.workflow.name+"执行完毕."+"actor名称: "+ wfa.workflowInstance.actorName)
-    wfa.workflowInstance.status = W_SUCCESSED
-    wfa.terminate()
+    wfa.terminateWith(W_SUCCESSED, "工作流实例成功执行完毕。")
     true
   }
 }

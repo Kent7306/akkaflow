@@ -34,7 +34,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
       val executedStatus = if(result) SUCCESSED else FAILED
       //这里，如果主动kill掉的话，不会杀死进程，所以还是会返回结果，所以是主动杀死的话，看status
       if(actionNodeInstance.status == KILLED){
-        
+        return
       }
       
       actionNodeInstance.status = executedStatus
@@ -46,7 +46,6 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   			Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg)    		  
   		}
       if(context != null){
-        println("11111"+self+"   "+ context)
         self ! Termination()
       }
     }
@@ -59,9 +58,9 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
     thread.start()
   }
   def kill(sdr:ActorRef){
-    actionNodeInstance.kill();
     actionNodeInstance.status = KILLED
     actionNodeInstance.executedMsg = "手工杀死节点"
+    actionNodeInstance.kill();
     terminate(sdr)
   }
   /**

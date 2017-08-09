@@ -25,6 +25,7 @@ import com.kent.main.Master
 import com.kent.pub.Event._
 import scala.util.Success
 import com.kent.pub.ActorTool
+import jnr.ffi.annotations.Synchronized
 
 class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	import com.kent.workflow.WorkflowActor._
@@ -93,16 +94,25 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   /**
    * 处理action节点的返回状态????
    */
- private def handleActionResult(sta: Status, msg: String, actionSender: ActorRef){
+ def handleActionResult(sta: Status, msg: String, actionSender: ActorRef){
     val ni = runningActors(actionSender)
     runningActors = runningActors.filter{case (ar, nodeInstance) => ar != actionSender}.toMap
-    
-    
-    
-    ni.status = sta
-    ni.executedMsg = msg
-    ni.terminate(this)
-    ni.postTerminate()
+    //若失败重试
+    if(sta == FAILED && ni.hasRetryTimes < ni.nodeInfo.retryTimes){
+      ni.hasRetryTimes += 1
+       //??? 这里可能会出现并发问题  waittingnode！！！！改成syncron？？？
+    	 Master.logRecorder ! Warn("WorkflowInstance", this.workflowInstance.id, s"动作节点[${ni.nodeInfo.name}]执行失败，等待${ni.nodeInfo.interval}秒")
+       context.system.scheduler.scheduleOnce(ni.nodeInfo.interval second){
+      	 ni.reset()
+      	 Master.logRecorder ! Warn("WorkflowInstance", this.workflowInstance.id, s"动作节点[${ni.nodeInfo.name}]执行失败，进行第${ni.hasRetryTimes}次重试")
+      	 createAndStartActionActor(ni)           
+       }
+    }else{
+    	ni.status = sta
+  		ni.executedMsg = msg
+  		ni.terminate(this)
+    	ni.postTerminate()
+    }
  }
 	/**
 	 * 创建并开始actor节点
@@ -120,6 +130,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	    case wOpt if wOpt.isDefined =>  
   	    val worker = wOpt.get
   	    actionNodeInstance.allocateHost = worker.path.address.host.get
+  	    Master.logRecorder ! Warn("WorkflowInstance", this.workflowInstance.id, s"节点[${actionNodeInstance.nodeInfo.name}]分配给Worker[${actionNodeInstance.allocateHost}:${worker.path.address.port.get}]")
 	      (worker ? CreateAction(actionNodeInstance.deepCloneAs[ActionNodeInstance])).mapTo[ActorRef].map{ af =>
           if(af != null){
   	        runningActors += (af -> actionNodeInstance)
@@ -154,19 +165,6 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	  Future.sequence(futures).andThen {case Success(x) => x}
 	}
   /**
-	 * 终止当前工作流actor
-	 */
-	def terminate(){
-		scheduler.cancel()
-	  runningActors = Map()
-	  this.waitingNodes = Queue()
-	  this.workflowInstance.endTime = Util.nowDate
-	  workflowManageActorRef ! WorkFlowInstanceExecuteResult(workflowInstance)
-	  //保存工作流实例
-	  Master.persistManager ! Save(workflowInstance.deepClone())
-	  context.stop(self)
-	}
-  /**
    * 手动kill，并反馈给发送的actor
    */
   private def kill(sdr: ActorRef) = terminateWith(sdr, W_KILLED, "手动杀死工作流")
@@ -177,6 +175,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   def terminateWith(sdr:ActorRef, status: WStatus, msg: String){
     this.workflowInstance.status = status
     this.workflowInstance.endTime = Util.nowDate
+    println("workflow名称："+workflowInstance.workflow.name+"执行完毕."+status+"actor名称: "+ workflowInstance.actorName)
     val resultF = status match {
       case W_SUCCESSED => 
         Master.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, msg)
@@ -196,13 +195,19 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   	  context.stop(self) 
     }
   }
-  
+  /**
+   * 某节点实例得到下一个节点并加入到等待队列中
+   */
+  def getNextNodesToWaittingQueue(node: NodeInstance){
+    this.synchronized{
+    	val nodes = node.getNextNodes(this.workflowInstance)
+			nodes.filter { _.ifCanExecuted(this.workflowInstance) }.foreach { x => waitingNodes = waitingNodes.enqueue(x)}
+    }
+  }
   
   def indivivalReceive: Actor.Receive = {
     case Start() => workflowManageActorRef = sender;start()
     case Kill() => kill(sender)
-    
-    //case ActionExecuteRetryTimes(times) => handleActionRetryTimes(times, sender)
     case ActionExecuteResult(sta, msg) => handleActionResult(sta, msg, sender)
     case EmailMessage(toUsers, subject, htmlText) => 
       val users = if(toUsers == null || toUsers.size == 0) workflowInstance.workflow.mailReceivers else toUsers

@@ -50,8 +50,7 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends
         return false
     }
     //查找下一节点
-    val nodes = this.getNextNodes(wfa.workflowInstance)
-    nodes.filter { _.ifCanExecuted(wfa.workflowInstance) }.foreach { x => wfa.waitingNodes = wfa.waitingNodes.enqueue(x)}
+    wfa.getNextNodesToWaittingQueue(this)
     return true
   }
     
