@@ -58,7 +58,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     this.status = W_PREP
     this.startTime = null
     this.endTime = null
-    this.nodeInstanceList.foreach { y =>  y.status = PREP; y.startTime = null; y.endTime = null}
+    this.nodeInstanceList.foreach {ni => ni.reset()}
   }
   
   

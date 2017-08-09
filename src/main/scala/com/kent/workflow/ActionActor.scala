@@ -32,7 +32,11 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
     def asynExcute(){
       val result = actionNodeInstance.execute()
       val executedStatus = if(result) SUCCESSED else FAILED
-      actionNodeInstance.hasRetryTimes += 1
+      //这里，如果主动kill掉的话，不会杀死进程，所以还是会返回结果，所以是主动杀死的话，看status
+      if(actionNodeInstance.status == KILLED){
+        
+      }
+      
       actionNodeInstance.status = executedStatus
   		actionNodeInstance.executedMsg = if(executedStatus == FAILED) "节点执行失败" else "节点执行成功"
   		//日志记录

@@ -96,6 +96,9 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
  private def handleActionResult(sta: Status, msg: String, actionSender: ActorRef){
     val ni = runningActors(actionSender)
     runningActors = runningActors.filter{case (ar, nodeInstance) => ar != actionSender}.toMap
+    
+    
+    
     ni.status = sta
     ni.executedMsg = msg
     ni.terminate(this)
@@ -167,7 +170,9 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
    * 手动kill，并反馈给发送的actor
    */
   private def kill(sdr: ActorRef) = terminateWith(sdr, W_KILLED, "手动杀死工作流")
-
+  /**
+   * 工作流实例以某种状态结束
+   */
   def terminateWith(status: WStatus, msg: String):Unit = terminateWith(workflowManageActorRef, status, msg)
   def terminateWith(sdr:ActorRef, status: WStatus, msg: String){
     this.workflowInstance.status = status

@@ -35,10 +35,6 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
 		this.terminate(wfa)
 		this.postTerminate()
   }
-  
-  
-  
-  
   /**
    * 执行前方法
    */
@@ -75,7 +71,15 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
    * 替换该节点参数
    */
   def replaceParam(param: Map[String, String]): Boolean
-  
+  /**
+   * 重置
+   */
+  def reset(){
+    this.endTime = null
+    this.status = PREP
+    this.executedMsg = null
+    this.startTime = null
+  }
   /**
    * 删除
    */

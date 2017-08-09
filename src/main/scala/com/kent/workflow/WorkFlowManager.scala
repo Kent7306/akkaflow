@@ -107,9 +107,6 @@ class WorkFlowManager extends DaemonActor{
     }
     add(wf, isSaved)
   }
-  /**
-   * 增
-   */
   def add(wf: WorkflowInfo, isSaved: Boolean): ResponseData = {
     Master.logRecorder ! Info("WorkflowManager", null, s"添加工作流配置：${wf.name}")
 		if(isSaved) Master.persistManager ! Save(wf)
@@ -213,15 +210,13 @@ class WorkFlowManager extends DaemonActor{
   def killWorkFlowInstance(id: String): Future[ResponseData] = {
     if(!workflowActors.get(id).isEmpty){
     	val wfaRef = workflowActors(id)._2
-    	val result = (wfaRef ? Kill()).mapTo[List[ActionExecuteResult]]
+    	val resultF = (wfaRef ? Kill()).mapTo[WorkFlowInstanceExecuteResult]
     	this.workflowActors = this.workflowActors.filterKeys { _ != id }.toMap
     	Master.haDataStorager ! RemoveRWFI(id)
-    	val resultF = result.map { x => 
-    	  implicit val formats = DefaultFormats
-        val strTmp = JsonMethods.compact(Extraction.decompose(x))
-    	  ResponseData("success",s"工作流[${id}]已被杀死", strTmp) 
+    	val resultF2 = resultF.map { case WorkFlowInstanceExecuteResult(x) => 
+    	  ResponseData("success",s"工作流[${id}]已被杀死", x.status) 
     	}
-    	resultF
+    	resultF2
     }else{
       Future(ResponseData("fail",s"[工作流实例：${id}]不存在，不能kill掉", null))
     }
