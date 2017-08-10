@@ -8,18 +8,23 @@ import java.util.Date
 import org.json4s.jackson.JsonMethods
 import com.kent.main.Worker
 import com.kent.pub.Event._
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
+import com.kent.db.LogRecorder
 
 class ShellActionNodeInstance(override val nodeInfo: ShellActionNodeInfo) extends ActionNodeInstance(nodeInfo)  {
   var executeResult: Process = _
 
   override def execute(): Boolean = {
     try {
-      val pLogger = ProcessLogger(line => Worker.logRecorder ! Info("NodeInstance", this.id, line),
-                                  line => Worker.logRecorder ! Error("NodeInstance", this.id, line))
+      val pLogger = ProcessLogger(line =>LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
+                                  line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line))
       executeResult = Process(this.nodeInfo.command).run(pLogger)
       if(executeResult.exitValue() == 0) true else false
     }catch{
-      case e:Exception => Worker.logRecorder ! Error("NodeInstance", this.id, e.getMessage);false
+      case e:Exception => 
+        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
+        false
     }
   }
 

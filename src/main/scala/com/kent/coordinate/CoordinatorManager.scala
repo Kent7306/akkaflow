@@ -16,6 +16,9 @@ import scala.util.Success
 import com.kent.ddata.HaDataStorager._
 import com.kent.pub.ActorTool
 import com.kent.pub.DaemonActor
+import com.kent.db.LogRecorder
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
 
 class CoordinatorManager extends DaemonActor{
   var coordinators: Map[String, Coordinator] = Map()
@@ -46,12 +49,12 @@ class CoordinatorManager extends DaemonActor{
 		if(isSaved) Master.persistManager ! Save(coor)
 		Master.haDataStorager ! AddCoordinator(coor)
 		if(coordinators.get(coor.name).isEmpty){
-			Master.logRecorder ! Info("CoordinatorManager",null,s"增加coordinator：${coor.name}")
+		  LogRecorder.info(COORDINATOR, null, coor.name, s"增加coordinator：${coor.name}")
 			coordinators = coordinators + (coor.name -> coor) 
 		  ResponseData("success",s"成功添加coordinator[${coor.name}]", null)
 		}else{
 		  coordinators = coordinators + (coor.name -> coor)
-		  Master.logRecorder ! Info("CoordinatorManager",null,s"替换coordinator：${coor.name}")
+		  LogRecorder.info(COORDINATOR, null, coor.name, s"替换coordinator：${coor.name}")
 		  ResponseData("success",s"成功替换coordinator[${coor.name}]", null)
 		}
   }
@@ -62,7 +65,7 @@ class CoordinatorManager extends DaemonActor{
     if(!coordinators.get(name).isEmpty){
     	Master.persistManager ! Delete(coordinators(name))
     	coordinators = coordinators.filterNot {x => x._1 == name}.toMap
-    	Master.logRecorder ! Info("CoordinatorManager",null,s"删除coordinator[${name}]")     
+    	LogRecorder.info(COORDINATOR, null, name, s"删除coordinator[${name}]")
     	ResponseData("success",s"成功删除coordinator[${name}]", null)
     }else{
       ResponseData("fail",s"coordinator[${name}]不存在", null)
@@ -92,7 +95,7 @@ class CoordinatorManager extends DaemonActor{
    * 启动
    */
   def start(): Boolean = {
-      Master.logRecorder ! Info("CoordinatorManager",null,s"启动扫描...")
+      LogRecorder.info(COORDINATOR, null, null, s"启动扫描...")
       this.scheduler = context.system.scheduler.schedule(0 millis,  200 millis){
         self ! Tick()
       }
@@ -109,7 +112,7 @@ class CoordinatorManager extends DaemonActor{
    * 停止
    */
   def stop(): Boolean = {
-    Master.logRecorder ! Info("CoordinatorManager",null,s"停止扫描...")
+    LogRecorder.info(COORDINATOR, null, null, s"停止扫描...")
     if(scheduler == null || scheduler.isCancelled) true else scheduler.cancel()
   }
   /**

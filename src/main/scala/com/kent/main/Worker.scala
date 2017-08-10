@@ -72,6 +72,7 @@ class Worker extends ClusterRole {
                     )
     //创建日志记录器
     Worker.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+    LogRecorder.actor = Worker.logRecorder
   }
 }
 

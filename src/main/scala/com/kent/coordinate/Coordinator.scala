@@ -16,6 +16,9 @@ import com.kent.coordinate.Coordinator.Depend
 import com.kent.pub.Directory
 import com.kent.main.Master
 import com.kent.pub.Event._
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
+import com.kent.db.LogRecorder
 
 class Coordinator(val name: String) extends Daoable[Coordinator] with DeepCloneable[Coordinator] {
 	import com.kent.coordinate.Coordinator.Status._
@@ -52,7 +55,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     if(isSatisfyTrigger()) {
       this.status = ACTIVE
       this.workflows.foreach { x => 
-        Master.logRecorder ! Info("Coordinator",this.name,s"开始触发工作流: ${x}")
+        LogRecorder.info(COORDINATOR, null, this.name, s"触发工作流: ${x}")
         wfManager ! NewAndExecuteWorkFlowInstance(x, translateParam(this.paramList)) 
       }
       this.resetTrigger()

@@ -11,6 +11,9 @@ import java.util.Date
 import java.io.PrintWriter
 import java.io.File
 import com.kent.util.Util
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
+import com.kent.db.LogRecorder
 
 class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) extends ActionNodeInstance(nodeInfo)  {
   private var executeResult: Process = _
@@ -30,7 +33,7 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
       writer.write(trimContent)
       writer.flush()
       writer.close()
-      Worker.logRecorder ! Info("NodeInstance", this.id, s"代码写入到文件：${newLocation}")
+      LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"代码写入到文件：${newLocation}")
       //执行
       var cmd = "sh";
       if(lines.size > 0){  //选择用哪个执行解析器
@@ -38,15 +41,15 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
         else if(lines(0).toLowerCase().contains("python")) cmd = "python"
       }
       
-      val pLogger = ProcessLogger(line => Worker.logRecorder ! Info("NodeInstance", this.id, line),
-                                  line => Worker.logRecorder ! Error("NodeInstance", this.id, line))
+      val pLogger = ProcessLogger(line => LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
+                                  line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line))
       executeResult = Process(s"${cmd} ${newLocation}").run(pLogger)
       
       if(executeResult.exitValue() == 0) true else false
     }catch{
       case e:Exception => 
         e.printStackTrace();
-        Worker.logRecorder ! Error("NodeInstance", this.id, e.getMessage)
+        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
         false
     }
   }

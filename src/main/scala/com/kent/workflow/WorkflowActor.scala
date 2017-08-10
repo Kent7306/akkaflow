@@ -26,6 +26,9 @@ import com.kent.pub.Event._
 import scala.util.Success
 import com.kent.pub.ActorTool
 import jnr.ffi.annotations.Synchronized
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
+import com.kent.db.LogRecorder
 
 class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	import com.kent.workflow.WorkflowActor._
@@ -65,7 +68,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     	}
     	true
     }else{
-      Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, "找不到开始节点")
+      LogRecorder.error(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, "找不到开始节点")
       false
     }
   }
@@ -77,7 +80,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     if(waitingNodes.size > 0){
     	val(ni, queue) = waitingNodes.dequeue
     	waitingNodes = queue
-    	Master.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, "执行节点："+ni.nodeInfo.name+"， 类型："+ni.getClass)
+    	LogRecorder.info(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, "执行节点："+ni.nodeInfo.name+"， 类型："+ni.getClass)
 	    ni.run(this)
     }
     //动作节点执行超时处理
@@ -86,7 +89,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
           .filter{case (ar, nodeInstance) => Util.nowTime - nodeInstance.startTime.getTime > nodeInstance.nodeInfo.timeout*1000}
           .map(_._2.nodeInfo.name).toList
       if(timeoutNodes.size > 0){
-        Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, "以下动作节点超时：["+timeoutNodes.mkString(",")+"], 杀死当前工作流")
+        LogRecorder.error(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, "以下动作节点超时：["+timeoutNodes.mkString(",")+"], 杀死当前工作流")
         this.terminateWith(W_KILLED, "杀死当前工作流实例")
       }
     }
@@ -100,11 +103,11 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     //若失败重试
     if(sta == FAILED && ni.hasRetryTimes < ni.nodeInfo.retryTimes){
       ni.hasRetryTimes += 1
-       //??? 这里可能会出现并发问题  waittingnode！！！！改成syncron？？？
-    	 Master.logRecorder ! Warn("WorkflowInstance", this.workflowInstance.id, s"动作节点[${ni.nodeInfo.name}]执行失败，等待${ni.nodeInfo.interval}秒")
+       //??? 这里可能会出现并发问题  waittingnode！！！！改成syncron？？？  done
+       LogRecorder.warn(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, s"动作节点[${ni.nodeInfo.name}]执行失败，等待${ni.nodeInfo.interval}秒")
        context.system.scheduler.scheduleOnce(ni.nodeInfo.interval second){
       	 ni.reset()
-      	 Master.logRecorder ! Warn("WorkflowInstance", this.workflowInstance.id, s"动作节点[${ni.nodeInfo.name}]执行失败，进行第${ni.hasRetryTimes}次重试")
+      	 LogRecorder.warn(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, s"动作节点[${ni.nodeInfo.name}]执行失败，进行第${ni.hasRetryTimes}次重试")
       	 createAndStartActionActor(ni)           
        }
     }else{
@@ -130,7 +133,10 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	    case wOpt if wOpt.isDefined =>  
   	    val worker = wOpt.get
   	    actionNodeInstance.allocateHost = worker.path.address.host.get
-  	    Master.logRecorder ! Warn("WorkflowInstance", this.workflowInstance.id, s"节点[${actionNodeInstance.nodeInfo.name}]分配给Worker[${actionNodeInstance.allocateHost}:${worker.path.address.port.get}]")
+  	    LogRecorder.info(WORFLOW_INSTANCE, 
+  	                     this.workflowInstance.id, 
+  	                     workflowInstance.workflow.name, 
+  	                     s"节点[${actionNodeInstance.nodeInfo.name}]分配给Worker[${actionNodeInstance.allocateHost}:${worker.path.address.port.get}]")
 	      (worker ? CreateAction(actionNodeInstance.deepCloneAs[ActionNodeInstance])).mapTo[ActorRef].map{ af =>
           if(af != null){
   	        runningActors += (af -> actionNodeInstance)
@@ -139,7 +145,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
         }
   	    true
 	    case wOpt if wOpt.isEmpty => 
-	      Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, s"无法为节点${actionNodeInstance.nodeInfo.name}分配worker")
+	      LogRecorder.error(WORFLOW_INSTANCE, this.workflowInstance.id,  workflowInstance.workflow.name, s"无法为节点${actionNodeInstance.nodeInfo.name}分配worker")
 	      terminateWith(W_FAILED, "因无发分配woker而执行失败")
 	      false
 	  }
@@ -151,7 +157,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	  val futures = runningActors.map{case (ar, nodeInstance) => {
 	    val result = (ar ? Kill()).mapTo[ActionExecuteResult].recover{ case e: Exception => 
 	                    ar ! PoisonPill
-	                    Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, s"杀死actor:${ar}超时，将强制杀死")
+	                    LogRecorder.error(WORFLOW_INSTANCE, this.workflowInstance.id,  workflowInstance.workflow.name, s"杀死actor:${ar}超时，将强制杀死")
 	                    ActionExecuteResult(FAILED,"节点超时")
 	                 }
 		  result.map { rs => 
@@ -178,10 +184,10 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     println("workflow名称："+workflowInstance.workflow.name+"执行完毕."+status+"actor名称: "+ workflowInstance.actorName)
     val resultF = status match {
       case W_SUCCESSED => 
-        Master.logRecorder ! Info("WorkflowInstance", this.workflowInstance.id, msg)
+         LogRecorder.info(WORFLOW_INSTANCE, this.workflowInstance.id,  workflowInstance.workflow.name, msg)
         Future{true}
       case _ =>
-        Master.logRecorder ! Error("WorkflowInstance", this.workflowInstance.id, msg)
+        LogRecorder.error(WORFLOW_INSTANCE, this.workflowInstance.id,  workflowInstance.workflow.name, msg)
         killAllRunningAction().map { l => if(l.filter { case ActionExecuteResult(sta,msg) => sta == FAILED}.size > 0) false else true }
     }
     resultF.map { x => 

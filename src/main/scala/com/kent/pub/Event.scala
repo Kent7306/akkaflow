@@ -1,11 +1,14 @@
 package com.kent.pub
 
 import akka.actor.ActorRef
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
 import com.kent.workflow.node.ActionNodeInstance
 import com.kent.workflow.WorkflowInstance
 import com.kent.workflow.WorkflowInfo.WStatus._
 import com.kent.workflow.node.NodeInfo.Status._
 import com.kent.pub.ActorTool.ActorInfo
+import java.util.Date
 
 object Event {
   //pub
@@ -23,9 +26,9 @@ object Event {
   case class UpdateCoor(content: String)
   case class GetManagers(workflowManager: ActorRef, coorManager: ActorRef)
   //log-recorder
-  case class Info(ctype: String, sid: String, content: String)
-  case class Warn(ctype: String, sid: String, content: String)
-  case class Error(ctype: String, sid: String, content: String)
+  case class Info(stime: Date,ctype: LogType, sid: String,name: String, content: String)
+  case class Warn(stime: Date,ctype: LogType, sid: String,name: String, content: String)
+  case class Error(stime: Date,ctype: LogType, sid: String,name: String, content: String)
   //persist-manager
   case class Save[A](obj: Daoable[A])
   case class Delete[A](obj: Daoable[A])

@@ -11,8 +11,13 @@ import com.kent.db.LogRecorder.LogMsg
 import com.kent.pub.Daoable
 import com.kent.pub.ActorTool
 import com.kent.pub.DaemonActor
+import com.kent.db.LogRecorder.LogType
+import akka.actor.ActorRef
+import java.util.Date
 
 class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends DaemonActor with Daoable[Any] {
+  import com.kent.db.LogRecorder.LogType._
+  
   implicit var connection: Connection = null
   
   def indivivalReceive = print2Console
@@ -27,9 +32,9 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
    * 开启打印到数据库
    */
   def print2DB: Actor.Receive = {
-    case Info(ctype, sid, content) => logging("INFO", ctype, sid, Util.escapeStr(content))
-    case Warn(ctype, sid, content) => logging("WARN", ctype, sid, Util.escapeStr(content))
-    case Error(ctype, sid, content) => logging("ERROR", ctype, sid, Util.escapeStr(content))
+    case Info(stime, ctype, sid, name, content) => logging("INFO", stime, ctype, sid, name, Util.escapeStr(content))
+    case Warn(stime, ctype, sid, name, content) => logging("WARN", stime, ctype, sid, name, Util.escapeStr(content))
+    case Error(stime, ctype, sid, name, content) => logging("ERROR", stime, ctype, sid, name, Util.escapeStr(content))
   }
   
   var messageList:List[LogMsg] = List()
@@ -37,15 +42,15 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
   /**
    * 打印到数据库（这里用了个队列，一次性事务提交，减少数据库压力）
    */
-  private def logging(level: String,ctype: String, sid: String, content: String):Boolean = {
-    val now = formatStandarTime(nowDate)
-    messageList = messageList :+ LogMsg(level, ctype, sid, content, now)
+  private def logging(level: String,stime: Date,ctype: LogType, sid: String, name: String, content: String):Boolean = {
+    val st = formatStandarTime(stime)
+    messageList = messageList :+ LogMsg(level, ctype.toString(), sid,name, content, st)
 
-    if(messageList.size > 100 || lastCommitTimeStamp - nowDate.getTime > 10000){
+    if(messageList.size > 30 || lastCommitTimeStamp - nowDate.getTime > 10000){
       val executeList = messageList
       messageList = List()
       val sqls = executeList.map { x => s"""
-    		insert into log_record values(null,${withQuate(x.sid)},${withQuate(x.level)},${withQuate(x.ctype)},${withQuate(x.time)},${withQuate(x.content)})
+    		insert into log_record values(null,${withQuate(x.level)},${withQuate(x.time)},${withQuate(x.ctype)},${withQuate(x.sid)},${withQuate(x.name)},${withQuate(x.content)})
       """ }.toList
       lastCommitTimeStamp = nowDate.getTime
     	executeSql(sqls)
@@ -54,16 +59,17 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     }
     
   }
-  private def loggingStr(ctype: String, sid: String, content: String): String = {
-    s"[${ctype}][${sid}] ${content}"
+  
+  private def loggingStr(stime: Date, ctype: LogType, sid: String, name: String, content: String): String = {
+    s"[${ctype}][${sid}][${name}] ${content}"
   }
   /**
    * 打印到终端
    */
   def print2Console: Actor.Receive = {
-    case Info(ctype, sid, content) => log.info(loggingStr(ctype, sid, content))
-    case Warn(ctype, sid, content) => log.warning(loggingStr(ctype, sid, content))
-    case Error(ctype, sid, content) => log.error(loggingStr(ctype, sid, content))
+    case Info(stime, ctype, sid, name, content) => log.info(loggingStr(stime,ctype, sid, name, content))
+    case Warn(stime, ctype, sid, name, content) => log.warning(loggingStr(stime,ctype, sid, name, content))
+    case Error(stime, ctype, sid, name, content) => log.error(loggingStr(stime,ctype, sid, name, content))
   }
   
   override def postStop(){
@@ -81,11 +87,28 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
   def save(implicit conn: Connection): Boolean = {
     ???
   }
+  
 }
+
+
 object LogRecorder {
-  case class LogMsg(level: String,ctype: String, sid: String, content: String,time: String)
+  var actor:ActorRef = _
+  
+  case class LogMsg(level: String,ctype: String, sid: String, name: String, content: String,time: String)
   
   def apply(url: String, username: String, pwd: String, isEnabled: Boolean):LogRecorder = new LogRecorder(url, username, pwd, isEnabled)
+  
+  
+  object LogType extends Enumeration {
+    type LogType = Value
+    val COORDINATOR, WORFLOW_INSTANCE, ACTION_NODE_INSTANCE,WORKFLOW_MANAGER  = Value 
+  }
+  
+  import com.kent.db.LogRecorder.LogType._
+  def info(ltyp: LogType, sid: String, name: String, content: String) = actor ! Info(Util.nowDate, ltyp, sid, name, content)
+  def error(ltyp: LogType, sid: String, name: String, content: String) = actor ! Error(Util.nowDate, ltyp, sid, name, content)
+  def warn(ltyp: LogType, sid: String, name: String, content: String) = actor ! Warn(Util.nowDate, ltyp, sid, name, content)
+  
 }
 
 

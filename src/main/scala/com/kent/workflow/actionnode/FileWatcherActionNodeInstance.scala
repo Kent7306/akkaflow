@@ -9,6 +9,9 @@ import com.kent.main.Worker
 import com.kent.pub.Event._
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
+import com.kent.db.LogRecorder
 
 class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNodeInfo)  extends ActionNodeInstance(nodeInfo)  {
 
@@ -71,11 +74,11 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
         }
         true
       } else {
-        Worker.logRecorder ! Error("NodeInstance",this.id,s"检测到目录（${nodeInfo.dir}）符合命名要求的文件（${nodeInfo.filename}）个数少于阈值： 阈值：${nodeInfo.numThreshold}, 当前：${files.size}")
+        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"检测到目录（${nodeInfo.dir}）符合命名要求的文件（${nodeInfo.filename}）个数少于阈值： 阈值：${nodeInfo.numThreshold}, 当前：${files.size}")
         false
       }
     } else {
-      Worker.logRecorder ! Error("NodeInstance",this.id,s"扫描的目录（${nodeInfo.dir}）不存在")
+      LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"扫描的目录（${nodeInfo.dir}）不存在")
       false
     }
   }

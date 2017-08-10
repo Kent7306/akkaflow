@@ -14,6 +14,9 @@ import scala.util.Success
 import scala.concurrent.Future
 import com.kent.pub.ActorTool
 import com.kent.workflow.node.ActionNodeInstance
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
+import com.kent.db.LogRecorder
 
 class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   var workflowActorRef: ActorRef = _
@@ -39,12 +42,6 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
       
       actionNodeInstance.status = executedStatus
   		actionNodeInstance.executedMsg = if(executedStatus == FAILED) "节点执行失败" else "节点执行成功"
-  		//日志记录
-  		if(executedStatus == FAILED){
-  		  Worker.logRecorder ! Error("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg) 
-  		}else if(executedStatus == SUCCESSED){
-  			Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg)    		  
-  		}
       if(context != null){
         self ! Termination()
       }
@@ -73,9 +70,14 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
    * 结束
    */
   def terminate(ar:ActorRef){
+    //日志记录
+		if(actionNodeInstance.status == SUCCESSED){
+		  LogRecorder.info(ACTION_NODE_INSTANCE, actionNodeInstance.id, actionNodeInstance.nodeInfo.name, actionNodeInstance.executedMsg)
+		}else {
+		  LogRecorder.error(ACTION_NODE_INSTANCE, actionNodeInstance.id, actionNodeInstance.nodeInfo.name, actionNodeInstance.executedMsg)	  
+		}
 		//结束
     ar ! ActionExecuteResult(actionNodeInstance.status,actionNodeInstance.executedMsg) 
-		Worker.logRecorder ! Info("NodeInstance",actionNodeInstance.id,actionNodeInstance.executedMsg)
 		context.parent ! RemoveAction(actionNodeInstance.name)
 		context.stop(self) 
   }

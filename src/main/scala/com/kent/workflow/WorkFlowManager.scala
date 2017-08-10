@@ -26,6 +26,9 @@ import akka.actor.Cancellable
 import com.kent.ddata.HaDataStorager._
 import com.kent.pub.ActorTool
 import com.kent.pub.DaemonActor
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
+import com.kent.db.LogRecorder
 
 class WorkFlowManager extends DaemonActor{
   /**
@@ -55,7 +58,7 @@ class WorkFlowManager extends DaemonActor{
    * 启动
    */
   def start(): Boolean = {
-      Master.logRecorder ! Info("WorkFlowManager",null,s"启动扫描...")
+      LogRecorder.info(WORKFLOW_MANAGER, null,  null, s"启动扫描...")
       this.scheduler = context.system.scheduler.schedule(200 millis, 2000 millis){
 		    self ! Tick()
       }
@@ -83,7 +86,7 @@ class WorkFlowManager extends DaemonActor{
     if(!wfiOpt.isEmpty){
       val wfi = wfiOpt.get
       val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
-    		Master.logRecorder ! Info("WorkflowManager", null, s"开始生成并执行工作流实例：${wfi.actorName}")
+        LogRecorder.info(WORKFLOW_MANAGER, wfi.id,  wfi.workflow.name, s"开始生成并执行工作流实例：${wfi.actorName}")
 				workflowActors = workflowActors + (wfi.id -> (wfi,wfActorRef))
 				Master.haDataStorager ! AddRWFI(wfi)
   			wfActorRef ! Start()
@@ -108,7 +111,7 @@ class WorkFlowManager extends DaemonActor{
     add(wf, isSaved)
   }
   def add(wf: WorkflowInfo, isSaved: Boolean): ResponseData = {
-    Master.logRecorder ! Info("WorkflowManager", null, s"添加工作流配置：${wf.name}")
+    LogRecorder.info(WORKFLOW_MANAGER, null,  wf.name, s"配置添加工作流：${wf.name}")
 		if(isSaved) Master.persistManager ! Save(wf)
 		Master.haDataStorager ! AddWorkflow(wf)
 		
@@ -125,7 +128,7 @@ class WorkFlowManager extends DaemonActor{
    */
   def remove(name: String): ResponseData = {
     if(!workflows.get(name).isEmpty){
-      Master.logRecorder ! Info("WorkflowManager", null, s"删除工作流：${name}")
+      LogRecorder.info(WORKFLOW_MANAGER, null,  name, s"删除工作流：${name}")
     	Master.persistManager ! Delete(workflows(name))
     	Master.haDataStorager ! RemoveWorkflow(name)
     	workflows = workflows.filterNot {x => x._1 == name}.toMap
@@ -159,7 +162,7 @@ class WorkFlowManager extends DaemonActor{
    */
   def newAndExecute(wfName: String,params: Map[String, String]): Boolean = {
     if(workflows.get(wfName).isEmpty){
-      Master.logRecorder ! Error("WorkflowManager", null, s"未找到名称为[${wfName}]的工作流")
+      LogRecorder.error(WORKFLOW_MANAGER, null,  null, s"未找到名称为[${wfName}]的工作流")
       false
     } else {
     	val wfi = workflows(wfName).createInstance()
@@ -200,7 +203,7 @@ class WorkFlowManager extends DaemonActor{
     	                s"任务【${wfInstance.actorName}】执行状态：${wfInstance.status}")      
     }
     Thread.sleep(1000)
-    Master.logRecorder ! Info("WorkflowInstance", wfInstance.id, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
+    LogRecorder.info(WORKFLOW_MANAGER, wfInstance.id,  wfInstance.workflow.name, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
     coordinatorManager ! WorkFlowExecuteResult(wfInstance.workflow.name, wfInstance.status)  
     true
   }

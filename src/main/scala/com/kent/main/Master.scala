@@ -258,6 +258,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         //创建日志记录器
         if(Master.logRecorder == null){
           Master.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+          LogRecorder.actor = Master.logRecorder
         }
         //创建xml装载器
         if(xmlLoader == null){
