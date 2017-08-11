@@ -50,7 +50,8 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
    * 启动workflow
    */
   def start():Boolean = {
-	  log.info(s"[workflow:${this.workflowInstance.actorName}开始启动")
+    LogRecorder.info(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, s"工作流实例:${this.workflowInstance.actorName}开始启动")
+	  log.info(s"工作流实例:${this.workflowInstance.actorName}开始启动")
 	  this.workflowInstance.status = W_RUNNING
 	  //节点替换参数
 	  this.workflowInstance.nodeInstanceList.foreach { _.replaceParam(workflowInstance.parsedParams) }
@@ -181,7 +182,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   def terminateWith(sdr:ActorRef, status: WStatus, msg: String){
     this.workflowInstance.status = status
     this.workflowInstance.endTime = Util.nowDate
-    println("workflow名称："+workflowInstance.workflow.name+"执行完毕."+status+"actor名称: "+ workflowInstance.actorName)
+    println("工作流实例："+workflowInstance.workflow.name+"执行完毕.执行状态: "+status+", actor名称: "+ workflowInstance.actorName)
     val resultF = status match {
       case W_SUCCESSED => 
          LogRecorder.info(WORFLOW_INSTANCE, this.workflowInstance.id,  workflowInstance.workflow.name, msg)
