@@ -21,7 +21,9 @@ libraryDependencies ++= {
     "com.github.philcali" %% "cronish" % "0.1.3",
     "org.json4s" % "json4s-jackson_2.11" % "3.5.0",
     "org.apache.commons" % "commons-email" % "1.4",
-    "com.typesafe.akka" %% "akka-http" % "10.0.6"
+    "com.typesafe.akka" %% "akka-http" % "10.0.6",
+    //"org.apache.hadoop" % "hadoop-hdfs" % "2.7.4"
+    "org.apache.hadoop" % "hadoop-client" % "2.7.4"
   )
 }
 

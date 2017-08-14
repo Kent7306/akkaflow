@@ -48,12 +48,12 @@ class FileWatcherActionNodeInstance(override val nodeInfo: FileWatcherActionNode
    * 检测本地文件情况
    */
   private def detectLocalFiles(): Boolean = {
-    val pattern = fileNameFuzzyMatch(nodeInfo.filename).r
+    val regx = fileNameFuzzyMatch(nodeInfo.filename).r
     val filesize = Util.convertHumen2Byte(nodeInfo.sizeThreshold)
     val file = new File(nodeInfo.dir)
     //目录必须存在
     if(file.isDirectory() && file.exists()) {
-      val files = file.listFiles().filter { x => !pattern.findFirstIn(x.getName).isEmpty}.toList
+      val files = file.listFiles().filter { x => !regx.findFirstIn(x.getName).isEmpty}.toList
       //检测的文件个数要符合规定个数
       if(files.size >= nodeInfo.numThreshold){
         val smallerFiles = files.filter { _.length() < filesize }.toList
