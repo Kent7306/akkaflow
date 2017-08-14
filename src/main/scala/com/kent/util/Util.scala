@@ -41,7 +41,7 @@ object Util {
     if(date == null){
       null
     }else{
-    	val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    	val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
     	s"${dateFormat.format(date)}"  
     }
   }

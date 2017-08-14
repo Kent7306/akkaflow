@@ -123,7 +123,6 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
    */
   def getEntity(implicit conn: Connection): Option[NodeInstance] = {
     import com.kent.util.Util._
-    val newNodeInstance = this.deepClone
     val queryStr = s"""
          select workflow_instance_id,name,is_action,type,content,description,status,stime,etime,msg
          from node_instance 
@@ -132,18 +131,26 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
    querySql(queryStr, (rs: ResultSet) =>{
           import com.kent.workflow.node.NodeInfo.Status
           if(rs.next()){
-        	   newNodeInstance.nodeInfo.name = rs.getString("name")
-        	   newNodeInstance.nodeInfo.desc = rs.getString("description")
-        	   newNodeInstance.status = Status.getStatusWithId(rs.getInt("status")) 
-        	   newNodeInstance.executedMsg = rs.getString("msg")
-             newNodeInstance.startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
-             newNodeInstance.endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
-             newNodeInstance.setContent(rs.getString("content"))
-             newNodeInstance
+             getEntityWithRs(rs)
           }else{
             null
           }
       })
+  }
+  /**
+   * 通过rs来获取节点实例实体（这里是为了提高重跑时，优化性能，一次性查询得到工作流实例的所有节点而调整的）
+   */
+  def getEntityWithRs(rs:ResultSet):NodeInstance = {
+    import com.kent.workflow.node.NodeInfo.Status
+    val newNodeInstance = this.deepClone
+     newNodeInstance.nodeInfo.name = rs.getString("name")
+     newNodeInstance.nodeInfo.desc = rs.getString("description")
+     newNodeInstance.status = Status.getStatusWithId(rs.getInt("status")) 
+     newNodeInstance.executedMsg = rs.getString("msg")
+     newNodeInstance.startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
+     newNodeInstance.endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
+     newNodeInstance.setContent(rs.getString("content"))
+     newNodeInstance
   }
 }
 

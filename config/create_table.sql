@@ -75,7 +75,7 @@ create table if not exists node_instance (
 create table if not exists log_record (
     id int(10) primary key auto_increment,
     level varchar(10),
-    stime datetime,
+    stime datetime(3),
     ctype varchar(60),
     sid varchar(20),
     name varchar(60),

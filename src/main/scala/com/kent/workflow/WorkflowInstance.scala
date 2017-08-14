@@ -122,15 +122,11 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     val wfi = this.deepClone
     //工作流实例查询sql
     val queryStr = s"""
-         select id,name,dir,param,status,description,mail_level,
-                mail_receivers,instance_limit,stime,etime,create_time,last_update_time
-         from workflow_instance 
-         where id=${withQuate(id)}
+         select * from workflow_instance where id=${withQuate(id)}
                     """
     //节点实例查询sql
     val queryNodesStr = s"""
-         select name,type from node_instance 
-         where workflow_instance_id = ${withQuate(id)}
+         select * from node_instance where workflow_instance_id = ${withQuate(id)}
       """
     val wfiOpt = querySql(queryStr, (rs: ResultSet) =>{
           if(rs.next()){
@@ -158,10 +154,11 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     //关联查询节点实例
     if(isWithNodeInstance && !wfiOpt.isEmpty){
       querySql(queryNodesStr, (rs: ResultSet) => {
-        var nameTypes = List[(String, String)]()
-        while(rs.next()) nameTypes = nameTypes ::: ((rs.getString("name"), rs.getString("type")) :: Nil)
-        val nis = nameTypes.map { x => NodeInstance(x._2, x._1, id).getEntity.get }.toList
-        wfi.nodeInstanceList = nis
+        var newNIList = List[NodeInstance]()
+        while(rs.next()) {
+          newNIList = newNIList :+ NodeInstance(rs.getString("type"), rs.getString("name"), id).getEntityWithRs(rs)
+        }
+        wfi.nodeInstanceList = newNIList
         wfi
       })
     }else{

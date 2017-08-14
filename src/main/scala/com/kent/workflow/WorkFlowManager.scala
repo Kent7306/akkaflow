@@ -252,7 +252,6 @@ class WorkFlowManager extends DaemonActor{
     val wf = new WorkflowInfo(null)
     val wfi = wf.createInstance()
     wfi.id = wfiId
-    implicit val timeout = Timeout(20 seconds)
     val wfiF = (Master.persistManager ? Get(wfi)).mapTo[Option[WorkflowInstance]]
     wfiF.map { wfiOpt => 
       if(wfiOpt.isEmpty){
