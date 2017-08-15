@@ -4,7 +4,7 @@ import com.kent.workflow.node.ActionNodeInfo
 import org.json4s.jackson.JsonMethods
 import com.kent.util.Util
 
-class FileWatcherActionNodeInfo(name: String) extends ActionNodeInfo(name) {
+class FileWatcherNode(name: String) extends ActionNodeInfo(name) {
     var dir: String = _
     var numThreshold: Int = 1
     var filename: String = _
@@ -12,8 +12,8 @@ class FileWatcherActionNodeInfo(name: String) extends ActionNodeInfo(name) {
     var warnMessage: String = _
     var isWarnMsgEnable: Boolean = false
   
-    def createInstance(workflowInstanceId: String): FileWatcherActionNodeInstance = {
-       val fwani = FileWatcherActionNodeInstance(this.deepCloneAs[FileWatcherActionNodeInfo])
+    def createInstance(workflowInstanceId: String): FileWatcherNodeInstance = {
+       val fwani = FileWatcherNodeInstance(this.deepCloneAs[FileWatcherNode])
         fwani.id = workflowInstanceId
         fwani
     }
@@ -45,12 +45,12 @@ class FileWatcherActionNodeInfo(name: String) extends ActionNodeInfo(name) {
   
 }
 
-object FileWatcherActionNodeInfo {
-  def apply(name: String): FileWatcherActionNodeInfo = new FileWatcherActionNodeInfo(name)
-  def apply(name:String, node: scala.xml.Node): FileWatcherActionNodeInfo = parseXmlNode(name, node)
+object FileWatcherNode {
+  def apply(name: String): FileWatcherNode = new FileWatcherNode(name)
+  def apply(name:String, node: scala.xml.Node): FileWatcherNode = parseXmlNode(name, node)
   
-  def parseXmlNode(name: String, node: scala.xml.Node): FileWatcherActionNodeInfo = {
-	  val fwan = FileWatcherActionNodeInfo(name)
+  def parseXmlNode(name: String, node: scala.xml.Node): FileWatcherNode = {
+	  val fwan = FileWatcherNode(name)
 	  val fileOpt = (node \ "file")
 	  val sizeWarnMsgOpt = (node \ "size-warn-message")
 	  if(!fileOpt.isEmpty) {
@@ -59,7 +59,7 @@ object FileWatcherActionNodeInfo {
 	    fwan.numThreshold = if(fileOpt(0).attribute("num-threshold").isEmpty) fwan.numThreshold 
 	                        else fileOpt(0).attribute("num-threshold").get.text.toInt
 	  } else {
-	    throw new Exception(s"节点[FileWatcherActionNodeInfo: ${name}] 未配置<file>子标签")
+	    throw new Exception(s"节点[file-watcher: ${name}] 未配置<file>子标签")
 	  }
 	  if(!sizeWarnMsgOpt.isEmpty) {
 	    fwan.sizeThreshold = sizeWarnMsgOpt(0).attribute("size-threshold").get.text

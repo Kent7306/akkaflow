@@ -7,11 +7,11 @@ object XmlAnalyse extends App{
 	//implicit def NodeTagTypeToString(a: NodeTagType.Value):String = a.toString()
   def loadFile(filePath: String): Unit = {
     val xmlObj = XML.loadFile(filePath)
-    val nodeList = (xmlObj \ "_").map(NodeInfo(_)).toList
+    val a = (xmlObj \ "action")
+    println(a)
     
-    nodeList.foreach { x => println(x.name) }
   }
   
-  loadFile("J:/wf.xml")
+  loadFile("F:\\git_resposit\\akkaflow\\xmlconfig\\workflow\\system\\wf_rm_tmp_file.xml")
   
 }

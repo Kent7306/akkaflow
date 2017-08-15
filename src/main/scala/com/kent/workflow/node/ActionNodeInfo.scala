@@ -58,11 +58,11 @@ object ActionNodeInfo {
     val childNode = (node \ "_")(0)
     childNode match {
       case <shell>{content @ _*}</shell> => 
-        actionNode = ShellActionNodeInfo(nameOpt.get.text, childNode)
+        actionNode = ShellNode(nameOpt.get.text, childNode)
       case <script>{content @ _*}</script> => 
-        actionNode = ScriptActionNodeInfo(nameOpt.get.text, childNode)
+        actionNode = ScriptNode(nameOpt.get.text, childNode)
       case <file-watcher>{content @ _*}</file-watcher> => 
-        actionNode = FileWatcherActionNodeInfo(nameOpt.get.text, childNode)
+        actionNode = FileWatcherNode(nameOpt.get.text, childNode)
       case <sub-workflow>{content @ _*}</sub-workflow> => 
         ???
       case _ => 

@@ -15,11 +15,16 @@ import com.kent.db.LogRecorder.LogType
 import com.kent.db.LogRecorder.LogType._
 import com.kent.db.LogRecorder
 
-class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) extends ActionNodeInstance(nodeInfo)  {
+class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeInstance(nodeInfo)  {
   private var executeResult: Process = _
 
   override def execute(): Boolean = {
     try {
+      var location = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
+      this.actionActor.workflowActorRef
+      
+      
+      
       var newLocation = if(nodeInfo.location == null || nodeInfo.location == "")
             Worker.config.getString("workflow.action.script-location") + "/" + Util.produce8UUID
             else nodeInfo.location
@@ -68,6 +73,6 @@ class ScriptActionNodeInstance(override val nodeInfo: ScriptActionNodeInfo) exte
   }
 }
 
-object ScriptActionNodeInstance {
-  def apply(san: ScriptActionNodeInfo): ScriptActionNodeInstance = new ScriptActionNodeInstance(san)
+object FileExecutorNodeInstance {
+  def apply(san: ScriptNode): FileExecutorNodeInstance = new FileExecutorNodeInstance(san)
 }

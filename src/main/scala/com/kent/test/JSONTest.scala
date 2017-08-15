@@ -36,8 +36,8 @@ object Test extends App{
            ]
          }
        """)
-   val l = (paths \ "paths" \\ classOf[JString]).asInstanceOf[List[String]]
-  // println(l)
+   val l = (paths \ "paths" \ classOf[JString]).asInstanceOf[List[String]]
+   println(l)
   
   
 /*  val json1 = parse("""
@@ -53,7 +53,7 @@ object Test extends App{
    } yield (k->v)
    println(list)*/
   val m = Map("1" -> "1v","2" -> "2v", "3" -> "3v")
-  val arr = List("111","222","333")
+  val arr = List("sh 111.sh \"sdfsdf\"","222","333")
   import org.json4s.JsonDSL._
     import org.json4s.jackson.JsonMethods._
   val paramStr = compact(render(m))

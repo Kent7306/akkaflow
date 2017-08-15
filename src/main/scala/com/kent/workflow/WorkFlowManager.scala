@@ -29,6 +29,8 @@ import com.kent.pub.DaemonActor
 import com.kent.db.LogRecorder.LogType
 import com.kent.db.LogRecorder.LogType._
 import com.kent.db.LogRecorder
+import java.io.File
+import scala.io.Source
 
 class WorkFlowManager extends DaemonActor{
   /**
@@ -282,6 +284,26 @@ class WorkFlowManager extends DaemonActor{
   def getWaittingNodeInfo():ResponseData = {
     val wns = this.waittingWorkflowInstance.map { x => Map("wfid" -> x.id,"name" -> x.workflow.name) }.toList
     ResponseData("success","成功获取等待队列信息", wns)
+  }
+  
+  def readFiles(path: String):FileContent = {
+    val f = new File(path)
+    if(!f.exists()){
+      FileContent(false, s"文件${path}不存在", null)
+    }else if(f.length() > ){
+      
+      
+      val contents = List[String]()
+    	if(Source.fromFile(f).size)
+    	a.size
+    	a.getLines().foreach { line => 
+    	  contents
+    	}
+      
+    }
+    a.is
+    f
+    ??? 
   }
   /**
    * receive方法

@@ -65,10 +65,10 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     	waitingNodes = waitingNodes.enqueue(sn.get)
     	//启动队列
     	this.scheduler = context.system.scheduler.schedule(0 millis, 100 millis){
-    		self ! Tick()
+    		self ! Tick() 
     	}
     	true
-    }else{
+    }else{  
       LogRecorder.error(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, "找不到开始节点")
       false
     }
@@ -86,9 +86,10 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     }
     //动作节点执行超时处理
     if(runningActors.size > 0){  
-      val timeoutNodes = runningActors.filter{ case (ar,nodeInstance) => nodeInstance.nodeInfo.timeout != -1}
-          .filter{case (ar, nodeInstance) => Util.nowTime - nodeInstance.startTime.getTime > nodeInstance.nodeInfo.timeout*1000}
-          .map(_._2.nodeInfo.name).toList
+      val timeoutNodes = runningActors.filter{ case (ar,nodeInstance) => 
+        nodeInstance.nodeInfo.timeout != -1 && 
+        Util.nowTime - nodeInstance.startTime.getTime > nodeInstance.nodeInfo.timeout*1000
+      }.map(_._2.nodeInfo.name).toList
       if(timeoutNodes.size > 0){
         LogRecorder.error(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, "以下动作节点超时：["+timeoutNodes.mkString(",")+"], 杀死当前工作流")
         this.terminateWith(W_KILLED, "杀死当前工作流实例")
@@ -104,12 +105,11 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     //若失败重试
     if(sta == FAILED && ni.hasRetryTimes < ni.nodeInfo.retryTimes){
       ni.hasRetryTimes += 1
-       //??? 这里可能会出现并发问题  waittingnode！！！！改成syncron？？？  done
        LogRecorder.warn(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, s"动作节点[${ni.nodeInfo.name}]执行失败，等待${ni.nodeInfo.interval}秒")
        context.system.scheduler.scheduleOnce(ni.nodeInfo.interval second){
       	 ni.reset()
       	 LogRecorder.warn(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, s"动作节点[${ni.nodeInfo.name}]执行失败，进行第${ni.hasRetryTimes}次重试")
-      	 createAndStartActionActor(ni)           
+      	 ni.run(this)
        }
     }else{
     	ni.status = sta

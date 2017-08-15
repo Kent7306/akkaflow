@@ -12,7 +12,7 @@ import com.kent.db.LogRecorder.LogType
 import com.kent.db.LogRecorder.LogType._
 import com.kent.db.LogRecorder
 
-class ShellActionNodeInstance(override val nodeInfo: ShellActionNodeInfo) extends ActionNodeInstance(nodeInfo)  {
+class ShellNodeInstance(override val nodeInfo: ShellNode) extends ActionNodeInstance(nodeInfo)  {
   var executeResult: Process = _
 
   override def execute(): Boolean = {
@@ -39,6 +39,6 @@ class ShellActionNodeInstance(override val nodeInfo: ShellActionNodeInfo) extend
   }
 }
 
-object ShellActionNodeInstance {
-  def apply(hsan: ShellActionNodeInfo): ShellActionNodeInstance = new ShellActionNodeInstance(hsan)
+object ShellNodeInstance {
+  def apply(hsan: ShellNode): ShellNodeInstance = new ShellNodeInstance(hsan)
 }

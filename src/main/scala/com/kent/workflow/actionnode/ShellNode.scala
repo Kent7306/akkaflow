@@ -8,11 +8,11 @@ import java.sql.ResultSet
 import java.sql.ResultSet
 import org.json4s.jackson.JsonMethods
 
-class ShellActionNodeInfo(name: String) extends ActionNodeInfo(name) {
+class ShellNode(name: String) extends ActionNodeInfo(name) {
   var command: String = _
 
-  def createInstance(workflowInstanceId: String): ShellActionNodeInstance = {
-    val hsani = ShellActionNodeInstance(this.deepCloneAs[ShellActionNodeInfo])
+  def createInstance(workflowInstanceId: String): ShellNodeInstance = {
+    val hsani = ShellNodeInstance(this.deepCloneAs[ShellNode])
     hsani.id = workflowInstanceId
     hsani
   }
@@ -35,14 +35,14 @@ class ShellActionNodeInfo(name: String) extends ActionNodeInfo(name) {
   }
 }
 
-object ShellActionNodeInfo {
-  def apply(name: String): ShellActionNodeInfo = new ShellActionNodeInfo(name)
-  def apply(name:String, node: scala.xml.Node): ShellActionNodeInfo = parseXmlNode(name, node)
+object ShellNode {
+  def apply(name: String): ShellNode = new ShellNode(name)
+  def apply(name:String, node: scala.xml.Node): ShellNode = parseXmlNode(name, node)
   
-  def parseXmlNode(name: String, node: scala.xml.Node): ShellActionNodeInfo = {
+  def parseXmlNode(name: String, node: scala.xml.Node): ShellNode = {
     val command = (node \ "command")(0).text
     
-	  val hsan = ShellActionNodeInfo(name)
+	  val hsan = ShellNode(name)
 	  hsan.command = command
 	  hsan
   }

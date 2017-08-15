@@ -24,7 +24,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
     case Start() => start()
     //外界kill
     case Kill() => kill(sender)
-    //
+    //自行结束
     case Termination() => terminate(workflowActorRef)
   }
   
