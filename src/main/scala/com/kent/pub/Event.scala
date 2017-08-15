@@ -48,7 +48,9 @@ object Event {
   case class WorkFlowInstanceExecuteResult(workflowInstance: WorkflowInstance)
   case class WorkFlowExecuteResult(wfName: String, status: WStatus)
   case class GetWaittingInstances()
-  case class FileContent(isSuccessed: Boolean, msg: String, content:List[String])
+  //读取文件内容
+  case class FileContent(isSuccessed: Boolean, msg: String,path: String, content:List[String])
+  case class GetFileContent(path: String)
   //wf-actor
   case class Kill()
   case class MailMessage(msg: String)

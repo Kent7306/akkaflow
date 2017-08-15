@@ -34,6 +34,13 @@ object FileUtil {
 		 }
 		 return false;
 	 }
+	/**
+	 * 从指定路径中解析出文件名 
+	 */
+	def getFileName(path: String): String = {
+    val f = new File(path)
+    f.getName
+  }
 	 def main(args: Array[String]): Unit = {
 	   val files = listFilesWithExtensions(new File("/Users/kent/Documents/github_repository/akkaflow"), List("xml"))
 	   files.foreach { x => println(x.getName) }

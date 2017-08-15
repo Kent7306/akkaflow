@@ -5,6 +5,7 @@ import com.kent.workflow.node.NodeInstance
 import com.kent.workflow.node.NodeInfo
 import org.json4s.jackson.JsonMethods
 import com.kent.util.Util
+import java.io.File
 
 class FileExecutorNode(name: String) extends ActionNodeInfo(name) {
   var attachFiles = List[String]()
@@ -34,8 +35,19 @@ class FileExecutorNode(name: String) extends ActionNodeInfo(name) {
     val c3 = c1.merge(c2)
     JsonMethods.pretty(JsonMethods.render(c3))
   }
-  
-  def getExecuteFile()
+  /**
+   * 解析可执行文件
+   */
+  def analysisExecuteFile():String = {
+    val strs = command.split("\\s")
+    //???
+    val efs = strs.filter { x => x.matches("\\") }
+    if(efs.size != 1){
+      throw new Exception("无法识别可执行文件")
+    }else{
+      return efs(0)
+    }
+  }
 }
 
 object FileExecutorNode {

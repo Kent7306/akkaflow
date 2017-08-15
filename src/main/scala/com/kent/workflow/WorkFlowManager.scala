@@ -287,23 +287,16 @@ class WorkFlowManager extends DaemonActor{
   }
   
   def readFiles(path: String):FileContent = {
+    val sizeLimit = 40
     val f = new File(path)
     if(!f.exists()){
-      FileContent(false, s"文件${path}不存在", null)
-    }else if(f.length() > ){
-      
-      
-      val contents = List[String]()
-    	if(Source.fromFile(f).size)
-    	a.size
-    	a.getLines().foreach { line => 
-    	  contents
-    	}
-      
+      FileContent(false, s"文件${path}不存在", path, null)
+    }else if(f.length() > sizeLimit*1024*1024){
+      FileContent(false, s"文件${path}大小为${f.length()},超过${sizeLimit}M", path, null)
+    }else{
+      val contents = Source.fromFile(f).getLines().toList
+      FileContent(true, s"文件读取成功", path, contents)
     }
-    a.is
-    f
-    ??? 
   }
   /**
    * receive方法
@@ -324,6 +317,9 @@ class WorkFlowManager extends DaemonActor{
       coordinatorManager = cm
       context.watch(coordinatorManager)
     case GetWaittingInstances() => sender ! getWaittingNodeInfo()
+    //读取文件内容
+    case GetFileContent(path) => sender ! readFiles(path)
+    
     case Terminated(arf) => if(coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")
     case Tick() => tick()
   }
