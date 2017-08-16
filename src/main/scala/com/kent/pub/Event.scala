@@ -49,7 +49,7 @@ object Event {
   case class WorkFlowExecuteResult(wfName: String, status: WStatus)
   case class GetWaittingInstances()
   //读取文件内容
-  case class FileContent(isSuccessed: Boolean, msg: String,path: String, content:List[String])
+  case class FileContent(isSuccessed: Boolean, msg: String,path: String, content:Array[Byte])
   case class GetFileContent(path: String)
   //wf-actor
   case class Kill()

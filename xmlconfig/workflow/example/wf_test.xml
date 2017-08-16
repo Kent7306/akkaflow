@@ -4,10 +4,14 @@
 
 	<action name="watch_log" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
 		<file-executor>
-			<command>sh /tmp/tmp/${param:stadate2}/test.sh</command>
+			<command>perl F:/1.${param:x}</command>
 			<attach-list>
-				<file>/tmp/tmp/${param:stadate2}/1111</file>
-				<file>/tmp/tmp/${param:stadate2}/2222</file>
+				<!-- <file>/tmp/tmp/${param:stadate2}/1111</file>
+				<file>/tmp/tmp/${param:stadate2}/2222</file> -->
+				<file>F:/test.${param:x}</file>
+				<file>F:/test.${param:y}</file>
+				<file>F:/季度个人总结_区广能.xlsx</file>
+				<file>F:/kof2002.rar</file>
 			</attach-list>
 		</file-executor>
 	    <!-- <file-watcher>

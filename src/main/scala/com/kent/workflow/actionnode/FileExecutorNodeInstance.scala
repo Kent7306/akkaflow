@@ -28,14 +28,6 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
   private var executeResult: Process = _
 
   override def execute(): Boolean = {
-    def writeToFile(path: String, content: List[String]){
-      val writer = new PrintWriter(new File(path))
-        val trimContent = content.mkString("\n")
-        writer.flush()
-        writer.close()
-        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到到文件：${path}")
-    }
-    
     try {
       this.actionActor.workflowActorRef
       val wfmPath = this.actionActor.workflowActorRef.path.parent
@@ -43,10 +35,10 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
       //获取附件
       val attachFileFl = this.nodeInfo.attachFiles.map { fp => 
         (wfmRef ? GetFileContent(fp)).mapTo[FileContent]
-      }.toList
+      }.toList 
       val attachFileF = Future.sequence(attachFileFl)
       //获取可执行文件
-      val executeFilePath = this.nodeInfo.analysisExecuteFile()
+      val executeFilePath = this.nodeInfo.analysisExecuteFilePath()
       val executeFileF = (wfmRef ? GetFileContent(executeFilePath)).mapTo[FileContent]
       
       val resultF = for{
@@ -72,20 +64,31 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
         dir.mkdirs()
         //写入执行文件
         val efn = FileUtil.getFileName(executeFileContent.path)
-        writeToFile(s"${location}/${efn}", executeFileContent.content)
+        FileUtil.writeFile(s"${location}/${efn}", executeFileContent.content)
+        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到到文件：${location}/${efn}")
         //写入附件文件
         attachFileContents.foreach { x => 
           val afn = FileUtil.getFileName(x.path)
-          writeToFile(s"${location}/${afn}", x.content)
+          FileUtil.writeFile(s"${location}/${afn}", x.content)
+          LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到到文件：${location}/${afn}")
         }
         //执行
-        
-        ???
-      }
+        val oldExecFilePath = this.nodeInfo.analysisExecuteFilePath()
+        val newExecFilePath = s"${location}/${efn}"
+        val newCommand = this.nodeInfo.command.replace(oldExecFilePath, newExecFilePath)
+        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"执行命令: ${newCommand}")
+        val pLogger = ProcessLogger(line => LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
+                                  line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line))
+        executeResult = Process(newCommand).run(pLogger)
+        if(executeResult.exitValue() == 0) true else false
+          true
+        }
       
     } catch {
-      case e: Exception => e.printStackTrace()
-      false
+      case e: Exception => 
+        e.printStackTrace()
+        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
+        false
     }
 //      var newLocation = if(nodeInfo.location == null || nodeInfo.location == "")
 //            Worker.config.getString("workflow.action.script-location") + "/" + Util.produce8UUID
@@ -122,8 +125,8 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
   }
 
   def replaceParam(param: Map[String, String]): Boolean = {
-    /*nodeInfo.location = ParamHandler(new Date()).getValue(nodeInfo.location, param)
-    nodeInfo.content = ParamHandler(new Date()).getValue(nodeInfo.content, param)*/
+    nodeInfo.command = ParamHandler(Util.nowDate).getValue(nodeInfo.command, param)
+    nodeInfo.attachFiles = nodeInfo.attachFiles.map { x => ParamHandler(Util.nowDate).getValue(x, param) }
     true
   }
 

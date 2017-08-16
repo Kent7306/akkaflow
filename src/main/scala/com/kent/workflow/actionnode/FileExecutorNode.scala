@@ -11,8 +11,8 @@ class FileExecutorNode(name: String) extends ActionNodeInfo(name) {
   var attachFiles = List[String]()
   var command: String = _
   
-  def createInstance(workflowInstanceId: String): ScriptNodeInstance = {
-    val sani = ScriptNodeInstance(this.deepCloneAs[ScriptNode]) 
+  def createInstance(workflowInstanceId: String): FileExecutorNodeInstance = {
+    val sani = FileExecutorNodeInstance(this.deepCloneAs[FileExecutorNode]) 
     sani.id = workflowInstanceId
     sani
   }
@@ -36,12 +36,12 @@ class FileExecutorNode(name: String) extends ActionNodeInfo(name) {
     JsonMethods.pretty(JsonMethods.render(c3))
   }
   /**
-   * 解析可执行文件
+   * 从命令串中解析可执行文件
    */
-  def analysisExecuteFile():String = {
-    val strs = command.split("\\s")
+  def analysisExecuteFilePath():String = {
+    val strs = command.split("\\s+")
     //???
-    val efs = strs.filter { x => x.matches("\\") }
+    val efs = strs.filter { x => x.contains("/") }
     if(efs.size != 1){
       throw new Exception("无法识别可执行文件")
     }else{
@@ -63,8 +63,9 @@ object FileExecutorNode {
 	  }
 	  node.command = commandSeq(0).text
 	  //附加文件，可选
-	  var attchFilesSwq = (xmlNode \ "attach-list")
-	  node.attachFiles = attchFilesSwq.map { att => att \ "file" }.map(f => f(0).text).toList
+	  var attchFilesSeq = (xmlNode \ "attach-list")
+	  node.attachFiles = (attchFilesSeq \ "file").map(f => f(0).text).toList
+	  println(node.attachFiles+"*****")
 	  node
   }
 }

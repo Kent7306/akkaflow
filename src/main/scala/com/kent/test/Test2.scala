@@ -7,7 +7,9 @@ object Test2 extends App {
   println(a.getName)
   //println(a.length())
   
-  val str = "111 222    4444"
+  val str = "sh /tmp/tmp/${param:stadate2}/test.sh"
   println(str.split("\\s+").length)
   println(str.split("\\s+").foreach { x => println("**"+x+"**") })
+  
+  println(str.contains("dfdf"))
 }

@@ -11,5 +11,7 @@
         <param name="yestoday" value="${time.today|yyyy-MM-dd|-1 day}"/>
         <param name="stadate" value="2017-03-04"/>
         <param name="stadate2" value="2017-08-07"/>
+        <param name="x" value="pl"/>
+        <param name="y" value="txt"/>
     </param-list>
 </coordinator>     

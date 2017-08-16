@@ -31,6 +31,7 @@ import com.kent.db.LogRecorder.LogType._
 import com.kent.db.LogRecorder
 import java.io.File
 import scala.io.Source
+import com.kent.util.FileUtil
 
 class WorkFlowManager extends DaemonActor{
   /**
@@ -287,15 +288,21 @@ class WorkFlowManager extends DaemonActor{
   }
   
   def readFiles(path: String):FileContent = {
-    val sizeLimit = 40
+    val sizeLimit = 100
     val f = new File(path)
     if(!f.exists()){
       FileContent(false, s"文件${path}不存在", path, null)
     }else if(f.length() > sizeLimit*1024*1024){
       FileContent(false, s"文件${path}大小为${f.length()},超过${sizeLimit}M", path, null)
     }else{
-      val contents = Source.fromFile(f).getLines().toList
-      FileContent(true, s"文件读取成功", path, contents)
+      try{
+      val byts = FileUtil.readFile(f)
+      FileContent(true, s"文件读取成功", path, byts)
+      } catch{
+        case e:Exception => 
+          e.printStackTrace()
+          FileContent(false, s"读取文件失败：${e.getMessage}", path, null)
+      }
     }
   }
   /**

@@ -1,6 +1,9 @@
 package com.kent.util
 
 import java.io.File
+import java.io.FileInputStream
+import java.io.ByteArrayOutputStream
+import java.io.FileOutputStream
 
 object FileUtil {
   /**
@@ -34,16 +37,44 @@ object FileUtil {
 		 }
 		 return false;
 	 }
-	/**
-	 * 从指定路径中解析出文件名 
-	 */
-	def getFileName(path: String): String = {
-    val f = new File(path)
-    f.getName
-  }
+  	/**
+  	 * 从指定路径中解析出文件名 
+  	 */
+  	def getFileName(path: String): String = {
+      val f = new File(path)
+      f.getName
+    }
 	 def main(args: Array[String]): Unit = {
 	   val files = listFilesWithExtensions(new File("/Users/kent/Documents/github_repository/akkaflow"), List("xml"))
 	   files.foreach { x => println(x.getName) }
 	 }
+	/**
+	 * 读取文件
+	 */
+	def readFile(fileName: String):Array[Byte] = readFile(new File(fileName))
+	/**
+	 * 读取文件
+	 */
+  def readFile(file: File):Array[Byte] = {
+    val is = new FileInputStream(file)
+    val os = new ByteArrayOutputStream()
+    val buffer = new Array[Byte](8192)
+    var n = 0
+    do {
+      n = is.read(buffer, 0, buffer.length)
+      if(n != -1) os.write(buffer, 0, n)
+    } while(n != -1)
+    is.close()
+    return os.toByteArray()
+  }
+  /**
+   * 写入文件
+   */
+  def writeFile(path: String, content:Array[Byte]) = {
+     val fos = new FileOutputStream(path)
+     fos.write(content)
+     fos.flush()
+     fos.close()
+  }
 	 
 }
