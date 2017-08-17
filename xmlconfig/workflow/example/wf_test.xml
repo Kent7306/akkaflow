@@ -11,7 +11,7 @@
 				<file>F:/test.${param:x}</file>
 				<file>F:/test.${param:y}</file>
 				<file>F:/季度个人总结_区广能.xlsx</file>
-				<file>F:/kof2002.rar</file>
+				<!-- <file>F:/kof2002.rar</file> -->
 			</attach-list>
 		</file-executor>
 	    <!-- <file-watcher>
