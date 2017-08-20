@@ -17,8 +17,8 @@ class ShellNode(name: String) extends ActionNodeInfo(name) {
     hsani
   }
 
-  override def setContent(contentStr: String){
-	  super.setContent(contentStr)
+  override def parseJsonStr(contentStr: String){
+	  super.parseJsonStr(contentStr)
     val content = JsonMethods.parse(contentStr)
     import org.json4s._
     implicit val formats = DefaultFormats
@@ -26,8 +26,8 @@ class ShellNode(name: String) extends ActionNodeInfo(name) {
     this.command = command
   }
   
-  override def getContent(): String = {
-    val contentStr = super.getContent()
+  override def assembleJsonStr(): String = {
+    val contentStr = super.assembleJsonStr()
     val c1 = JsonMethods.parse(contentStr)
     val c2 = JsonMethods.parse(s""" {"command":"${command}"}""")
     val c3 = c1.merge(c2)

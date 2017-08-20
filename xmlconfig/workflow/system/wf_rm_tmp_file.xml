@@ -2,7 +2,7 @@
         <start name="start" to="del_tmp_file" />
         <action name="del_tmp_file" desc="删除临时文件">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     limit_time=`date +%s`
                     ((limit_time=limit_time-${interval}))
@@ -14,7 +14,7 @@
                         fi
                     done
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="end"/>
         </action>

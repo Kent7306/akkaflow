@@ -24,12 +24,11 @@ import scala.concurrent.Await
 import com.kent.util.FileUtil
 
 class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeInstance(nodeInfo)  {
-  implicit val timeout = Timeout(20 seconds)
+  implicit val timeout = Timeout(60 seconds)
   private var executeResult: Process = _
 
   override def execute(): Boolean = {
     try {
-      this.actionActor.workflowActorRef
       val wfmPath = this.actionActor.workflowActorRef.path.parent
       val wfmRef = this.actionActor.context.actorSelection(wfmPath)
       //获取附件
@@ -65,12 +64,13 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
         //写入执行文件
         val efn = FileUtil.getFileName(executeFileContent.path)
         FileUtil.writeFile(s"${location}/${efn}", executeFileContent.content)
-        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到到文件：${location}/${efn}")
+        FileUtil.setExecutable(s"${location}/${efn}", true)
+        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到文件：${location}/${efn}")
         //写入附件文件
         attachFileContents.foreach { x => 
           val afn = FileUtil.getFileName(x.path)
           FileUtil.writeFile(s"${location}/${afn}", x.content)
-          LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到到文件：${location}/${afn}")
+          LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到文件：${location}/${afn}")
         }
         //执行
         val oldExecFilePath = this.nodeInfo.analysisExecuteFilePath()
@@ -90,38 +90,6 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
         LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
         false
     }
-//      var newLocation = if(nodeInfo.location == null || nodeInfo.location == "")
-//            Worker.config.getString("workflow.action.script-location") + "/" + Util.produce8UUID
-//            else nodeInfo.location
-//      //把文件内容写入文件
-//      val writer = new PrintWriter(new File(newLocation))
-//      //删除前置空格
-//      val lines = nodeInfo.content.split("\n").map { x => 
-//        if(x.trim() != "")x.trim() else null
-//      }.filter { _ != null }
-//      val trimContent = lines.mkString("\n")
-//      writer.write(trimContent)
-//      writer.flush()
-//      writer.close()
-//      LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"代码写入到文件：${newLocation}")
-//      //执行
-//      var cmd = "sh";
-//      if(lines.size > 0){  //选择用哪个执行解析器
-//        if(lines(0).toLowerCase().contains("perl")) cmd = "perl"
-//        else if(lines(0).toLowerCase().contains("python")) cmd = "python"
-//      }
-//      
-//      val pLogger = ProcessLogger(line => LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
-//                                  line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line))
-//      executeResult = Process(s"${cmd} ${newLocation}").run(pLogger)
-//      
-//      if(executeResult.exitValue() == 0) true else false
-//    }catch{
-//      case e:Exception => 
-//        e.printStackTrace();
-//        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
-//        false
-//    }
   }
 
   def replaceParam(param: Map[String, String]): Boolean = {

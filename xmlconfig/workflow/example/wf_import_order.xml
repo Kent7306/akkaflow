@@ -21,7 +21,7 @@
 
 	<action name="clean_log" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
 		<script>
-	    	<content>
+	    	<code>
            	<![CDATA[
 	           	#!/usr/bin/perl
 			$date="${param:stadate}";
@@ -38,20 +38,20 @@
 			close FH;
 			close FR;
            	]]>
-           </content>
+           </code>
         </script>
 	    <ok to="join_node"/>
 	</action>
 
 	<action name="sleep" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
 	    <script>
-		    <content>
+		    <code>
 	           	<![CDATA[
 	           	for i in `seq 1 10`
 	           	do sleep 2;echo $i
 	           	done
 	           	]]>
-           </content>
+           </code>
         </script>
 	    <ok to="join_node"/>
 	</action>
@@ -60,7 +60,7 @@
 
 	<action name="import_2_mysql" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
 		<script>
-		    <content>
+		    <code>
 	           	<![CDATA[
 	           	#!/bin/bash
 	           	source /etc/profile
@@ -72,7 +72,7 @@
 				    mysql -uroot -proot -Dtest -e "insert into t_order values ($str)"
 				done <  tmp/log_test/$sdate/order.result
 	           	]]>
-           </content>
+           </code>
         </script>
 	    <ok to="end"/>
 	</action>

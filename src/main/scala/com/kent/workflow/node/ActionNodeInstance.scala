@@ -54,15 +54,15 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends
     return true
   }
     
-  override def setContent(contentStr: String){
+  override def parseJsonStr(contentStr: String){
     val content = JsonMethods.parse(contentStr)
     import org.json4s._
     implicit val formats = DefaultFormats
-    this.nodeInfo.setContent(contentStr)
+    this.nodeInfo.parseJsonStr(contentStr)
     this.hasRetryTimes = (content \ "has-retry-times").extract[Int]
   }
-  override def getContent(): String = {
-    val ncontent = this.nodeInfo.getContent()
+  override def assembleJsonStr(): String = {
+    val ncontent = this.nodeInfo.assembleJsonStr()
     val c1 = JsonMethods.parse(ncontent)
     val c2 = JsonMethods.parse(s"""{"has-retry-times":${hasRetryTimes}}""")
     val c3 = c1.merge(c2)

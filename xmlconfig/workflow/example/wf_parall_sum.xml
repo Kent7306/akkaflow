@@ -14,7 +14,7 @@
         </fork> 
         <action name="a1" interval="8" retry-times="2">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     #!/usr/bin/perl
                     sleep 2;
@@ -29,13 +29,13 @@
                     close FH;
                     print "a1写入成功\n";
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="join_node"/>
         </action>
         <action name="a2">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     #!/usr/bin/perl
                     `mkdir -p tmp/${param:stadate}`;
@@ -48,13 +48,13 @@
                     close FH;
                     print "a2写入成功\n";
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="join_node"/>
         </action>
         <action name="a3">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     #!/usr/bin/perl
                     `mkdir -p tmp/${param:stadate}`;
@@ -67,13 +67,13 @@
                     close FH;
                     print "a3写入成功\n";
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="join_node"/>
         </action>
         <action name="a4">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     #!/usr/bin/perl
                     `mkdir -p tmp/${param:stadate}`;
@@ -86,13 +86,13 @@
                     close FH;
                     print "a4写入成功\n";
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="join_node"/>
         </action>
         <action name="a5">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     #!/usr/bin/perl
                     `mkdir -p tmp/${param:stadate}`;
@@ -105,13 +105,13 @@
                     close FH;
                     print "a5写入成功\n";
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="join_node"/>
         </action>
         <action name="a6">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     #!/usr/bin/perl
                     `mkdir -p tmp/${param:stadate}`;
@@ -124,13 +124,13 @@
                     close FH;
                     print "a6写入成功\n";
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="join_node"/>
         </action>
         <action name="a7">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     #!/usr/bin/perl
                     `mkdir -p tmp/${param:stadate}`;
@@ -143,13 +143,13 @@
                     close FH;
                     print "a7写入成功\n";
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="join_node"/>
         </action>
         <action name="a8">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     #!/usr/bin/perl
                     `mkdir -p tmp/${param:stadate}`;
@@ -162,13 +162,13 @@
                     close FH;
                     print "a8写入成功\n";
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="join_node"/>
         </action>
         <action name="a9">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     #!/usr/bin/perl
                     `mkdir -p tmp/${param:stadate}`;
@@ -181,18 +181,18 @@
                     close FH;
                     print "a9写入成功\n";
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="join_node"/>
         </action>
         <join name="join_node" to="a10"/>
         <action name="a10">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     cat tmp/${param:stadate}/num.txt | awk '{s += $1} END{print "a10算出来的总数是："s}'
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="end"/>
         </action>

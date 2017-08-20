@@ -4,6 +4,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
+import java.io.PrintWriter
 
 object FileUtil {
   /**
@@ -68,13 +69,32 @@ object FileUtil {
     return os.toByteArray()
   }
   /**
-   * 写入文件
+   * 写入文件(字节流)
    */
   def writeFile(path: String, content:Array[Byte]) = {
      val fos = new FileOutputStream(path)
      fos.write(content)
      fos.flush()
      fos.close()
+  }
+  def writeFile(path: String,content:List[String]) = {
+    val writer = new PrintWriter(new File(path))
+    //删除前置空格
+    content.foreach { x => writer.write(x+"\n") }
+    writer.flush()
+    writer.close()
+  }
+  /**
+   * 设置文件执行状态
+   */
+  def setExecutable(path: String, isExecutable: Boolean):Boolean = {
+    val f = new File(path)
+    if(f.exists()){
+      f.setExecutable(isExecutable)
+      true
+    }else{
+      false
+    }
   }
 	 
 }

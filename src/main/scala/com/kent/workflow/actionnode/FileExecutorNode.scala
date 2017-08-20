@@ -17,8 +17,8 @@ class FileExecutorNode(name: String) extends ActionNodeInfo(name) {
     sani
   }
   
-  override def setContent(contentStr: String){
-	  super.setContent(contentStr)
+  override def parseJsonStr(contentStr: String){
+	  super.parseJsonStr(contentStr)
     val content = JsonMethods.parse(contentStr)
     import org.json4s._
     implicit val formats = DefaultFormats
@@ -26,10 +26,10 @@ class FileExecutorNode(name: String) extends ActionNodeInfo(name) {
     this.attachFiles = (content \ "attach-list" \ classOf[JString]).asInstanceOf[List[String]]
   }
   
-  override def getContent(): String = {
+  override def assembleJsonStr(): String = {
 		import org.json4s.jackson.JsonMethods._
 	  import org.json4s.JsonDSL._
-    val c1 = JsonMethods.parse(super.getContent())
+    val c1 = JsonMethods.parse(super.assembleJsonStr())
     val attStr = JsonMethods.compact(JsonMethods.render(attachFiles))
     val c2 = JsonMethods.parse(s""" {"command":"${Util.transformJsonStr(command)}","attach-list":${attStr}}""")
     val c3 = c1.merge(c2)
@@ -65,7 +65,6 @@ object FileExecutorNode {
 	  //附加文件，可选
 	  var attchFilesSeq = (xmlNode \ "attach-list")
 	  node.attachFiles = (attchFilesSeq \ "file").map(f => f(0).text).toList
-	  println(node.attachFiles+"*****")
 	  node
   }
 }

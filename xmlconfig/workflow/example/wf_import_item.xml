@@ -24,13 +24,13 @@
  
 	<action name="sleep" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "sleep for a while">
 	    <script>
-		    <content>
+		    <code>
 	           	<![CDATA[
 	           	for i in `seq 1 10`
 	           	do sleep 2;echo $i
 	           	done
 	           	]]>
-           </content>
+           </code>
         </script>
 	    <ok to="join_node"/>
 	</action>

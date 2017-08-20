@@ -96,7 +96,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
     val insertStr = s"""
     insert into node_instance
     values(${withQuate(id)},${withQuate(nodeInfo.name)},${isAction},${withQuate(this.nodeInfo.getClass.getName)},
-          ${withQuate(getContent())},${withQuate(nodeInfo.desc)},
+          ${withQuate(assembleJsonStr())},${withQuate(nodeInfo.desc)},
            ${status.id},${withQuate(formatStandarTime(startTime))},
            ${withQuate(formatStandarTime(endTime))},${withQuate(executedMsg)})
     """
@@ -104,7 +104,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
       update node_instance set name = ${withQuate(nodeInfo.name)},
                                is_action = ${isAction},
                                type = ${withQuate(this.nodeInfo.getClass.getName)},
-                               content = ${withQuate(getContent())},
+                               content = ${withQuate(assembleJsonStr())},
                                description = ${withQuate(nodeInfo.desc)},
                                status = ${status.id},
                                stime = ${withQuate(formatStandarTime(startTime))},
@@ -149,7 +149,8 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
      newNodeInstance.executedMsg = rs.getString("msg")
      newNodeInstance.startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
      newNodeInstance.endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
-     newNodeInstance.setContent(rs.getString("content"))
+     //???
+     newNodeInstance.parseJsonStr(rs.getString("content"))
      newNodeInstance
   }
 }

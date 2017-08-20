@@ -4,7 +4,7 @@
 
 	<action name="join_sql" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "join两个表">
 		<script>
-		    <content>
+		    <code>
 	           	<![CDATA[
 	           	#!/bin/bash
 	           	source /etc/profile
@@ -16,7 +16,7 @@
 				from t_order a join t_item b 
 				on a.ds = b.ds and a.orderid = b.orderid;"
 	           	]]>
-           </content>
+           </code>
         </script>
 	    <ok to="end"/>
 	</action>

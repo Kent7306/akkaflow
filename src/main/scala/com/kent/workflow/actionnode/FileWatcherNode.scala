@@ -18,8 +18,8 @@ class FileWatcherNode(name: String) extends ActionNodeInfo(name) {
         fwani
     }
 
-  override def setContent(contentStr: String){
-	  super.setContent(contentStr)
+  override def parseJsonStr(contentStr: String){
+	  super.parseJsonStr(contentStr)
     val content = JsonMethods.parse(contentStr)
     import org.json4s._
     implicit val formats = DefaultFormats
@@ -32,8 +32,8 @@ class FileWatcherNode(name: String) extends ActionNodeInfo(name) {
 	  
   }
   
-  override def getContent(): String = {
-    val contentStr = super.getContent()
+  override def assembleJsonStr(): String = {
+    val contentStr = super.assembleJsonStr()
     val c1 = JsonMethods.parse(contentStr)
     val c2 = JsonMethods.parse(s"""{
          "file":{"dir":"${dir}","num-threshold":${numThreshold},"name":"${filename}"},

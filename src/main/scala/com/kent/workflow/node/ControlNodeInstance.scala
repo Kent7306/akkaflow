@@ -28,16 +28,16 @@ abstract class ControlNodeInstance(override val nodeInfo: ControlNodeInfo) exten
 
   def replaceParam(param: Map[String, String]): Boolean = true
   
-  override def setContent(contentStr: String){
+  override def parseJsonStr(contentStr: String){
     if(contentStr != null){
     	val content = JsonMethods.parse(contentStr)
-    			import org.json4s._
-    			implicit val formats = DefaultFormats
-    			this.nodeInfo.setContent(contentStr)       
+			import org.json4s._
+			implicit val formats = DefaultFormats
+			this.nodeInfo.parseJsonStr(contentStr)       
     }
   }
-  override def getContent(): String = {
-    val ncontent = this.nodeInfo.getContent()
+  override def assembleJsonStr(): String = {
+    val ncontent = this.nodeInfo.assembleJsonStr()
     if(ncontent != null){
     	val c1 = JsonMethods.parse(ncontent)
     	JsonMethods.pretty(JsonMethods.render(c1))      

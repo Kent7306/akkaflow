@@ -31,12 +31,12 @@ abstract class NodeInfo(var name: String) extends Daoable[NodeInfo] with DeepClo
     val insertStr = s"""
       insert into node 
       values(${withQuate(name)},${isAction},${withQuate(this.getClass.getName)},
-      ${withQuate(getContent())},${withQuate(workflowName)},${withQuate(desc)})
+      ${withQuate(assembleJsonStr())},${withQuate(workflowName)},${withQuate(desc)})
       """
     val updateStr = s"""
       update node set type = ${withQuate(this.getClass.getName)},
                       is_action = ${isAction},
-                      content = ${withQuate(getContent())}, 
+                      content = ${withQuate(assembleJsonStr())}, 
                       workflow_name = ${withQuate(workflowName)},
                       description = ${withQuate(desc)})
                       where name = ${withQuate(name)}
@@ -70,7 +70,7 @@ abstract class NodeInfo(var name: String) extends Daoable[NodeInfo] with DeepClo
       if (rs.next()) {
         newNode.desc = rs.getString("description")
         newNode.workflowName = rs.getString("workflow_name")
-        newNode.setContent(rs.getString("content"))
+        newNode.parseJsonStr(rs.getString("content"))
         newNode
       } else {
         null

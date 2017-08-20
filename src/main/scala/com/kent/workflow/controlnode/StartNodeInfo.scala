@@ -14,7 +14,7 @@ class StartNodeInfo(name: String) extends ControlNodeInfo(name){
     sni.id = workflowInstanceId
     sni
   }
-  override def setContent(contentStr: String){
+  override def parseJsonStr(contentStr: String){
     val content = JsonMethods.parse(contentStr)
     import org.json4s._
     implicit val formats = DefaultFormats
@@ -22,7 +22,7 @@ class StartNodeInfo(name: String) extends ControlNodeInfo(name){
     this.to = to
   }
   
-  override def getContent(): String = {
+  override def assembleJsonStr(): String = {
     s"""{"to":"${to}"}"""
   }
 }

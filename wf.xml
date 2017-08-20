@@ -28,14 +28,14 @@ mail-receivers: 收件人
      <action name="action_node_3" retry-times="1" interval="1" timeout="500" desc = "这是节点测试">
        <script>
            <location>F://1.pl</location>		<!-- 生成文件路径，可选 -->
-           <content>
+           <code>
            	<![CDATA[
            	print "1.pl start sleep 3 s\n";
            	print "1.pl start sleep 3 s\n";
            	print "1.pl start sleep 3 s\n";
            	print "1.pl start sleep 3 s\n";
            	]]>
-           </content>
+           </code>
        </script>
        <ok to="join_node"/>
        <error to="join_node"/>

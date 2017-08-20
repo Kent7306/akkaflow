@@ -4,21 +4,32 @@
 
 	<action name="watch_log" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
 		<file-executor>
-			<command>perl F:/1.${param:x}</command>
+			<command>/tmp/tmp/2017-08-07/test.sh</command>
 			<attach-list>
-				<!-- <file>/tmp/tmp/${param:stadate2}/1111</file>
-				<file>/tmp/tmp/${param:stadate2}/2222</file> -->
-				<file>F:/test.${param:x}</file>
-				<file>F:/test.${param:y}</file>
-				<file>F:/季度个人总结_区广能.xlsx</file>
-				<!-- <file>F:/kof2002.rar</file> -->
+				<file>/tmp/tmp/2017-08-07/1111</file>
+				<file>/tmp/tmp/2017-08-07/2222</file>
 			</attach-list>
 		</file-executor>
-	    <!-- <file-watcher>
-	        <file dir="hdfs:///tmp/log_test/${param:stadate}">item_*.out</file> 
-	        <size-warn-message enable="true" size-threshold="2MB"></size-warn-message> 
-	    </file-watcher> -->
-	    <ok to="end"/>
+	    <ok to="script"/>
+	</action>
+	<action name="script" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
+		<script>
+			<code>
+				<![CDATA[
+echo `ls`
+echo $PATH
+#export PATH="/Users/kent/soft/scala/bin:/usr/local/mysql/bin:/Users/kent/soft/sbt/bin:/Users/kent/Documents/soft/scala/bin:/usr/local/mysql/bin:/Users/kent/Documents/soft/sbt/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+source ~/.bash_profile
+echo $PATH
+mysql -uroot -proot -e "use wf;show tables"
+           	]]>
+			</code>
+			<attach-list>
+				<file>/tmp/tmp/2017-08-07/1111</file>
+				<file>/tmp/tmp/2017-08-07/2222</file>
+			</attach-list>
+		</script>
+		<ok to="end"/>
 	</action>
 	<end name="end"/>
 </work-flow>

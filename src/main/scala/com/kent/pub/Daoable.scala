@@ -57,13 +57,13 @@ trait Daoable[A] {
     true
   }
   /**
-   * 设置该对象的content字段
+   * 根据json来填充对应对象
    */
-  def setContent(contentStr: String) = {}
+  def parseJsonStr(contentStr: String) = {}
   /**
-   * 获取对象的content内容
+   * 组装对象的content内容
    */
-  def getContent(): String = null
+  def assembleJsonStr(): String = null
   /**
    * 保存或更新对象
    */

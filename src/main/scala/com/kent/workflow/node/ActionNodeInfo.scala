@@ -11,7 +11,7 @@ abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
   var ok: String = _
   var error: String = _ 
   
-  override def setContent(contentStr: String){
+  override def parseJsonStr(contentStr: String){
     val content = JsonMethods.parse(contentStr)
     import org.json4s._
     implicit val formats = DefaultFormats
@@ -22,7 +22,7 @@ abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
     this.ok = (content \ "ok").extract[String]
 		this.error = (content \ "error").extract[String]
   }
-  override def getContent(): String = {
+  override def assembleJsonStr(): String = {
     s"""
       {"host":"${host}",
        "retry-times":${retryTimes},

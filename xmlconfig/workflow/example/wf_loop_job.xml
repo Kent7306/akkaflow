@@ -2,7 +2,7 @@
         <start name="start" to="a1" />
         <action name="a1" desc="执行情况" timeout="10"> 
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     n=${param:num}
                     rand=`expr $RANDOM % ${param:range}`
@@ -15,18 +15,18 @@
                     echo "$rand = $n,成功退出"
                     exit 0
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="end"/>
             <error to="a2"/>
         </action>
         <action name="a2" desc="等待2秒,循环">
             <script>
-                <content>
+                <code>
                 <![CDATA[
                     sleep 2
                     ]]>
-                </content>
+                </code>
             </script>
             <ok to="a1"/>
         </action>
