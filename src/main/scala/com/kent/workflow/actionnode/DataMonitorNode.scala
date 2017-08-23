@@ -7,10 +7,13 @@ import org.json4s.jackson.JsonMethods
 import com.kent.util.Util
 import com.kent.workflow.actionnode.DataMonitorNode.SourceType
 import com.kent.workflow.actionnode.DataMonitorNode._
+import java.sql.DriverManager
+import java.sql.Connection
+import java.sql.Statement
 
 class DataMonitorNode(name: String) extends ActionNodeInfo(name) {
   //数据源分类
-  var sourceCategory: String = _
+  var category: String = _
   //数据源名称
   var sourceName: String = _
   //监控配置
@@ -23,12 +26,14 @@ class DataMonitorNode(name: String) extends ActionNodeInfo(name) {
   var warnMsg: String = _
   //是否持久化
   var isSaved = false
+  //是否超过限制就失败
+  var isExceedError = true
   //时间标志
   var timeMark: String = _
   
   //???
-  def createInstance(workflowInstanceId: String): ScriptNodeInstance = {
-    val sani = ScriptNodeInstance(this.deepCloneAs[ScriptNode]) 
+  def createInstance(workflowInstanceId: String): DataMonitorNodeInstance = {
+    val sani = DataMonitorNodeInstance(this.deepCloneAs[DataMonitorNode]) 
     sani.id = workflowInstanceId
     sani
   }
@@ -38,54 +43,81 @@ class DataMonitorNode(name: String) extends ActionNodeInfo(name) {
     val content = JsonMethods.parse(contentStr)
     import org.json4s._
     implicit val formats = DefaultFormats
-    this.sourceCategory = (content \ "source-category").extract[String]
-    this.sourceName = (content \ "source-category").extract[String]
+    this.category = (content \ "category").extract[String]
+    this.sourceName = (content \ "source-name").extract[String]
 	  this.isSaved = (content \ "is-saved").extract[Boolean]
 	  this.timeMark = (content \ "time-mark").extract[String]
 	  this.warnMsg = (content \ "warn-msg").extract[String]
     
 	  val sourType = (content \ "source" \ "type").extract[String]
 	  val sourContent = (content \ "source" \ "content").extract[String]
-	  this.source = Source(SourceType.withName(sourType), sourContent)
-	  
-	  val maxtType = (content \ "max-thredshold" \ "type").extract[String]
-	  val maxTContent = (content \ "max-thredshold" \ "content").extract[String]
-	  val maxIsOverError = (content \ "max-thredshold" \ "is-over-error").extract[Boolean]
-	  this.maxThre = MaxThreshold(SourceType.withName(maxtType),maxIsOverError, maxTContent)
-	  
-	  val mintType = (content \ "min-thredshold" \ "type").extract[String]
-	  val minTContent = (content \ "min-thredshold" \ "content").extract[String]
-	  val minIsOverError = (content \ "min-thredshold" \ "is-over-error").extract[Boolean]
-	  this.minThre = MinThreshold(SourceType.withName(mintType),maxIsOverError, minTContent)
-	  
+		val sourUrl = (content \ "source" \ "jdbc-url").extract[String]
+		val sourUn = (content \ "source" \ "username").extract[String]
+		val sourPwd = (content \ "source" \ "password").extract[String]
+	  this.source = Source(SourceType.withName(sourType), sourContent, (sourUrl, sourUn, sourPwd))
+	  if((content \ "max-thredshold").toOption.isDefined){
+  	  val maxtType = (content \ "max-thredshold" \ "type").extract[String]
+  	  val maxTContent = (content \ "max-thredshold" \ "content").extract[String]
+  	  val maxUrl = (content \ "max-thredshold" \ "jdbc-url").extract[String]
+  		val maxUn = (content \ "max-thredshold" \ "username").extract[String]
+  		val maxPwd = (content \ "max-thredshold" \ "password").extract[String]
+  	  this.maxThre = MaxThreshold(SourceType.withName(maxtType), maxTContent, (maxUrl, maxUn, maxPwd))
+	  }
+	  if((content \ "min-thredshold").toOption.isDefined){
+  	  val mintType = (content \ "min-thredshold" \ "type").extract[String]
+  	  val minTContent = (content \ "min-thredshold" \ "content").extract[String]
+  	  val minUrl = (content \ "min-thredshold" \ "jdbc-url").extract[String]
+  		val minUn = (content \ "min-thredshold" \ "username").extract[String]
+  		val minPwd = (content \ "min-thredshold" \ "password").extract[String]
+  	  this.minThre = MinThreshold(SourceType.withName(mintType), minTContent, (minUrl, minUn, minPwd))
+	  }
     
   }
   
   override def assembleJsonStr(): String = {
     import org.json4s.jackson.JsonMethods._
 	  import org.json4s.JsonDSL._
-	  val c1 = JsonMethods.parse(super.assembleJsonStr())
-	  val c2 = JsonMethods.parse(s"""{
-	      "source-category":"${sourceCategory}",
-	      "source-name":"${sourceName}",
+	  import com.kent.util.Util._
+	  var assembleStr = s"""{
+	      "category":${transJsonStr(category)},
+	      "source-name":${transJsonStr(sourceName)},
 	      "is-saved":${isSaved},
-	      "time-mark":"${Util.transformJsonStr(timeMark)}",
+	      "is-exceed-error":${isExceedError},
+	      "time-mark":${transJsonStr(timeMark)},
+	      "warn-msg":${transJsonStr(warnMsg)},
 	      "source":{
-	        "type":"${source.stype}",
-	        "content":"${Util.transformJsonStr(source.content)}"
+	        "type":${transJsonStr(source.stype.toString())},
+	        "jdbc-url":${transJsonStr(source.dbInfo._1)},
+	        "username":${transJsonStr(source.dbInfo._2)},
+	        "password":${transJsonStr(source.dbInfo._3)},
+	        "content":${transJsonStr(source.content)}
+	      }
+	    }"""
+	  if(minThre != null){
+	    assembleStr += s"""
+	      ,"min-thredshold":{
+	        "type":${transJsonStr(minThre.stype.toString())},
+	        "jdbc-url":${transJsonStr(minThre.dbInfo._1)},
+	        "username":${transJsonStr(minThre.dbInfo._2)},
+	        "password":${transJsonStr(minThre.dbInfo._3)},
+	        "content":${transJsonStr(minThre.content)}
+	      }
+	    """
+	  }
+	  if(maxThre != null){
+	    assembleStr += s"""
+	      ,"max-thredshold":{
+	        "type":${transJsonStr(maxThre.stype.toString())},
+	        "jdbc-url":${transJsonStr(maxThre.dbInfo._1)},
+	        "username":${transJsonStr(maxThre.dbInfo._2)},
+	        "password":${transJsonStr(maxThre.dbInfo._3)},
+	        "content":${transJsonStr(maxThre.content)}
 	      },
-	      "min-thredshold":{
-	        "type":"${minThre.stype}",
-	        "is-over-error":${minThre.isOverError},
-	        "content":"${Util.transformJsonStr(minThre.content)}"
-	      },
-	      "max-thredshold":{
-	        "type":"${maxThre.stype}",
-	        "is-over-error":${maxThre.isOverError},
-	        "content":"${Util.transformJsonStr(maxThre.content)}"
-	      },
-	      "warn-msg":"${Util.transformJsonStr(warnMsg)}"
-	    }""")
+	    """
+	  }
+	  
+	  val c1 = JsonMethods.parse(super.assembleJsonStr())
+	  val c2 = JsonMethods.parse(assembleStr)
     val c3 = c1.merge(c2)
     JsonMethods.pretty(JsonMethods.render(c3))
   }
@@ -97,9 +129,11 @@ object DataMonitorNode {
     val HIVE, ORACLE, MYSQL, COMMAND, NUM = Value
   }
   import com.kent.workflow.actionnode.DataMonitorNode.SourceType._
-  case class MaxThreshold(stype: SourceType, isOverError: Boolean, content: String)
-  case class MinThreshold(stype: SourceType, isOverError: Boolean, content: String) 
-  case class Source(stype: SourceType, content: String)
+  case class MaxThreshold(stype: SourceType,content: String, dbInfo:Tuple3[String, String, String])
+  case class MinThreshold(stype: SourceType,content: String, dbInfo:Tuple3[String, String, String])
+  case class Source(stype: SourceType,content: String, dbInfo:Tuple3[String, String, String])
+  
+  
   
   def apply(name: String): DataMonitorNode = new DataMonitorNode(name)
   def apply(name:String, node: scala.xml.Node): DataMonitorNode = parseXmlNode(name, node)
@@ -107,7 +141,7 @@ object DataMonitorNode {
   def parseXmlNode(name: String, xmlNode: scala.xml.Node): DataMonitorNode = {
 	  val node = DataMonitorNode(name)
 	  //属性
-	  val scOpt = xmlNode.attribute("source-category")
+	  val scOpt = xmlNode.attribute("category")
 	  val snOpt = xmlNode.attribute("source-name")
 	  node.isSaved = if(xmlNode.attribute("is-saved").isDefined) 
   	      xmlNode.attribute("is-saved").get.text.toBoolean
@@ -120,36 +154,48 @@ object DataMonitorNode {
   	    xmlNode.attribute("time-mark").get.text
   	  else 
   	    node.timeMark
+  	val ieeOpt = xmlNode.attribute("is-exceed-error")
+  	node.isExceedError = if(ieeOpt.isDefined) ieeOpt.get.text.toBoolean else node.isExceedError
+  	
 	  if(scOpt.isEmpty){
-	    throw new Exception(s"节点[data-monitor: ${name}] 未配置属性: source-category")
-	  }else if(snOpt.isEmpty){
+	    throw new Exception(s"节点[data-monitor: ${name}] 未配置属性: category")
+	  }
+	  if(snOpt.isEmpty){
 		  throw new Exception(s"节点[data-monitor: ${name}] 未配置属性: source-name")	    
 	  }
-	  
+	  node.category = scOpt.get.text
+	  node.sourceName = snOpt.get.text
 	  
 	  //source
-	  val sourceSeq = (xmlNode \ "souce")
+	  val sourceSeq = (xmlNode \ "source")
 	  if(sourceSeq.size == 0){
 	    throw new Exception(s"节点[data-monitor: ${name}] 未配置<source>子标签")	    
 	  }
 	  val sType = SourceType.withName(sourceSeq(0).attribute("type").get.text)
+		val sUrl = if(sourceSeq(0).attribute("jdbc-url").isDefined) sourceSeq(0).attribute("jdbc-url").get.text else null
+		val sUsername = if(sourceSeq(0).attribute("username").isDefined) sourceSeq(0).attribute("username").get.text else null
+		val sPwd = if(sourceSeq(0).attribute("password").isDefined) sourceSeq(0).attribute("password").get.text else null
 	  val sContent = sourceSeq(0).text
-	  node.source = new Source(sType, sContent)
+	  node.source = new Source(sType, sContent, (sUrl, sUsername, sPwd))
 	  //max-threshold
 	  val maxThrSeq = (xmlNode \ "max-threshold")
 	  if(maxThrSeq.size > 0){
 	    val tt = SourceType.withName(maxThrSeq(0).attribute("type").get.text)
-	    val et = maxThrSeq(0).attribute("is-over-error").get.text.toBoolean
+	    val sUrl = if(sourceSeq(0).attribute("jdbc-url").isDefined) sourceSeq(0).attribute("jdbc-url").get.text else null
+  		val sUsername = if(sourceSeq(0).attribute("username").isDefined) sourceSeq(0).attribute("username").get.text else null
+  		val sPwd = if(sourceSeq(0).attribute("password").isDefined) sourceSeq(0).attribute("password").get.text else null
 	    val ct = maxThrSeq(0).text
-	    node.maxThre = new MaxThreshold(tt, et, ct)
+	    node.maxThre = new MaxThreshold(tt, ct, (sUrl, sUsername, sPwd))
 	  }
 	  //min-threshold
 	  val minThrSeq = (xmlNode \ "min-threshold")
 	  if(minThrSeq.size > 0){
 	    val tt = SourceType.withName(minThrSeq(0).attribute("type").get.text)
-	    val et = minThrSeq(0).attribute("is-over-error").get.text.toBoolean
+	    val sUrl = if(sourceSeq(0).attribute("jdbc-url").isDefined) sourceSeq(0).attribute("jdbc-url").get.text else null
+  		val sUsername = if(sourceSeq(0).attribute("username").isDefined) sourceSeq(0).attribute("username").get.text else null
+  		val sPwd = if(sourceSeq(0).attribute("password").isDefined) sourceSeq(0).attribute("password").get.text else null
 	    val ct = minThrSeq(0).text
-	    node.minThre = new MinThreshold(tt, et, ct)
+	    node.minThre = new MinThreshold(tt, ct, (sUrl, sUsername, sPwd))
 	  }
 	  //warn-msg
 	  val warnMsgSeq = (xmlNode \ "warn-msg")

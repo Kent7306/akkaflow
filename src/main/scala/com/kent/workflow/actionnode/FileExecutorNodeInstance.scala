@@ -92,12 +92,6 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
     }
   }
 
-  def replaceParam(param: Map[String, String]): Boolean = {
-    nodeInfo.command = ParamHandler(Util.nowDate).getValue(nodeInfo.command, param)
-    nodeInfo.attachFiles = nodeInfo.attachFiles.map { x => ParamHandler(Util.nowDate).getValue(x, param) }
-    true
-  }
-
   def kill(): Boolean = {
     if(executeResult != null){
       executeResult.destroy()

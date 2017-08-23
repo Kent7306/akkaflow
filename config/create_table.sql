@@ -50,7 +50,8 @@ create table if not exists workflow_instance(
     stime datetime,
     etime datetime,
     create_time datetime,
-    last_update_time datetime
+    last_update_time datetime,
+    xml_str text comment 'xml的内容'
 );
 create table if not exists coordinator_trigger_record (
     id varchar(8) primary key comment '标识',
@@ -90,6 +91,16 @@ create table if not exists directory_info(
     name varchar(128) not null,
     description varchar(1024)
 );
+create table if not exists data_monitor(
+    time_mark varchar(64) not null comment '时间字段，格式自定义',
+    category varchar(64) not null comment '数据源分类',
+    source_name varchar(64) not null comment '数据源名称',
+    num double not null comment '监测值',
+    min double comment '下限',
+    max double comment '上限',
+    remark varchar(1024) comment '备注'
+);
+
 truncate node;
 truncate workflow;
 truncate directory_info;

@@ -33,11 +33,13 @@ class FileWatcherNode(name: String) extends ActionNodeInfo(name) {
   }
   
   override def assembleJsonStr(): String = {
+    import com.kent.util.Util._
     val contentStr = super.assembleJsonStr()
     val c1 = JsonMethods.parse(contentStr)
     val c2 = JsonMethods.parse(s"""{
-         "file":{"dir":"${dir}","num-threshold":${numThreshold},"name":"${filename}"},
-         "size-warn-message":{"enable":${isWarnMsgEnable},"size-threshold":"${sizeThreshold}","warn-msg":"${Util.transformJsonStr(warnMessage)}"}
+         "file":{"dir":${transJsonStr(dir)},"num-threshold":${numThreshold},"name":${transJsonStr(filename)}},
+         "size-warn-message":{"enable":${isWarnMsgEnable},"size-threshold":"${sizeThreshold}",
+         "warn-msg":${transJsonStr(warnMessage)}}
        }""")
     val c3 = c1.merge(c2)
     JsonMethods.pretty(JsonMethods.render(c3))

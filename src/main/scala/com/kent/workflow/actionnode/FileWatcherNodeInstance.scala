@@ -136,13 +136,6 @@ class FileWatcherNodeInstance(override val nodeInfo: FileWatcherNode)  extends A
   def kill(): Boolean = {
     true
   }
-
-  def replaceParam(param: Map[String, String]): Boolean = {
-    nodeInfo.dir = ParamHandler().getValue(nodeInfo.dir, param)
-    nodeInfo.filename = ParamHandler().getValue(nodeInfo.filename, param)
-    nodeInfo.warnMessage = ParamHandler().getValue(nodeInfo.warnMessage, param)
-    true
-  }
 }
 
 object FileWatcherNodeInstance {

@@ -28,10 +28,11 @@ class FileExecutorNode(name: String) extends ActionNodeInfo(name) {
   
   override def assembleJsonStr(): String = {
 		import org.json4s.jackson.JsonMethods._
+    import com.kent.util.Util._
 	  import org.json4s.JsonDSL._
     val c1 = JsonMethods.parse(super.assembleJsonStr())
     val attStr = JsonMethods.compact(JsonMethods.render(attachFiles))
-    val c2 = JsonMethods.parse(s""" {"command":"${Util.transformJsonStr(command)}","attach-list":${attStr}}""")
+    val c2 = JsonMethods.parse(s""" {"command":${transJsonStr(command)},"attach-list":${attStr}}""")
     val c3 = c1.merge(c2)
     JsonMethods.pretty(JsonMethods.render(c3))
   }

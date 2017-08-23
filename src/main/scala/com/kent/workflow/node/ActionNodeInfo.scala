@@ -65,6 +65,8 @@ object ActionNodeInfo {
         actionNode = FileWatcherNode(nameOpt.get.text, childNode)
       case <file-executor>{content @ _*}</file-executor> => 
         actionNode = FileExecutorNode(nameOpt.get.text, childNode)
+      case <data-monitor>{content @ _*}</data-monitor> => 
+        actionNode = DataMonitorNode(nameOpt.get.text, childNode)
       case <sub-workflow>{content @ _*}</sub-workflow> => 
         ???
       case _ => 

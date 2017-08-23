@@ -68,10 +68,6 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
    */
   def getNextNodes(wfi: WorkflowInstance): List[NodeInstance]
   /**
-   * 替换该节点参数
-   */
-  def replaceParam(param: Map[String, String]): Boolean
-  /**
    * 重置
    */
   def reset(){

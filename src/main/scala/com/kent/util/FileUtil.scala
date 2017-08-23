@@ -78,7 +78,9 @@ object FileUtil {
      fos.close()
   }
   def writeFile(path: String,content:List[String]) = {
-    val writer = new PrintWriter(new File(path))
+    val f = new File(path)
+    f.deleteOnExit()
+    val writer = new PrintWriter(f)
     //删除前置空格
     content.foreach { x => writer.write(x+"\n") }
     writer.flush()

@@ -19,6 +19,7 @@ import com.kent.workflow.WorkflowInfo.WStatus
 import akka.actor.ActorRef
 import com.kent.db.PersistManager
 import com.kent.pub.Directory
+import com.kent.coordinate.ParamHandler
 
 class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[WorkflowInstance] with Daoable[WorkflowInstance] {
   var id: String = Util.produce8UUID
@@ -78,7 +79,8 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   	                                          ${withQuate(paramStr)},'${status.id}',${withQuate(workflow.desc)},
   	                                          ${withQuate(levelStr)},${withQuate(receiversStr)},${workflow.instanceLimit},
   	                                          ${withQuate(formatStandarTime(startTime))},${withQuate(formatStandarTime(endTime))},
-  	                                          ${withQuate(formatStandarTime(workflow.createTime))},${withQuate(formatStandarTime(workflow.createTime))})
+  	                                          ${withQuate(formatStandarTime(workflow.createTime))},${withQuate(formatStandarTime(workflow.createTime))},
+  	                                          ${withQuate(workflow.xmlStr)})
   	    """
   	  val updateSql = s"""
   	    update workflow_instance set
@@ -119,7 +121,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
    */
   def getEntityWithNodeInstance(isWithNodeInstance: Boolean)(implicit conn: Connection): Option[WorkflowInstance] = {
     import com.kent.util.Util._
-    val wfi = this.deepClone
+    val wfi = this.deepClone()
     //工作流实例查询sql
     val queryStr = s"""
          select * from workflow_instance where id=${withQuate(id)}
@@ -139,6 +141,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
             wfi.workflow.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
             wfi.workflow.mailReceivers = (receiversStr \\ classOf[JString]).asInstanceOf[List[String]]
             wfi.workflow.instanceLimit = rs.getInt("instance_limit")
+            //wfi.workflow.xmlStr = rs.getString("xml_str")
             wfi.status = WStatus.getWstatusWithId(rs.getInt("status"))
             wfi.workflow.createTime = Util.getStandarTimeWithStr(rs.getString("create_time"))
             wfi.startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
@@ -185,14 +188,22 @@ object WorkflowInstance {
   /**
    * 由一个workflow对象产生一个实例
    */
-  def apply(wf: WorkflowInfo): WorkflowInstance = {
+  def apply(wf: WorkflowInfo, parseParams: Map[String, String]): WorkflowInstance = {
     if(wf != null){
-    	val wfi = new WorkflowInstance(wf.deepClone())
+      val parseXmlStr = ParamHandler(Util.nowDate).getValue(wf.xmlStr, parseParams)
+      val parseWf = WorkflowInfo.parseXmlNode(parseXmlStr)
+    	val wfi = new WorkflowInstance(parseWf)
     	wfi.nodeInstanceList = wfi.workflow.nodeList.map { _.createInstance(wfi.id) }.toList
     	wfi      
     } else{
       val wfi = new WorkflowInstance(null)
       wfi
     }
+  }
+  def apply(wfiid: String): WorkflowInstance = {
+    val wf = new WorkflowInfo(null)
+    val wfi = new WorkflowInstance(wf)
+    wfi.id = wfiid
+    wfi
   }
 }

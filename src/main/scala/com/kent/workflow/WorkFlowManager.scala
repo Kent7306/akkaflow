@@ -169,7 +169,7 @@ class WorkFlowManager extends DaemonActor {
       LogRecorder.error(WORKFLOW_MANAGER, null, null, s"未找到名称为[${wfName}]的工作流")
       false
     } else {
-      val wfi = workflows(wfName).createInstance()
+      val wfi = workflows(wfName).createInstance(params)
       wfi.parsedParams = params
       //把工作流实例加入到等待队列中
       waittingWorkflowInstance += wfi
@@ -184,7 +184,7 @@ class WorkFlowManager extends DaemonActor {
     if (workflows.get(wfName).isEmpty) {
       ResponseData("fail", s"工作流${wfName}不存在", null)
     } else {
-      val wfi = workflows(wfName).createInstance()
+      val wfi = workflows(wfName).createInstance(params)
       wfi.parsedParams = params
       //把工作流实例加入到等待队列中
       waittingWorkflowInstance += wfi
@@ -254,9 +254,8 @@ class WorkFlowManager extends DaemonActor {
    * 重跑指定的工作流实例
    */
   def reRun(wfiId: String): Future[ResponseData] = {
-    val wf = new WorkflowInfo(null)
-    val wfi = wf.createInstance()
-    wfi.id = wfiId
+    val wfi = WorkflowInstance(wfiId)
+    
     val wfiF = (Master.persistManager ? Get(wfi)).mapTo[Option[WorkflowInstance]]
     wfiF.map { wfiOpt =>
       if (wfiOpt.isEmpty) {

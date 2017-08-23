@@ -1,7 +1,7 @@
 <coordinator name="coor_parall_sum" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" 
-    is-enabled="false" dir="/example" desc="每分钟启动">    
+    is-enabled="false" dir="/example" desc="每半小时启动">    
     <trigger>
-        <cron config="* * * * * *"/>
+        <cron config="*/15 * * * * *"/>
     </trigger>
     <workflow-list>
       <workflow path="wf_parall_sum"></workflow>

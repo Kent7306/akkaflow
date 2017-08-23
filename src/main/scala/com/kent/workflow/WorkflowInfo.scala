@@ -32,7 +32,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   /**
    * 由该工作流信息创建属于某工作流实例
    */
-  def createInstance(): WorkflowInstance = WorkflowInstance(this)
+  def createInstance(parseParams: Map[String, String]): WorkflowInstance = WorkflowInstance(this, parseParams)
 
   def delete(implicit conn: Connection): Boolean = {
     var result = false

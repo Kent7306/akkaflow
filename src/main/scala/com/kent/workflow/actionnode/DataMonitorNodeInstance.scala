@@ -21,52 +21,48 @@ import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.concurrent.Await
 import com.kent.util.FileUtil
+import com.kent.workflow.actionnode.DataMonitorNode.SourceType
+import com.kent.workflow.actionnode.DataMonitorNode.SourceType._
+import java.sql.Connection
+import java.sql.Statement
+import java.sql.DriverManager
+import com.kent.workflow.actionnode.DataMonitorNode._
 
-class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeInstance(nodeInfo)  {
-  private var executeResult: Process = _
+class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends ActionNodeInstance(nodeInfo)  {
   implicit val timeout = Timeout(60 seconds)
   
   override def execute(): Boolean = {
+    //是否执行成功
+    var result = true
+    
     try {
-      val wfmPath = this.actionActor.workflowActorRef.path.parent
-      val wfmRef = this.actionActor.context.actorSelection(wfmPath)
-      //获取附件
-      val attachFileFl = this.nodeInfo.attachFiles.map { fp => 
-        (wfmRef ? GetFileContent(fp)).mapTo[FileContent]
-      }.toList 
-      val attachFileF = Future.sequence(attachFileFl)
-      val attachFileContents = Await.result(attachFileF, 120 seconds)
-      //是否能成功读取到文件
-      if(attachFileContents.filter{ ! _.isSuccessed}.size > 0){
-        attachFileContents.filter{ ! _.isSuccessed}.foreach { x => 
-          LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, x.msg)
-        }
-        false
-      }else{
-        //创建执行目录
-        var location = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
-        var executeFilePath = s"${location}/run_script"
-        val dir = new File(location)
-        dir.deleteOnExit()
-        dir.mkdirs()
-        //写入执行文件
-        val lines = nodeInfo.code.split("\n").filter { x => x.trim() != "" }.toList
-        FileUtil.writeFile(executeFilePath,lines)
-        FileUtil.setExecutable(executeFilePath, true)
-        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"写入到文件：${executeFilePath}")
-        //写入附件文件
-        attachFileContents.foreach { x => 
-          val afn = FileUtil.getFileName(x.path)
-          FileUtil.writeFile(s"${location}/${afn}", x.content)
-          LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到文件：${location}/${afn}")
-        }
-        //执行
-        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"执行命令: ${executeFilePath}")
-        val pLogger = ProcessLogger(line => LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
-                                  line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line))
-        executeResult = Process(s"${executeFilePath} ${nodeInfo.paramLine}").run(pLogger)
-        if(executeResult.exitValue() == 0) true else false
+      val monitorData = getData(nodeInfo.source)
+      val maxDataOpt = if(nodeInfo.maxThre != null) Some(getData(nodeInfo.maxThre)) else None
+      val minDataOpt = if(nodeInfo.minThre != null) Some(getData(nodeInfo.minThre)) else None
+      
+      //异常则发送邮件
+      var defaultWarnMsg:String = null
+      if(maxDataOpt.isDefined && monitorData > maxDataOpt.get){
+        defaultWarnMsg += s"<p>工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测高于上限(${maxDataOpt.get})</p>"
       }
+      if(minDataOpt.isDefined && monitorData < minDataOpt.get){
+        defaultWarnMsg += s"<p>工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测低于下限(${minDataOpt.get})</p>"
+      }
+      if(defaultWarnMsg != null){
+    	  val content = if(nodeInfo.warnMsg == null || nodeInfo.warnMsg.trim() == "") defaultWarnMsg else nodeInfo.warnMsg
+			  val titleMark = if(nodeInfo.isExceedError) "Error" else "Warn"
+			  actionActor.sendMailMsg(null, s"【${titleMark}】data-monitor数据异常", content)
+			  result = if(nodeInfo.isExceedError == true) false else result
+      }
+      
+      //保存数据
+      if(nodeInfo.isSaved){
+        val dmr = DataMonitorRecord(nodeInfo.timeMark, nodeInfo.category, nodeInfo.sourceName, monitorData, maxDataOpt, minDataOpt)
+        val persistManagerPath = this.actionActor.workflowActorRef.path / ".." / ".." / "pm"
+        val persistManager = this.actionActor.context.actorSelection(persistManagerPath)
+        persistManager ! Save(dmr)
+      }
+      result
     }catch{
       case e:Exception => 
         e.printStackTrace();
@@ -74,22 +70,85 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
         false
     }
   }
-
-  def replaceParam(param: Map[String, String]): Boolean = {
-    nodeInfo.paramLine = ParamHandler(Util.nowDate).getValue(nodeInfo.paramLine, param)
-    nodeInfo.code = ParamHandler(Util.nowDate).getValue(nodeInfo.code, param)
-    nodeInfo.attachFiles = nodeInfo.attachFiles.map { x => ParamHandler(Util.nowDate).getValue(x, param) }
-    true
+  /**
+   * 获取数据
+   */
+  def getData(obj: Any):Double = {
+    val (stype, content, jdbcUrl,username,pwd) = obj match {
+      case Source(typ,cont,info) => (typ,cont,info._1, info._2, info._3)
+      case MaxThreshold(typ,cont,info) => (typ,cont,info._1, info._2, info._3)
+      case MinThreshold(typ,cont,info) => (typ,cont,info._1, info._2, info._3)
+      case _ => throw new Exception("未找到匹配的类型")
+    }
+    if(stype == MYSQL){
+      getRmdbData("com.mysql.jdbc.Driver", content, jdbcUrl, username, pwd)
+    }else if(stype == ORACLE){
+      getRmdbData("oracle.jdbc.driver.OracleDriver", content, jdbcUrl, username, pwd)
+    }else if(stype == HIVE){
+      getRmdbData("org.apache.hive.jdbc.HiveDriver", content, jdbcUrl, username, pwd)
+    }else if(stype == COMMAND) {  //COMMAND
+      var filePath = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
+      getCommandData(filePath, content)
+    }else if(stype == NUM){
+      getInputData(content)
+    }else {
+       throw new Exception("未找到适合的数据源类型")
+    }
   }
 
-  def kill(): Boolean = {
-    if(executeResult != null){
-      executeResult.destroy()
+    /**
+     * 获取rmdb数据
+     */
+    private def getRmdbData(driverName: String, sql: String, jdbcUrl: String, username: String, pwd: String):Double = {
+      var conn:Connection = null
+      var stat:Statement = null
+      try{
+    	  Class.forName(driverName)
+    	  //得到连接
+    	  conn = DriverManager.getConnection(jdbcUrl, username, pwd)
+    	  stat = conn.createStatement()
+      	val rs = stat.executeQuery(sql)
+      	val num = if(rs.next()){
+        	  rs.getString(1).trim().toDouble
+        	}else{
+        	  throw new Exception("无查询结果")
+        	}
+       num
+      }catch{
+        case e:Exception => throw e
+      }finally{
+        if(stat != null) stat.close()
+        if(conn != null) conn.close()
+      }
     }
+    
+    /**
+     * 获取命令数据
+     */
+    private def getCommandData(executeFilePath: String, content: String): Double = {
+      //写入执行文件
+      val lines = content.split("\n").filter { x => x.trim() != "" }.toList
+      FileUtil.writeFile(executeFilePath,lines)
+      FileUtil.setExecutable(executeFilePath, true)
+      LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"写入到文件：${executeFilePath}")
+      //执行
+      LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"执行命令: ${executeFilePath}")
+      val rsNum: String = s"${executeFilePath}" !!
+      val num = rsNum.trim().toDouble
+      num
+    }
+    /**
+     * 获取直接输入的数据
+     */
+    private def getInputData(content: String):Double = {
+      content.trim().toDouble
+    }
+
+  def kill(): Boolean = {
     true
   }
 }
 
-object ScriptNodeInstance {
-  def apply(san: ScriptNode): ScriptNodeInstance = new ScriptNodeInstance(san)
+object DataMonitorNodeInstance {
+  def apply(san: DataMonitorNode): DataMonitorNodeInstance = new DataMonitorNodeInstance(san)
 }

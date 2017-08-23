@@ -57,6 +57,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
    * 开启持久化
    */
   def active: Actor.Receive = {
+    //??? 后续改成future
     case Save(obj) => obj.save
     case Delete(obj) => obj.delete
     case Get(obj) => sender ! obj.getEntity
@@ -69,7 +70,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     case Start() => sender ! this.start()
     case Get(obj) => sender ! None
     case Save(obj) => 
-    case Delete(obj) => 
+    case Delete(obj) =>
   }
   /**
    * 查询结果数组
@@ -101,6 +102,23 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
       if(stat != null) stat.close()
     }
     None
+  }
+  /**
+   * 执行sql
+   */
+  def executeSql(sql: String)(implicit conn: Connection): Boolean = {
+	  //println(sql)
+    val stat = conn.createStatement()
+    var result:Boolean = false
+    try{
+    	result = stat.execute(sql)      
+    }catch{
+      case e:Exception => e.printStackTrace()
+    }finally{
+      if(stat != null) stat.close()
+      result
+    }
+    result
   }
   
   override def postStop(){

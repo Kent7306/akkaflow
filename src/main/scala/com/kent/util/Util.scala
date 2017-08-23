@@ -102,7 +102,7 @@ object Util {
  /**
   * 转化json字符串，使之能保存在数据库中   
   */
-  def transformJsonStr(str: String): String = {
+  def transJsonStr(str: String): String = {
     if(str != null) {
       val sb = new StringBuffer()
       str.map { x => 
@@ -118,7 +118,7 @@ object Util {
           case '\t' => "    "
           case x => x.toString()
         }}.foreach { sb.append(_) }
-        sb.toString()
+        s""""${sb.toString()}""""
     }else{
       null
     }

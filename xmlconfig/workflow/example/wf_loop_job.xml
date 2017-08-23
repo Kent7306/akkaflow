@@ -1,6 +1,6 @@
-<work-flow name="wf_loop_job"  dir="/example" desc="测试循环">
+<work-flow name="wf_loop_job"  dir="/example" desc="测试循环" instance-limit="5">
         <start name="start" to="a1" />
-        <action name="a1" desc="执行情况" timeout="10"> 
+        <action name="a1" desc="执行情况">
             <script>
                 <code>
                 <![CDATA[

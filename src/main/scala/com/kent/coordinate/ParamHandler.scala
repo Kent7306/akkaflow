@@ -15,7 +15,7 @@ class ParamHandler(date:Date){
   def getValue(expr: String, paramMap:  Map[String, String]): String = {
     if(expr == null) return null
     //这里有个问题，目前测试了解，scala正则表达式只能单行匹配，所以先把\n替换成#@@#
-    val expr2 = expr.replace("\n", "#@@#")
+    val expr2 = expr.replace("\r", "").replace("\n", "#@@#")
     val pattern = "\\$\\{(.*?)\\}".r
     if(pattern.findFirstIn(expr2).isEmpty){
       expr

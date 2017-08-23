@@ -28,11 +28,6 @@ class ShellNodeInstance(override val nodeInfo: ShellNode) extends ActionNodeInst
     }
   }
 
-  def replaceParam(param: Map[String, String]): Boolean = {
-    nodeInfo.command = ParamHandler(new Date()).getValue(nodeInfo.command, param)
-    true
-  }
-
   def kill(): Boolean = {
     if(executeResult != null)executeResult.destroy()
     true

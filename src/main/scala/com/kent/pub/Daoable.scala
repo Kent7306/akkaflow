@@ -50,7 +50,7 @@ trait Daoable[A] {
       case e: Exception => 
           conn.rollback()
           e.printStackTrace()
-          throw new Exception("执行初始化建表sql失败")
+          throw new Exception("批量执行sql失败")
           return false
     }
     conn.setAutoCommit(true)

@@ -12,13 +12,11 @@
              <path to="a8" />
              <path to="a9" />
         </fork> 
-        <action name="a1" interval="8" retry-times="2">
+        <action name="a1">
             <script>
                 <code>
                 <![CDATA[
                     #!/usr/bin/perl
-                    sleep 2;
-                    #exit 1;  
                     `mkdir -p tmp/${param:stadate}`;
                     open(FH, '>>', 'tmp/${param:stadate}/num.txt') or die;
                     my $i=0;

@@ -75,13 +75,6 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
     }
   }
 
-  def replaceParam(param: Map[String, String]): Boolean = {
-    nodeInfo.paramLine = ParamHandler(Util.nowDate).getValue(nodeInfo.paramLine, param)
-    nodeInfo.code = ParamHandler(Util.nowDate).getValue(nodeInfo.code, param)
-    nodeInfo.attachFiles = nodeInfo.attachFiles.map { x => ParamHandler(Util.nowDate).getValue(x, param) }
-    true
-  }
-
   def kill(): Boolean = {
     if(executeResult != null){
       executeResult.destroy()

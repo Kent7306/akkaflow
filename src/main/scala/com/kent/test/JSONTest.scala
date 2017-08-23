@@ -4,6 +4,8 @@ import org.json4s.JsonAST.JString
 import org.json4s.JsonAST.JString
 import org.json4s.jvalue2monadic
 import org.json4s.string2JsonInput
+import org.json4s.DefaultFormats
+import org.json4s.JsonAST.JValue
 
 
 object Test extends App{
@@ -21,6 +23,7 @@ object Test extends App{
   
   import org.json4s.jackson.JsonMethods._
   import org.json4s.JsonDSL._
+  implicit val formats = DefaultFormats
   val paths = parse("""{"paths":["list1","list2","list3"]}""")
   val json = parse("""
          { "name": "joe",
@@ -36,6 +39,10 @@ object Test extends App{
            ]
          }
        """)
+   val aaa = (paths \ "paths")
+   println(aaa.toOption)
+       
+   
    val l = (paths \ "paths" \ classOf[JString]).asInstanceOf[List[String]]
    println(l)
   

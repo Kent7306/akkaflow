@@ -54,7 +54,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	  log.info(s"工作流实例:${this.workflowInstance.actorName}开始启动")
 	  this.workflowInstance.status = W_RUNNING
 	  //节点替换参数
-	  this.workflowInstance.nodeInstanceList.foreach { _.replaceParam(workflowInstance.parsedParams) }
+	  //this.workflowInstance.nodeInstanceList.foreach { _.replaceParam(workflowInstance.parsedParams) }
 	  //保存工作流实例
 	   workflowInstance.startTime = Util.nowDate
     Master.persistManager ! Save(workflowInstance.deepClone())

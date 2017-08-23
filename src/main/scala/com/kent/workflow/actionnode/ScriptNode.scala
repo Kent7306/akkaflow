@@ -30,12 +30,13 @@ class ScriptNode(name: String) extends ActionNodeInfo(name) {
   override def assembleJsonStr(): String = {
     import org.json4s.jackson.JsonMethods._
 	  import org.json4s.JsonDSL._
+	  import com.kent.util.Util._
     val c1 = JsonMethods.parse(super.assembleJsonStr())
     //val c2 = JsonMethods.parse(s""" {"location":"${location}","content":"${Util.transformJsonStr(content)}"}""")
     val attStr = JsonMethods.compact(JsonMethods.render(attachFiles))
-    val c2 = JsonMethods.parse(s""" {"code":"${Util.transformJsonStr(code)}",
+    val c2 = JsonMethods.parse(s""" {"code":${transJsonStr(code)},
                                      "attach-list":${attStr},
-                                     "param-line":"${Util.transformJsonStr(paramLine)}"
+                                     "param-line":${transJsonStr(paramLine)}
                                 }""")
     val c3 = c1.merge(c2)
     JsonMethods.pretty(JsonMethods.render(c3))
