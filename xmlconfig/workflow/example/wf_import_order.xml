@@ -4,7 +4,7 @@
 
 	<action name="watch_log" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "监测日志文件">
 	    <file-watcher>
-	        <file dir="tmp/log_test/${param:stadate}">order.out</file> 
+	        <file dir="example/import_order">order.log</file> 
 	        <size-warn-message enable="true" size-threshold="2MB"></size-warn-message> 
 	    </file-watcher>
 	    <ok to="fork"/>
@@ -16,31 +16,34 @@
     </fork> 
 
 
-	<action name="clean_log" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
+	<action name="clean_log" host="127.0.0.1" desc = "以perl方式来清洗日志">
 		<script>
 	    	<code>
            	<![CDATA[
-	           	#!/usr/bin/perl
-			$date="${param:stadate}";
-			$file="tmp/log_test/".$date."/order.out";
-			$result="tmp/log_test/".$date."/order.result";
+	        #!/usr/bin/perl
+			$stime="${param:stime}";
+			$file="./order.log";
+			$result="/tmp/order.result";
 			open(FH,'<',$file) or die("no such file");
 			open(FR,'>',$result);
 			while(<FH>){
 			chomp $_;
 			@cols = split(/-/,$_);
 			$str = join(",",@cols);
-			print FR $date.",".$str."\n";
+			print FR $stime.",".$str."\n";
 			}
 			close FH;
 			close FR;
            	]]>
            </code>
+           <attach-list>
+				<file>example/import_order/order.log</file>
+			</attach-list>
         </script>
 	    <ok to="join_node"/>
 	</action>
 
-	<action name="sleep" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
+	<action name="sleep" host="127.0.0.1" desc = "放缓过程">
 	    <script>
 		    <code>
 	           	<![CDATA[
@@ -53,25 +56,61 @@
 	    <ok to="join_node"/>
 	</action>
 
-	<join name="join_node" to="import_2_mysql"/>
+	<join name="join_node" to="create_if_not_exist_table"/>
+
+	<action name="create_if_not_exist_table" host="127.0.0.1" desc = "清洗日志">
+		<script>
+		    <code>
+	           	<![CDATA[
+			mysql -uroot -proot -Dwf -e "
+				create table if not exists example_order (
+				  ds varchar(128),
+				  orderid varchar(20),
+				  username varchar(128),
+				  status varchar(128)
+				)
+			"
+	           	]]>
+           </code>
+        </script>
+	    <ok to="import_2_mysql"/>
+	</action>
 
 	<action name="import_2_mysql" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
 		<script>
 		    <code>
 	           	<![CDATA[
-	           	#!/bin/bash
-	           	source /etc/profile
-				sdate="${param:stadate}" 
-				mysql -uroot -proot -Dtest -e "delete from t_order where ds = '$sdate'"
+				stime="${param:stime}" 
+				mysql -uroot -proot -Dwf -e "delete from example_order where ds = '$stime'"
 				while read line
 				do
 				    str="'"${line//,/\',\'}"'"
-				    mysql -uroot -proot -Dtest -e "insert into t_order values ($str)"
-				done <  tmp/log_test/$sdate/order.result
+				    mysql -uroot -proot -Dwf -e "insert into example_order values ($str)"
+				done <  /tmp/order.result
 	           	]]>
            </code>
         </script>
-	    <ok to="end"/>
+	    <ok to="data_monitor"/>
+	</action>
+	
+		<action name="data_monitor" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
+		<data-monitor category="mysql" source-name="example_order" is-saved="true" is-exceed-error="false" time-mark="${param:stime}">
+		    <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+		        <code>
+		        select count(1) from example_order where ds = '${param:stime}'
+		        </code>
+		    </source>
+		    <min-threshold type="NUM">
+		        <code>6</code>
+		    </min-threshold>
+		    <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+		        <code>
+		        select count(1)+10 from example_order where ds = '${param:stime}'
+		        </code>
+		    </max-threshold>
+		    <warn-msg>超出阈值，手动配置的信息，请处理好数据</warn-msg>
+		</data-monitor>
+		<ok to="end"/>
 	</action>
 
 	<end name="end"/>

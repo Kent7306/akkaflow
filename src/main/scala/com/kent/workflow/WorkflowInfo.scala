@@ -116,7 +116,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   	  val insertSql = s"""
   	     insert into workflow values(${withQuate(name)},${withQuate(dir.dirname)},${withQuate(desc)},
   	     ${withQuate(levelStr)},${withQuate(receiversStr)},${instanceLimit},
-  	     ${withQuate(paramsStr)}, ${withQuate(Util.transformXmlStr(xmlStr))},
+  	     ${withQuate(paramsStr)}, ${withQuate(transformXmlStr(xmlStr))},
   	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))})
   	    """
   	  val updateSql = s"""

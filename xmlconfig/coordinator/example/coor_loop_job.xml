@@ -1,8 +1,8 @@
 <coordinator name="coor_loop_job" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" 
-    is-enabled="false" dir="/example"
+    is-enabled="true" dir="/example"
     desc="每30分钟启动">    
     <trigger>
-        <cron config="*/3 * * * * *"/>
+        <cron config="*/30 * * * * *"/>
     </trigger>
     <workflow-list>
       <workflow path="wf_loop_job"></workflow>

@@ -72,14 +72,25 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
           FileUtil.writeFile(s"${location}/${afn}", x.content)
           LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到文件：${location}/${afn}")
         }
-        //执行
+        //替换到临时目录中执行
         val oldExecFilePath = this.nodeInfo.analysisExecuteFilePath()
-        val newExecFilePath = s"${location}/${efn}"
-        val newCommand = this.nodeInfo.command.replace(oldExecFilePath, newExecFilePath)
+        val newCommand = this.nodeInfo.command.replace(oldExecFilePath, s"./${efn}")
+        
+        //写入执行入口文件
+        val runFilePath = s"${location}/akkaflow_run"
+        val run_code = """
+          source /etc/profile
+          cd `dirname $0`
+          """ + newCommand
+        val runLines = run_code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
+        FileUtil.writeFile(runFilePath,runLines)
+        FileUtil.setExecutable(runFilePath, true)
+        
+    		//执行
         LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"执行命令: ${newCommand}")
         val pLogger = ProcessLogger(line => LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
                                   line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line))
-        executeResult = Process(newCommand).run(pLogger)
+        executeResult = Process(runFilePath).run(pLogger)
         if(executeResult.exitValue() == 0) true else false
           true
         }

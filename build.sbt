@@ -1,5 +1,5 @@
 name := "akkaflow"
-version := "2.5.3"
+version := "2.6.0"
 scalaVersion := "2.11.8"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 
@@ -46,5 +46,8 @@ mappings in Universal ++= {
 }
 mappings in Universal ++= {
 	directory("xmlconfig") ++ contentOf("xmlconfig").toMap.mapValues("xmlconfig/" + _) 
+}
+mappings in Universal ++= {
+	directory("example") ++ contentOf("example").toMap.mapValues("example/" + _) 
 }
 

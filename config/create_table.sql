@@ -98,6 +98,7 @@ create table if not exists data_monitor(
     num double not null comment '监测值',
     min double comment '下限',
     max double comment '上限',
+    workflow_instance_id varchar(8) not null, 
     remark varchar(1024) comment '备注'
 );
 

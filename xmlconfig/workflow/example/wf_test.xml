@@ -7,7 +7,7 @@
 		<data-monitor category="mysql" source-name="order_detail" is-saved="true" is-exceed-error="true" time-mark="${param:stadate}">
 		    <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
 		        <code>
-		        select count(1) from order_detail
+		        select count(1) from example_order_item_detail
 		        </code>
 		    </source>
 		    <min-threshold type="NUM">
@@ -15,7 +15,7 @@
 		    </min-threshold>
 		    <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
 		        <code>
-		        select count(1)+10 from order_detail
+		        select count(1)+10 from example_order_item_detail
 		        </code>
 		    </max-threshold>
 		    <warn-msg>xxxxx,若无配置，则自动生成告警消息</warn-msg>

@@ -80,7 +80,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   	                                          ${withQuate(levelStr)},${withQuate(receiversStr)},${workflow.instanceLimit},
   	                                          ${withQuate(formatStandarTime(startTime))},${withQuate(formatStandarTime(endTime))},
   	                                          ${withQuate(formatStandarTime(workflow.createTime))},${withQuate(formatStandarTime(workflow.createTime))},
-  	                                          ${withQuate(workflow.xmlStr)})
+  	                                          ${withQuate(transformXmlStr(workflow.xmlStr))})
   	    """
   	  val updateSql = s"""
   	    update workflow_instance set

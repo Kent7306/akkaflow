@@ -1,4 +1,4 @@
-<work-flow name="wf_rm_tmp_file"  dir="/system" desc="清除临时生成的文件" mail-level="W_FAILED,W_KILLED" 
+<work-flow name="wf_rm_tmp_file"  dir="/system" desc="清除临时生成的文件" mail-level="W_FAILED,W_KILLED"
            mail-receivers="492005267@qq.com">
         <start name="start" to="del_tmp_file" />
         <action name="del_tmp_file" desc="删除临时文件">
@@ -7,11 +7,11 @@
                 <![CDATA[
                     limit_time=`date +%s`
                     ((limit_time=limit_time-${param:interval}))
-                    for file_name in `ls -l tmp | grep ^- | cut -d ":" -f 2| cut -d " " -f 2`;do
-                        ts=`stat -c %Y tmp/$file_name`
+                    for file_name in `ls -l .. | grep ^d | cut -d ":" -f 2| cut -d " " -f 2`;do
+                        ts=`stat -c %Y ../$file_name`
                         if [ $ts -lt $limit_time ];then
-                            echo "删除文件：tmp/$file_name"
-                            rm -f tmp/$file_name
+                            echo "删除文件：../$file_name"
+                            rm -rf ../$file_name
                         fi
                     done
                     ]]>

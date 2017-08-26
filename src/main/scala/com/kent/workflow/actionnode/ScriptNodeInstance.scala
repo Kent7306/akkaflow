@@ -45,12 +45,23 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
       }else{
         //创建执行目录
         var location = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
-        var executeFilePath = s"${location}/run_script"
+        val executeFilePath = s"${location}/akkaflow_script"
         val dir = new File(location)
         dir.deleteOnExit()
         dir.mkdirs()
-        //写入执行文件
-        val lines = nodeInfo.code.split("\n").filter { x => x.trim() != "" }.toList
+        //写入执行入口文件
+        val runFilePath = s"${location}/akkaflow_run"
+        val paramLine = if(nodeInfo.paramLine == null) "" else nodeInfo.paramLine
+        val run_code = """
+          source /etc/profile
+          cd `dirname $0`
+          ./akkaflow_script """ + paramLine
+        val runLines = run_code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
+        FileUtil.writeFile(runFilePath,runLines)
+        FileUtil.setExecutable(runFilePath, true)
+        
+        //写入执行文件  
+        val lines = nodeInfo.code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
         FileUtil.writeFile(executeFilePath,lines)
         FileUtil.setExecutable(executeFilePath, true)
         LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"写入到文件：${executeFilePath}")
@@ -61,10 +72,10 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
           LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到文件：${location}/${afn}")
         }
         //执行
-        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"执行命令: ${executeFilePath}")
+        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"执行命令: ${executeFilePath} ${paramLine}")
         val pLogger = ProcessLogger(line => LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
                                   line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line))
-        executeResult = Process(s"${executeFilePath} ${nodeInfo.paramLine}").run(pLogger)
+        executeResult = Process(s"${runFilePath}").run(pLogger)
         if(executeResult.exitValue() == 0) true else false
       }
     }catch{

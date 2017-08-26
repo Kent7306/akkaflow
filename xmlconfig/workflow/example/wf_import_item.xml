@@ -5,25 +5,29 @@
 
 	<action name="watch_log" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
 	    <file-watcher>
-	        <file dir="tmp/log_test/${param:stadate}">item_*.out</file> 
+	        <file dir="example/import_item">item_*.log</file> 
 	        <size-warn-message enable="true" size-threshold="2MB"></size-warn-message> 
 	    </file-watcher>
 	    <ok to="fork"/>
 	</action>
 
 	<fork name="fork">
-         <path to="clean_log" />
+         <path to="clean_import" />
          <path to="sleep" />
     </fork> 
 
-	<action name="clean_log" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
-		<shell>
-             <command>tmp/log_test/clean_2.sh ${param:stadate}</command>
-        </shell>
+	<action name="clean_import" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志并导入数据库">
+		<file-executor>
+			<command>example/import_item/clean_import.sh "${param:stime}"</command>
+			<attach-list>
+				<file>example/import_item/item_1.log</file>
+				<file>example/import_item/item_2.log</file>
+			</attach-list>
+		</file-executor>
 	    <ok to="join_node"/>
 	</action>
  
-	<action name="sleep" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "sleep for a while">
+	<action name="sleep" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "放慢过程">
 	    <script>
 		    <code><![CDATA[
 	           	for i in `seq 1 10`
@@ -33,15 +37,25 @@
         </script>
 	    <ok to="join_node"/>
 	</action>
-
-	<join name="join_node" to="import_2_mysql"/>
-
-	<action name="import_2_mysql" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "join node">
-		<shell>
-             <command>tmp/log_test/import_2.sh ${param:stadate}</command>
-        </shell>
-	    <ok to="end"/>
+	<join name="join_node" to="data_monitor"/>
+	<action name="data_monitor" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
+		<data-monitor category="mysql" source-name="example_item" is-saved="true" is-exceed-error="true" time-mark="${param:stime}">
+		    <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+		        <code>
+		        select count(1) from example_item where ds = '${param:stime}'
+		        </code>
+		    </source>
+		    <min-threshold type="NUM">
+		        <code>2</code>
+		    </min-threshold>
+		    <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+		        <code>
+		        select count(1)+10 from example_item where ds = '${param:stime}'
+		        </code>
+		    </max-threshold>
+		</data-monitor>
+		<ok to="end"/>
 	</action>
-
+	
 	<end name="end"/>
 </work-flow>

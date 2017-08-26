@@ -4,19 +4,17 @@
 
 	<start name="start" to="join_sql" />
 
-	<action name="join_sql" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "join两个表">
+	<action name="join_sql" desc = "join两个表">
 		<script>
 		    <code>
 	           	<![CDATA[
-	           	#!/bin/bash
-	           	source /etc/profile
-	           	mysql -uroot -proot -Dtest -e "drop table order_detail;"
-
-			    mysql -uroot -proot -Dtest -e "
-				create table order_detail as 
-				select a.ds,a.orderid,username,status,goods_name 
-				from t_order a join t_item b 
-				on a.ds = b.ds and a.orderid = b.orderid;"
+	           	mysql -uroot -proot -Dwf -e "
+	           	  drop table if exists example_order_item_detail;
+				  create table example_order_item_detail as 
+				  select a.ds,a.orderid,username,status,goods_name 
+				  from example_order a join example_item b 
+				  on a.ds = b.ds and a.orderid = b.orderid;
+				"
 	           	]]>
            </code>
         </script>
@@ -24,18 +22,18 @@
 	</action>
 	
 	<action name="data_monitor" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
-		<data-monitor category="mysql" source-name="order_detail" is-saved="true" is-exceed-error="true" time-mark="${param:stadate}">
+		<data-monitor category="mysql" source-name="example_order_item_detail" is-saved="true" is-exceed-error="true" time-mark="${param:stadate}">
 		    <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
 		        <code>
-		        select count(1) from order_detail
+		        select count(1) from example_order_item_detail
 		        </code>
 		    </source>
 		    <min-threshold type="NUM">
-		        <code>5</code>
+		        <code>10</code>
 		    </min-threshold>
-		    <max-thresholdtype="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+		    <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
 		        <code>
-		        select count(1)+10 from order_detail
+		        select count(1)+10 from example_order_item_detail
 		        </code>
 		    </max-threshold>
 		    <warn-msg>xxxxx,若无配置，则自动生成告警消息</warn-msg>

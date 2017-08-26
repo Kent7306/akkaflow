@@ -43,21 +43,28 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       //异常则发送邮件
       var defaultWarnMsg:String = null
       if(maxDataOpt.isDefined && monitorData > maxDataOpt.get){
-        defaultWarnMsg += s"<p>工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测高于上限(${maxDataOpt.get})</p>"
+        defaultWarnMsg = s"工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测高于上限(${maxDataOpt.get})"
       }
       if(minDataOpt.isDefined && monitorData < minDataOpt.get){
-        defaultWarnMsg += s"<p>工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测低于下限(${minDataOpt.get})</p>"
+        defaultWarnMsg = s"工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测低于下限(${minDataOpt.get})"
       }
+      var content:String = null
       if(defaultWarnMsg != null){
-    	  val content = if(nodeInfo.warnMsg == null || nodeInfo.warnMsg.trim() == "") defaultWarnMsg else nodeInfo.warnMsg
+    	  content = if(nodeInfo.warnMsg == null || nodeInfo.warnMsg.trim() == "") defaultWarnMsg else nodeInfo.warnMsg
 			  val titleMark = if(nodeInfo.isExceedError) "Error" else "Warn"
 			  actionActor.sendMailMsg(null, s"【${titleMark}】data-monitor数据异常", content)
-			  result = if(nodeInfo.isExceedError == true) false else result
+			  result = if(nodeInfo.isExceedError == true){
+			    LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, content)
+			    false 
+			  }else {
+			    LogRecorder.warn(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, content)
+			    result
+			  }
       }
       
       //保存数据
       if(nodeInfo.isSaved){
-        val dmr = DataMonitorRecord(nodeInfo.timeMark, nodeInfo.category, nodeInfo.sourceName, monitorData, maxDataOpt, minDataOpt)
+        val dmr = DataMonitorRecord(nodeInfo.timeMark, nodeInfo.category, nodeInfo.sourceName, monitorData, minDataOpt,maxDataOpt, content, this.id)
         val persistManagerPath = this.actionActor.workflowActorRef.path / ".." / ".." / "pm"
         val persistManager = this.actionActor.context.actorSelection(persistManagerPath)
         persistManager ! Save(dmr)

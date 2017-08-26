@@ -10,7 +10,7 @@ import com.kent.util.Util
  */
 class ParamHandler(date:Date){
   /**
-   * 把字符串中的参数名称代替为函数值，并返回字符串
+   * 把字符串中的参数名称代替为函数值，并返回字符串(这里用了递归处理)
    */
   def getValue(expr: String, paramMap:  Map[String, String]): String = {
     if(expr == null) return null
@@ -35,7 +35,7 @@ class ParamHandler(date:Date){
     	  result = pre + handleTimeParam(mid) + this.getValue(end, paramMap)
     	}
     	else{  //未找到，就不进行替换了
-    	  result = pre + "${"+mid+"}" + end
+    	  result = pre + "${"+mid+"}" + this.getValue(end, paramMap)
     	}
     	result.replace("#@@#", "\n")
     }

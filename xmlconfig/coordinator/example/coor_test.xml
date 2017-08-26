@@ -2,7 +2,7 @@
     is-enabled="true" dir="/example"  
     desc="每分钟启动">    
     <trigger>
-        <cron config="* * * * * *"/>
+        <cron config="*/5 * * * * *"/>
     </trigger>  
     <workflow-list>
       <workflow path="wf_test"></workflow>   
