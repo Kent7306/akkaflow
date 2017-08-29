@@ -1,7 +1,6 @@
 <work-flow name="wf_import_order" dir="/example" desc="导入order数据"  mail-level="W_FAILED,W_KILLED"
            mail-receivers="492005267@qq.com">
 	<start name="start" to="watch_log" />
-
 	<action name="watch_log" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "监测日志文件">
 	    <file-watcher>
 	        <file dir="example/import_order">order.log</file> 
@@ -9,13 +8,10 @@
 	    </file-watcher>
 	    <ok to="fork"/>
 	</action>
-
 	<fork name="fork">
          <path to="clean_log" />
          <path to="sleep" />
     </fork> 
-
-
 	<action name="clean_log" host="127.0.0.1" desc = "以perl方式来清洗日志">
 		<script>
 	    	<code>
@@ -42,7 +38,6 @@
         </script>
 	    <ok to="join_node"/>
 	</action>
-
 	<action name="sleep" host="127.0.0.1" desc = "放缓过程">
 	    <script>
 		    <code>
@@ -55,9 +50,7 @@
         </script>
 	    <ok to="join_node"/>
 	</action>
-
 	<join name="join_node" to="create_if_not_exist_table"/>
-
 	<action name="create_if_not_exist_table" host="127.0.0.1" desc = "清洗日志">
 		<script>
 		    <code>
@@ -75,7 +68,6 @@
         </script>
 	    <ok to="import_2_mysql"/>
 	</action>
-
 	<action name="import_2_mysql" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志">
 		<script>
 		    <code>
@@ -92,8 +84,7 @@
         </script>
 	    <ok to="data_monitor"/>
 	</action>
-	
-		<action name="data_monitor" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
+    <action name="data_monitor" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
 		<data-monitor category="mysql" source-name="example_order" is-saved="true" is-exceed-error="false" time-mark="${param:stime}">
 		    <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
 		        <code>
@@ -112,6 +103,5 @@
 		</data-monitor>
 		<ok to="end"/>
 	</action>
-
 	<end name="end"/>
 </work-flow>
