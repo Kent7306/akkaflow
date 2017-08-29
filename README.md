@@ -77,7 +77,7 @@ workflow {
 ```
 
 其中，因为akkaflow支持分布式部署，当前伪分布部署，可以把master、master-standby、worker、http-servers在同一台机器的不同端口启动，设置jdbc连接，告警邮件设置
-* 启动角色（注意顺序）
+* 启动角色（注意顺序）  
 启动master节点：`bin/master-startup`  
 启动master-standby节点：`bin/master-standby-startup`  
 启动worker节点：`bin/worker-startup`  
@@ -98,7 +98,7 @@ workflow {
 
 ### 使用
 #### 基于命令行操作
-* 节点启动命令
+* 节点启动命令  
  master节点启动：`./master-startup`  
  worker节点启动：`./worker-startup`  
  http_server节点启动：`./httpserver-startup`  
