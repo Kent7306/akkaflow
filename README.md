@@ -2,7 +2,7 @@
 演示系统: [点击这里](http://47.93.186.236:8080/akkaflow-ui/home/login)  用户/密码：admin/admin  
 ### 简介
 `akkaflow`是一个基于`akka`架构上构建的分布式高可用ETL调度工具，可以把一个job中子任务按照拓扑关系在集群中不同的节点上并行执行，高效利用集群资源；提供多个工具节点，可监控文件数据情况，对数据及任务进行监控告警，异常处理等。其中工作流定义类似`Oozie`，相对简洁轻量级，可作为构建数据仓库、或大数据平台上的调度工具。  
-整个`akkaflow`架构目前包含有四个节点角色：Master-Active、Master-Standby、Worker、Http-Server，每个角色可以独立部署于不同机器上，支持高可用性（HA），节点中包含以下模块：调度模块，执行模块，告警模块，日志模块，持久化模块。工作流定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)，调度器定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/coordinator_definition.md)   
+整个`akkaflow`架构目前包含有四个节点角色：Master-Active、Master-Standby、Worker、Http-Server，每个角色可以独立部署于不同机器上，支持高可用性（HA），节点中包含以下模块：调度模块，执行模块，告警模块，日志模块，持久化模块。工作流定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)，调度器定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/coordinator_definition.md) ，使用示例说明文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B%E8%AF%B4%E6%98%8E.md)   。
 **节点角色关系图**
 ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E8%8A%82%E7%82%B9%E8%A7%92%E8%89%B2%E5%85%B3%E7%B3%BB%E5%9B%BE.png)
 * `Master-Active` 活动主节点，调度触发工作流实例，分发子任务
@@ -115,7 +115,8 @@ workflow {
 * 重跑工作流实例`rerun-wf-instance [instance_id]`
 示例：`./rerun-wf-instance ac733154`  
 
-**注意: **除了节点启动命令，其他的命令日常中不会经常直接使用，因为把工作流或调度器定义的xml文件放在xmlconfig目录下，可自动扫描添加对应工作流或调度器，而工作流与调度器的其他操作可在akkflow-ui上直接操作。
+**注意:**除了节点启动命令，其他的命令日常中不会经常直接使用，因为把工作流或调度器定义的xml文件放在xmlconfig目录下，可自动扫描添加对应工作流或调度器，而工作流与调度器的其他操作可在akkflow-ui上直接操作。
+使用示例说明文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B%E8%AF%B4%E6%98%8E.md)   
 
 #### akkaflow-ui可视化界面
 akkaflow-ui是独立部署的一套可视化系统，基于访问akkflow数据库与调用接口来展现akkflow的运行信息，与akkflow系统是完全解耦的，并且akkflow-ui暂时未开源。  
