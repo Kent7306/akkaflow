@@ -1,45 +1,31 @@
-<work-flow name="wf_join_order_and_item" 
-	mail-level = "W_FAILED,W_KILLED" 
-	mail-receivers="15018735011@163.com,492005267@qq.com" dir="/example" desc="导入item数据">
+<work-flow name="wf_join_order_and_item" mail-level = "W_FAILED,W_KILLED"
+        mail-receivers="15018735011@163.com,492005267@qq.com" dir="/example" desc="导入item数据">
+        <start name="start" to="join_sql" />
+        <action name="join_sql" desc = "join两个表">
+            <sql type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+                <![CDATA[
+                  drop table if exists example_order_item_detail;
+                  create table example_order_item_detail as
+                  select a.ds,a.orderid,username,status,goods_name
+                  from example_order a join example_item b
+                  on a.ds = b.ds and a.orderid = b.orderid;
+                ]]>
+            </sql>
+            <ok to="data_monitor"/>
+        </action>
 
-	<start name="start" to="join_sql" />
+        <action name="data_monitor" desc = "监测日志文件">
+            <data-monitor category="mysql" source-name="example_order_item_detail" is-saved="true" is-exceed-error="true" time-mark="${param:stadate}">
+                <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+                    select count(1) from example_order_item_detail
+                </source>
+                <min-threshold type="NUM">10</min-threshold>
+                <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+                    select count(1)+10 from example_order_item_detail
+                </max-threshold>
+            </data-monitor>
+            <ok to="end"/>
+        </action>
 
-	<action name="join_sql" desc = "join两个表">
-		<script>
-		    <code>
-	           	<![CDATA[
-	           	mysql -uroot -proot -Dwf -e "
-	           	  drop table if exists example_order_item_detail;
-				  create table example_order_item_detail as 
-				  select a.ds,a.orderid,username,status,goods_name 
-				  from example_order a join example_item b 
-				  on a.ds = b.ds and a.orderid = b.orderid;
-				"
-	           	]]>
-           </code>
-        </script>
-	    <ok to="data_monitor"/>
-	</action>
-	
-	<action name="data_monitor" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
-		<data-monitor category="mysql" source-name="example_order_item_detail" is-saved="true" is-exceed-error="true" time-mark="${param:stadate}">
-		    <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
-		        <code>
-		        select count(1) from example_order_item_detail
-		        </code>
-		    </source>
-		    <min-threshold type="NUM">
-		        <code>10</code>
-		    </min-threshold>
-		    <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
-		        <code>
-		        select count(1)+10 from example_order_item_detail
-		        </code>
-		    </max-threshold>
-		    <warn-msg>xxxxx,若无配置，则自动生成告警消息</warn-msg>
-		</data-monitor>
-		<ok to="end"/>
-	</action>
-	
-	<end name="end"/>
+        <end name="end"/>
 </work-flow>
