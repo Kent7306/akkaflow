@@ -93,7 +93,3 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
     true
   }
 }
-
-object ScriptNodeInstance {
-  def apply(san: ScriptNode): ScriptNodeInstance = new ScriptNodeInstance(san)
-}

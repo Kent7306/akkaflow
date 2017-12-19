@@ -3,7 +3,7 @@ package com.kent.workflow.node
 import com.kent.workflow.actionnode._
 import org.json4s.jackson.JsonMethods
 
-abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
+abstract class ActionNode(name: String) extends NodeInfo(name)  {
   var retryTimes:Int = 0
   var interval:Int = 0
   var timeout:Int = -1
@@ -11,18 +11,7 @@ abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
   var ok: String = _
   var error: String = _ 
   
-  override def parseJsonStr(contentStr: String){
-    val content = JsonMethods.parse(contentStr)
-    import org.json4s._
-    implicit val formats = DefaultFormats
-    this.host = (content \ "host").extract[String]
-    this.retryTimes = (content \ "retry-times").extract[Int]
-    this.interval = (content \ "interval").extract[Int]
-    this.timeout = (content \ "timeout").extract[Int]
-    this.ok = (content \ "ok").extract[String]
-		this.error = (content \ "error").extract[String]
-  }
-  override def assembleJsonStr(): String = {
+  def getCateJson(): String = {
     s"""
       {"host":"${host}",
        "retry-times":${retryTimes},
@@ -33,13 +22,12 @@ abstract class ActionNodeInfo(name: String) extends NodeInfo(name)  {
       }
     """
   }
+  
 
 }
 
-object ActionNodeInfo {  
-  def apply(node: scala.xml.Node): ActionNodeInfo = parseXmlNode(node);
-  
-  def parseXmlNode(node: scala.xml.Node):ActionNodeInfo = {
+object ActionNode {  
+  def apply(node: scala.xml.Node): ActionNode = {
     val nameOpt = node.attribute("name")
 		val retryOpt = node.attribute("retry-times")
 	  val intervalOpt = node.attribute("interval")
@@ -53,7 +41,7 @@ object ActionNodeInfo {
        throw new Exception("[action] "+nameOpt.get.text+":-->[ok]:未配置name属性")
     }
     
-    var actionNode: ActionNodeInfo = null
+    var actionNode: ActionNode = null
 
     val childNode = (node \ "_")(0)
     childNode match {
@@ -67,6 +55,10 @@ object ActionNodeInfo {
         actionNode = FileExecutorNode(nameOpt.get.text, childNode)
       case <data-monitor>{content @ _*}</data-monitor> => 
         actionNode = DataMonitorNode(nameOpt.get.text, childNode)
+      case <sql>{content @ _*}</sql> => 
+        actionNode = SqlNode(nameOpt.get.text, childNode) 
+      case <transfer>{content @ _*}</transfer> => 
+        actionNode = TransferNode(nameOpt.get.text, childNode) 
       case <sub-workflow>{content @ _*}</sub-workflow> => 
         ???
       case _ => 

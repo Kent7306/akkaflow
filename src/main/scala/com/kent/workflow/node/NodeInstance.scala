@@ -19,7 +19,7 @@ import scala.concurrent.Future
 
 abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance] with DeepCloneable[NodeInstance]{
   var id: String = _
-  var status: Status = PREP
+  private var status: Status = PREP
   var executedMsg: String = _
   var startTime: Date= _
   var endTime: Date = _
@@ -40,8 +40,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
    */
   def preExecute():Boolean = {
     this.startTime = Util.nowDate 
-    this.status = RUNNING 
-    Master.persistManager ! Save(this.deepClone) 
+    this.changeStatus(RUNNING) 
     true
   }
   /**
@@ -49,16 +48,13 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
    */
   def execute(): Boolean
   /**
-   * 节点实例执行结束
+   * 节点实例执行结束（若有下一个节点则加入到节点等待队列，若无则结束）
    */
   def terminate(wfa: WorkflowActor): Boolean
   /**
    * 执行结束后回调方法
    */
-  def postTerminate():Boolean = {
-    Master.persistManager ! Save(this.deepClone())
-    true
-  }
+  def postTerminate():Boolean = true
   /**
    * 该节点是否满足执行条件
    */
@@ -77,6 +73,14 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
     this.startTime = null
   }
   /**
+   * 更改节点实例状态（需要保存）
+   */
+  def changeStatus(status: Status){
+    this.status = status
+    if(Master.persistManager != null) Master.persistManager ! Save(this.deepClone) 
+  }
+  def getStatus():Status = this.status
+  /**
    * 删除
    */
   def delete(implicit conn: Connection): Boolean = {
@@ -91,64 +95,27 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
     val isAction = if(this.isInstanceOf[ActionNodeInstance]) 1 else 0
     val insertStr = s"""
     insert into node_instance
-    values(${withQuate(id)},${withQuate(nodeInfo.name)},${isAction},${withQuate(this.nodeInfo.getClass.getName)},
-          ${withQuate(assembleJsonStr())},${withQuate(nodeInfo.desc)},
+    values(${withQuate(id)},${withQuate(nodeInfo.name)},${isAction},${withQuate(this.nodeInfo.getClass.getName.split("\\.").last)},
+          ${withQuate(nodeInfo.assembleJson())},${withQuate(nodeInfo.desc)},
            ${status.id},${withQuate(formatStandarTime(startTime))},
            ${withQuate(formatStandarTime(endTime))},${withQuate(executedMsg)})
     """
     val updateStr = s"""
-      update node_instance set name = ${withQuate(nodeInfo.name)},
-                               is_action = ${isAction},
-                               type = ${withQuate(this.nodeInfo.getClass.getName)},
-                               content = ${withQuate(assembleJsonStr())},
-                               description = ${withQuate(nodeInfo.desc)},
-                               status = ${status.id},
+      update node_instance set status = ${status.id},
                                stime = ${withQuate(formatStandarTime(startTime))},
                                etime = ${withQuate(formatStandarTime(endTime))},
                                msg = ${withQuate(executedMsg)}
                       where name = ${withQuate(nodeInfo.name)} and workflow_instance_id = ${withQuate(id)}
       """
-    if(this.getEntity.isEmpty){
-    	executeSql(insertStr) 
-    }else{
-      executeSql(updateStr)
-    }
+    val isExistsql = s"select name from node_instance where name = ${withQuate(nodeInfo.name)} and workflow_instance_id = ${withQuate(id)}"
+    querySql[Boolean](isExistsql, (rs) => {
+      if(rs.next()) executeSql(updateStr) else executeSql(insertStr)
+    }).get
   }
   /**
-   * 获取对象
+   * 获取对象(不用实现)
    */
-  def getEntity(implicit conn: Connection): Option[NodeInstance] = {
-    import com.kent.util.Util._
-    val queryStr = s"""
-         select workflow_instance_id,name,is_action,type,content,description,status,stime,etime,msg
-         from node_instance 
-         where name = ${withQuate(nodeInfo.name)} and workflow_instance_id = ${withQuate(id)}
-                    """
-   querySql(queryStr, (rs: ResultSet) =>{
-          import com.kent.workflow.node.NodeInfo.Status
-          if(rs.next()){
-             getEntityWithRs(rs)
-          }else{
-            null
-          }
-      })
-  }
-  /**
-   * 通过rs来获取节点实例实体（这里是为了提高重跑时，优化性能，一次性查询得到工作流实例的所有节点而调整的）
-   */
-  def getEntityWithRs(rs:ResultSet):NodeInstance = {
-    import com.kent.workflow.node.NodeInfo.Status
-    val newNodeInstance = this.deepClone
-     newNodeInstance.nodeInfo.name = rs.getString("name")
-     newNodeInstance.nodeInfo.desc = rs.getString("description")
-     newNodeInstance.status = Status.getStatusWithId(rs.getInt("status")) 
-     newNodeInstance.executedMsg = rs.getString("msg")
-     newNodeInstance.startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
-     newNodeInstance.endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
-     //???
-     newNodeInstance.parseJsonStr(rs.getString("content"))
-     newNodeInstance
-  }
+  def getEntity(implicit conn: Connection): Option[NodeInstance] = ???
 }
 
 object NodeInstance {

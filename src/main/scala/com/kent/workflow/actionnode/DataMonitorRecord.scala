@@ -60,18 +60,10 @@ class DataMonitorRecord(val timeMark: String, val category: String, val sourceNa
           and source_name=${withQuate(sourceName)}
   	  """
     try {
-      conn.setAutoCommit(false)
-      val result = if(this.getEntity.isEmpty){
-        executeSql(insertSql)
-      }else{
-        executeSql(updateSql)
-      }
-      conn.commit()
-      result
+      if(this.getEntity.isEmpty) executeSql(insertSql) else executeSql(updateSql)
     }catch{
       case e: SQLException => 
         e.printStackTrace()
-        conn.rollback()
         false
     }
   }

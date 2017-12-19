@@ -46,6 +46,16 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     	if(this.depends.filterNot { _.isReady }.size == 0 && (this.cron == null || this.cron.isAfterExecuteTime)) true else false      
     }else false
   }
+	/**
+	 * 修改指定前置依赖工作流的状态
+	 */
+	def changeDependStatus(dependWfName: String, dependIsReady:Boolean) = {
+	  this.depends.filter { _.workFlowName == dependWfName }.foreach { x =>
+	    x.isReady = dependIsReady 
+  		LogRecorder.info(COORDINATOR, null, this.name, s"前置依赖工作流[${dependWfName}]准备状态设置为：${dependIsReady}")
+	  }
+	}
+	
   /**
    * 执行
    */
@@ -125,7 +135,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
         
         val dependsValues = parse(rs.getString("depends"))
         val dependsStrList = (dependsValues \\ classOf[JString]).asInstanceOf[List[String]]
-        newCoor.depends = dependsStrList.map { x => new Depend(x) }.toList
+        newCoor.depends = dependsStrList.map { x => new Depend(x, false) }.toList
         val wfnamesValue = parse(rs.getString("workflow_names"))
         newCoor.workflows = (wfnamesValue \\ classOf[JString]).asInstanceOf[List[String]]
         newCoor.isEnabled = if (rs.getString("is_enabled") == "1") true else false
@@ -213,7 +223,7 @@ object Coordinator {
     if((node \ "trigger" \ "cron").size > 0){
     	cronConfig = (node \ "trigger" \ "cron" \ "@config").text
     }
-    val depends = (node \ "trigger" \ "depend-list" \ "depend").map { x => new Depend((x \ "@wf").text) }.toList
+    val depends = (node \ "trigger" \ "depend-list" \ "depend").map { x => new Depend((x \ "@wf").text, false) }.toList
     val workflows = (node \ "workflow-list" \ "workflow").map(x => x.attribute("path").get.text).toList
     val paramList = (node \ "param-list" \ "param").map { x => (x.attribute("name").get.text, x.attribute("value").get.text)}.toList
     
@@ -252,11 +262,6 @@ object Coordinator {
 	}
 	
 	//依赖类
-	class Depend(private var _workFlowName: String) extends DeepCloneable[Depend] {
-		private var _isReady = false
-	  def workFlowName = _workFlowName
-	  def isReady = _isReady
-	  def isReady_=(isReady: Boolean) = _isReady = isReady
-	}
+	case class Depend(workFlowName: String,var isReady: Boolean)
 }
 

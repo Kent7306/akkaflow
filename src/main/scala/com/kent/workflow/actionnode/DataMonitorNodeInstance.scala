@@ -155,7 +155,3 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
     true
   }
 }
-
-object DataMonitorNodeInstance {
-  def apply(san: DataMonitorNode): DataMonitorNodeInstance = new DataMonitorNodeInstance(san)
-}

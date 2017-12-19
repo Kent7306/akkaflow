@@ -36,11 +36,11 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
       val result = actionNodeInstance.execute()
       val executedStatus = if(result) SUCCESSED else FAILED
       //这里，如果主动kill掉的话，不会杀死进程，所以还是会返回结果，所以是主动杀死的话，看status
-      if(actionNodeInstance.status == KILLED){
+      if(actionNodeInstance.getStatus() == KILLED){
         return
       }
       
-      actionNodeInstance.status = executedStatus
+      actionNodeInstance.changeStatus(executedStatus)
   		actionNodeInstance.executedMsg = if(executedStatus == FAILED) "节点执行失败" else "节点执行成功"
       if(context != null){
         self ! Termination()
@@ -55,7 +55,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
     thread.start()
   }
   def kill(sdr:ActorRef){
-    actionNodeInstance.status = KILLED
+    actionNodeInstance.changeStatus(KILLED)
     actionNodeInstance.executedMsg = "手工杀死节点"
     actionNodeInstance.kill();
     terminate(sdr)
@@ -71,18 +71,18 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
    */
   def terminate(ar:ActorRef){
     //日志记录
-		if(actionNodeInstance.status == SUCCESSED){
+		if(actionNodeInstance.getStatus() == SUCCESSED){
 		  LogRecorder.info(ACTION_NODE_INSTANCE, actionNodeInstance.id, actionNodeInstance.nodeInfo.name, actionNodeInstance.executedMsg)
 		}else {
 		  LogRecorder.error(ACTION_NODE_INSTANCE, actionNodeInstance.id, actionNodeInstance.nodeInfo.name, actionNodeInstance.executedMsg)	  
 		}
 		//结束
-    ar ! ActionExecuteResult(actionNodeInstance.status,actionNodeInstance.executedMsg) 
+    ar ! ActionExecuteResult(actionNodeInstance.getStatus(),actionNodeInstance.executedMsg) 
 		context.parent ! RemoveAction(actionNodeInstance.name)
 		context.stop(self) 
   }
 }
-
+ 
 object ActionActor{
   def apply(actionNodeInstance: ActionNodeInstance): ActionActor = {
     val cloneNodeInstance = actionNodeInstance.deepClone().asInstanceOf[ActionNodeInstance]

@@ -12,40 +12,53 @@ import java.io.ObjectOutputStream
 import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
 import java.io.IOException
+import org.json4s.jackson.JsonMethods
 
 abstract class NodeInfo(var name: String) extends Daoable[NodeInfo] with DeepCloneable[NodeInfo] {
   import com.kent.workflow.node.NodeInfo.Status._
   var workflowName: String = _
   var desc: String = _
   /**
+   * 获取对象的json
+   */
+  def getCateJson(): String
+  def getJson(): String
+  /**
+   * 组装对象的content内容
+   */
+  def assembleJson(): String = {
+    val cateJson = getCateJson()
+    val nodeJson = getJson()
+    val c1 = JsonMethods.parse(cateJson)
+    val c2 = JsonMethods.parse(nodeJson)
+    val c3 = c1.merge(c2)
+    JsonMethods.pretty(JsonMethods.render(c3))
+  }
+  /**
    * 由该节点信息创建属于某工作流实例的节点实例
    */
-  def createInstance(workflowInstanceId: String): NodeInstance
-
+   def createInstance(workflowInstanceId: String):NodeInstance = {
+    val nodeInstanceClass = Class.forName(this.getClass.getName+"Instance")
+    val constr = nodeInstanceClass.getConstructor(this.getClass)
+    type nodeType = this.type
+    val node = this.asInstanceOf[nodeType]
+    val ni = constr.newInstance(node).asInstanceOf[NodeInstance]
+    ni.id = workflowInstanceId
+    ni
+  }
+  
   /**
    * merge
    */
   def save(implicit conn: Connection): Boolean = {
     import com.kent.util.Util._
-    val isAction = if (this.isInstanceOf[ActionNodeInfo]) 1 else 0
+    val isAction = if (this.isInstanceOf[ActionNode]) 1 else 0
     val insertStr = s"""
       insert into node 
-      values(${withQuate(name)},${isAction},${withQuate(this.getClass.getName)},
-      ${withQuate(assembleJsonStr())},${withQuate(workflowName)},${withQuate(desc)})
+      values(${withQuate(name)},${isAction},${withQuate(this.getClass.getName.split("\\.").last)},
+      ${withQuate(assembleJson())},${withQuate(workflowName)},${withQuate(desc)})
       """
-    val updateStr = s"""
-      update node set type = ${withQuate(this.getClass.getName)},
-                      is_action = ${isAction},
-                      content = ${withQuate(assembleJsonStr())}, 
-                      workflow_name = ${withQuate(workflowName)},
-                      description = ${withQuate(desc)})
-                      where name = ${withQuate(name)}
-      """
-    if (this.getEntity.isEmpty) {
       executeSql(insertStr)
-    } else {
-      executeSql(updateStr)
-    }
   }
 
   /**
@@ -56,50 +69,19 @@ abstract class NodeInfo(var name: String) extends Daoable[NodeInfo] with DeepClo
     executeSql(s"delete from node where name = ${withQuate(name)} and workflow_name = ${withQuate(workflowName)}")
   }
   /**
-   * 获取对象
+   * 获取对象（不用实现）
    */
-  def getEntity(implicit conn: Connection): Option[NodeInfo] = {
-    import com.kent.util.Util._
-    val newNode = this.deepClone
-    val queryStr = s"""
-     select name,type,is_action,workflow_name,description,content
-     from node 
-     where name=${withQuate(name)} and workflow_name = ${withQuate(workflowName)}
-                    """
-    querySql(queryStr, (rs: ResultSet) => {
-      if (rs.next()) {
-        newNode.desc = rs.getString("description")
-        newNode.workflowName = rs.getString("workflow_name")
-        newNode.parseJsonStr(rs.getString("content"))
-        newNode
-      } else {
-        null
-      }
-    })
-  }
+  def getEntity(implicit conn: Connection): Option[NodeInfo] = ???
 }
 
 object NodeInfo {
-  def apply(node: scala.xml.Node): NodeInfo = parseXmlNode(node)
-  /**
-   * 解析xml得到节点信息
-   */
-  def parseXmlNode(node: scala.xml.Node): NodeInfo = {
+  def apply(node: scala.xml.Node): NodeInfo = {
     node match {
-      case <action>{ content @ _* }</action> => ActionNodeInfo(node)
-      case _                                 => ControlNodeInfo(node)
+      case <action>{ content @ _* }</action> => ActionNode(node)
+      case _                                 => ControlNode(node)
     }
   }
-
-  def apply(nodeType: String, name: String, workflowName: String): NodeInfo = {
-    //这里用了反射
-    val nodeClass = Class.forName(nodeType)
-    val method = nodeClass.getMethod("apply", "str".getClass)
-    val node = method.invoke(null, name).asInstanceOf[NodeInfo];
-    if (node != null) node.workflowName = workflowName
-    node
-  }
-
+  
   object Status extends Enumeration {
     type Status = Value
     val PREP, RUNNING, SUSPENDED, SUCCESSED, FAILED, KILLED = Value

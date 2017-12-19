@@ -20,15 +20,24 @@ import akka.actor.ActorRef
 import com.kent.db.PersistManager
 import com.kent.pub.Directory
 import com.kent.coordinate.ParamHandler
+import com.kent.pub.Event._
+import com.kent.main.Master
+
 
 class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[WorkflowInstance] with Daoable[WorkflowInstance] {
   var id: String = Util.produce8UUID
-  def actorName = s"wf_${id}_${workflow.name}"
+  def actorName = s"${id}"
   var parsedParams:Map[String, String] = Map()
   var startTime: Date = _
   var endTime: Date = _
-  var status: WStatus = W_PREP     
+  private var status: WStatus = W_PREP     
   var nodeInstanceList:List[NodeInstance] = List()
+  
+  def changeStatus(status: WStatus) = {
+    this.status = status
+    if(Master.persistManager!=null) Master.persistManager ! Save(this.deepClone())
+  }
+  def getStatus():WStatus = this.status
   
   override def toString: String = {
     var str = this.getClass().getName + "(\n"
@@ -71,57 +80,48 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     val paramStr = compact(render(parsedParams))
     val levelStr = compact(workflow.mailLevel.map { _.toString()})
     val receiversStr = compact(workflow.mailReceivers)
-    
-    try{
+	  val insertSql = s"""
+	     insert into workflow_instance values(${withQuate(id)},${withQuate(workflow.name)},${withQuate(workflow.dir.dirname)},
+	                                          ${withQuate(paramStr)},'${status.id}',${withQuate(workflow.desc)},
+	                                          ${withQuate(levelStr)},${withQuate(receiversStr)},${workflow.instanceLimit},
+	                                          ${withQuate(formatStandarTime(startTime))},${withQuate(formatStandarTime(endTime))},
+	                                          ${withQuate(formatStandarTime(workflow.createTime))},${withQuate(formatStandarTime(workflow.createTime))},
+	                                          ${withQuate(transformXmlStr(workflow.xmlStr))})
+	    """
+	  val updateSql = s"""
+	    update workflow_instance set
+	                        status = '${status.id}',
+	                        stime = ${withQuate(formatStandarTime(startTime))}, 
+	                        etime = ${withQuate(formatStandarTime(endTime))}
+	    where id = '${id}'
+	    """
+	    
+  	try{
       conn.setAutoCommit(false)
-  	  val insertSql = s"""
-  	     insert into workflow_instance values(${withQuate(id)},${withQuate(workflow.name)},${withQuate(workflow.dir.dirname)},
-  	                                          ${withQuate(paramStr)},'${status.id}',${withQuate(workflow.desc)},
-  	                                          ${withQuate(levelStr)},${withQuate(receiversStr)},${workflow.instanceLimit},
-  	                                          ${withQuate(formatStandarTime(startTime))},${withQuate(formatStandarTime(endTime))},
-  	                                          ${withQuate(formatStandarTime(workflow.createTime))},${withQuate(formatStandarTime(workflow.createTime))},
-  	                                          ${withQuate(transformXmlStr(workflow.xmlStr))})
-  	    """
-  	  val updateSql = s"""
-  	    update workflow_instance set
-  	                        name = ${withQuate(workflow.name)}, 
-  	                        dir = ${withQuate(workflow.dir.dirname)},
-  	                        param = ${withQuate(paramStr)}, 
-  	                        status = '${status.id}',
-  	                        description = ${withQuate(workflow.desc)},
-  	                        mail_level = ${withQuate(levelStr)},
-  	                        mail_receivers = ${withQuate(receiversStr)},
-  	                        instance_limit = ${workflow.instanceLimit},
-  	                        stime = ${withQuate(formatStandarTime(startTime))}, 
-  	                        etime = ${withQuate(formatStandarTime(endTime))},
-  	                        create_time = ${withQuate(formatStandarTime(workflow.createTime))}
-  	    where id = '${id}'
-  	    """
   	  if(this.getEntityWithNodeInstance(false).isEmpty){
       	result = executeSql(insertSql)     
       }else{
         result = executeSql(updateSql)
       }
   	  //覆盖实例的节点
-  	  //executeSql(s"delete from node_instance where workflow_instance_id='${id}'")
   		this.nodeInstanceList.foreach { _.save }
   	  conn.commit()
-  	  conn.setAutoCommit(true)
     }catch{
-      case e: SQLException => e.printStackTrace(); conn.rollback()
+      case e: SQLException => e.printStackTrace(); conn.rollback();false
+    }finally{
+    	conn.setAutoCommit(true) 
     }
 	  result
   }
-
+  /**
+   * 
+   */
   def getEntity(implicit conn: Connection): Option[WorkflowInstance] = {
     getEntityWithNodeInstance(true)
   }
-  /**
-   * 是否关联查询得到工作流实例和相关的节点实例
-   */
   def getEntityWithNodeInstance(isWithNodeInstance: Boolean)(implicit conn: Connection): Option[WorkflowInstance] = {
     import com.kent.util.Util._
-    val wfi = this.deepClone()
+    
     //工作流实例查询sql
     val queryStr = s"""
          select * from workflow_instance where id=${withQuate(id)}
@@ -130,45 +130,54 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     val queryNodesStr = s"""
          select * from node_instance where workflow_instance_id = ${withQuate(id)}
       """
-    val wfiOpt = querySql(queryStr, (rs: ResultSet) =>{
-          if(rs.next()){
-            wfi.id = rs.getString("id")
-            wfi.workflow.desc = rs.getString("description")
-            wfi.workflow.name = rs.getString("name")
-            wfi.workflow.dir = Directory(rs.getString("dir"),1)
-            val levelStr = JsonMethods.parse(rs.getString("mail_level"))
-            val receiversStr = JsonMethods.parse(rs.getString("mail_receivers"))
-            wfi.workflow.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
-            wfi.workflow.mailReceivers = (receiversStr \\ classOf[JString]).asInstanceOf[List[String]]
-            wfi.workflow.instanceLimit = rs.getInt("instance_limit")
-            //wfi.workflow.xmlStr = rs.getString("xml_str")
-            wfi.status = WStatus.getWstatusWithId(rs.getInt("status"))
-            wfi.workflow.createTime = Util.getStandarTimeWithStr(rs.getString("create_time"))
-            wfi.startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
-            wfi.endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
-            val json = JsonMethods.parse(rs.getString("param"))
-            val list = for{ JObject(ele) <- json; (k, JString(v)) <- ele} yield (k->v)
-            wfi.parsedParams = list.map(x => x).toMap
-            wfi
-          }else{
-            null
-          }
-      })
+    
+    val wfiOpt = querySql(queryStr, (rs: ResultSet) => {
+      if(rs.next()){
+        val xmlStr = rs.getString("xml_str")
+        val json = JsonMethods.parse(rs.getString("param"))
+        val list = for{ JObject(ele) <- json; (k, JString(v)) <- ele} yield (k->v)
+        val parsedParams = list.map(x => x).toMap
+        
+        val wf = WorkflowInfo(xmlStr)
+        val wfi = WorkflowInstance(wf, parsedParams)
+        wfi.id = id
+        wfi.status = WStatus.getWstatusWithId(rs.getInt("status"))
+        wfi.startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
+        wfi.endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
+        wfi
+      }else{
+        null
+      }
+    })
     //关联查询节点实例
     if(isWithNodeInstance && !wfiOpt.isEmpty){
+      import com.kent.workflow.node.NodeInfo.Status
       querySql(queryNodesStr, (rs: ResultSet) => {
         var newNIList = List[NodeInstance]()
         while(rs.next()) {
-          newNIList = newNIList :+ NodeInstance(rs.getString("type"), rs.getString("name"), id).getEntityWithRs(rs)
+        	val name = rs.getString("name")
+        	val executeMsg = rs.getString("msg")
+        	val startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
+        	val endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
+        	val status = Status.getStatusWithId(rs.getInt("status")) 
+        	
+         wfiOpt.get.workflow.nodeList.filter { x => x.name == rs.getString("name") }.foreach { x => 
+            val ni = x.createInstance(this.id)
+            ni.executedMsg = executeMsg
+            ni.startTime = startTime
+            ni.endTime = endTime
+            ni.changeStatus(status)
+            newNIList = newNIList :+ ni
+          }
         }
-        wfi.nodeInstanceList = newNIList
-        wfi
+        wfiOpt.get.nodeInstanceList = newNIList
+        wfiOpt.get
       })
+      wfiOpt
     }else{
       wfiOpt
     }
   }
-
   def delete(implicit conn: Connection): Boolean = {
     var result = false
     try{
@@ -176,9 +185,10 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
 	    result = executeSql(s"delete from workflow_instance where id='${id}'")
 	    executeSql(s"delete from node_instance where workflow_instance_id='${id}'")
 	    conn.commit()
-	    conn.setAutoCommit(true)
     }catch{
       case e: SQLException => e.printStackTrace();conn.rollback()
+    }finally{
+    	conn.setAutoCommit(true)
     }
     result
   }
@@ -191,7 +201,7 @@ object WorkflowInstance {
   def apply(wf: WorkflowInfo, parseParams: Map[String, String]): WorkflowInstance = {
     if(wf != null){
       val parseXmlStr = ParamHandler(Util.nowDate).getValue(wf.xmlStr, parseParams)
-      val parseWf = WorkflowInfo.parseXmlNode(parseXmlStr)
+      val parseWf = WorkflowInfo(parseXmlStr)
     	val wfi = new WorkflowInstance(parseWf)
     	wfi.nodeInstanceList = wfi.workflow.nodeList.map { _.createInstance(wfi.id) }.toList
     	wfi      

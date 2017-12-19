@@ -1,11 +1,11 @@
-<coordinator name="coor_import_item" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" 
-    is-enabled="true" dir="/example"
+<coordinator name="coor_import_item" start="2016-09-10 10:00:00" end="2018-09-10 10:00:00" 
+    is-enabled="false" dir="/example"
     desc="每10分钟启动">    
     <trigger>
         <cron config="*/10 * * * * *"/>
     </trigger>
     <workflow-list>
-      <workflow path="wf_import_item"></workflow>
+      <workflow path="导入item"></workflow>
     </workflow-list>
     <param-list>
         <param name="stime" value="${time.today|yyyy-MM-dd hh:mm}"/>

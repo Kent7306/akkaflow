@@ -1,6 +1,6 @@
 package com.kent.workflow.actionnode
 
-import com.kent.workflow.node.ActionNodeInfo
+import com.kent.workflow.node.ActionNode
 import com.kent.workflow.node.NodeInstance
 import com.kent.workflow.node.NodeInfo
 import org.json4s.jackson.JsonMethods
@@ -11,7 +11,7 @@ import java.sql.DriverManager
 import java.sql.Connection
 import java.sql.Statement
 
-class DataMonitorNode(name: String) extends ActionNodeInfo(name) {
+class DataMonitorNode(name: String) extends ActionNode(name) {
   //数据源分类
   var category: String = _
   //数据源名称
@@ -31,51 +31,7 @@ class DataMonitorNode(name: String) extends ActionNodeInfo(name) {
   //时间标志
   var timeMark: String = _
   
-  //???
-  def createInstance(workflowInstanceId: String): DataMonitorNodeInstance = {
-    val sani = DataMonitorNodeInstance(this.deepCloneAs[DataMonitorNode]) 
-    sani.id = workflowInstanceId
-    sani
-  }
-  
-  override def parseJsonStr(contentStr: String){
-	  super.parseJsonStr(contentStr)
-    val content = JsonMethods.parse(contentStr)
-    import org.json4s._
-    implicit val formats = DefaultFormats
-    this.category = (content \ "category").extract[String]
-    this.sourceName = (content \ "source-name").extract[String]
-	  this.isSaved = (content \ "is-saved").extract[Boolean]
-	  this.timeMark = (content \ "time-mark").extract[String]
-	  this.warnMsg = (content \ "warn-msg").extract[String]
-    
-	  val sourType = (content \ "source" \ "type").extract[String]
-	  val sourContent = (content \ "source" \ "content").extract[String]
-		val sourUrl = (content \ "source" \ "jdbc-url").extract[String]
-		val sourUn = (content \ "source" \ "username").extract[String]
-		val sourPwd = (content \ "source" \ "password").extract[String]
-	  this.source = Source(SourceType.withName(sourType), sourContent, (sourUrl, sourUn, sourPwd))
-	  if((content \ "max-thredshold").toOption.isDefined){
-  	  val maxtType = (content \ "max-thredshold" \ "type").extract[String]
-  	  val maxTContent = (content \ "max-thredshold" \ "content").extract[String]
-  	  val maxUrl = (content \ "max-thredshold" \ "jdbc-url").extract[String]
-  		val maxUn = (content \ "max-thredshold" \ "username").extract[String]
-  		val maxPwd = (content \ "max-thredshold" \ "password").extract[String]
-  	  this.maxThre = MaxThreshold(SourceType.withName(maxtType), maxTContent, (maxUrl, maxUn, maxPwd))
-	  }
-	  if((content \ "min-thredshold").toOption.isDefined){
-  	  val mintType = (content \ "min-thredshold" \ "type").extract[String]
-  	  val minTContent = (content \ "min-thredshold" \ "content").extract[String]
-  	  val minUrl = (content \ "min-thredshold" \ "jdbc-url").extract[String]
-  		val minUn = (content \ "min-thredshold" \ "username").extract[String]
-  		val minPwd = (content \ "min-thredshold" \ "password").extract[String]
-  	  this.minThre = MinThreshold(SourceType.withName(mintType), minTContent, (minUrl, minUn, minPwd))
-	  }
-    
-  }
-  
-  override def assembleJsonStr(): String = {
-    import org.json4s.jackson.JsonMethods._
+  override def getJson(): String = {
 	  import org.json4s.JsonDSL._
 	  import com.kent.util.Util._
 	  var assembleStr = s"""{
@@ -115,11 +71,7 @@ class DataMonitorNode(name: String) extends ActionNodeInfo(name) {
 	      },
 	    """
 	  }
-	  
-	  val c1 = JsonMethods.parse(super.assembleJsonStr())
-	  val c2 = JsonMethods.parse(assembleStr)
-    val c3 = c1.merge(c2)
-    JsonMethods.pretty(JsonMethods.render(c3))
+	  assembleStr
   }
 }
 
@@ -136,9 +88,7 @@ object DataMonitorNode {
   
   
   def apply(name: String): DataMonitorNode = new DataMonitorNode(name)
-  def apply(name:String, node: scala.xml.Node): DataMonitorNode = parseXmlNode(name, node)
-  
-  def parseXmlNode(name: String, xmlNode: scala.xml.Node): DataMonitorNode = {
+  def apply(name:String, xmlNode: scala.xml.Node): DataMonitorNode = {
 	  val node = DataMonitorNode(name)
 	  //属性
 	  val scOpt = xmlNode.attribute("category")

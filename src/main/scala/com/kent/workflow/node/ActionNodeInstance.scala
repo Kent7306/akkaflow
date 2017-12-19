@@ -10,7 +10,7 @@ import java.util.Date
 import org.json4s.jackson.JsonMethods
 import com.kent.workflow.ActionActor
 
-abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends NodeInstance(nodeInfo) {
+abstract class ActionNodeInstance(override val nodeInfo: ActionNode) extends NodeInstance(nodeInfo) {
   var hasRetryTimes: Int = 0
   var allocateHost: String = _
   var actionActor: ActionActor = _
@@ -20,7 +20,7 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends
    * 得到下一个节点
    */
   override def getNextNodes(wfi: WorkflowInstance): List[NodeInstance] = {
-    status match {
+    this.getStatus() match {
           case SUCCESSED => wfi.nodeInstanceList.filter { _.nodeInfo.name == this.nodeInfo.ok }.toList
           case FAILED => wfi.nodeInstanceList.filter { _.nodeInfo.name == this.nodeInfo.error }.toList
           case KILLED => wfi.nodeInstanceList.filter { _.nodeInfo.name == this.nodeInfo.error }.toList
@@ -37,8 +37,7 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends
    * 找到下一执行节点
    */
   def terminate(wfa: WorkflowActor): Boolean = {
-      this.endTime = Util.nowDate
-      this.status match {
+      this.getStatus() match {
       case SUCCESSED => 
       case FAILED => 
         if(this.getNextNodes(wfa.workflowInstance).size <=0){    //若该action节点执行失败后无下一节点
@@ -53,27 +52,12 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNodeInfo) extends
     wfa.getNextNodesToWaittingQueue(this)
     return true
   }
-    
-  override def parseJsonStr(contentStr: String){
-    val content = JsonMethods.parse(contentStr)
-    import org.json4s._
-    implicit val formats = DefaultFormats
-    this.nodeInfo.parseJsonStr(contentStr)
-    this.hasRetryTimes = (content \ "has-retry-times").extract[Int]
-  }
-  override def assembleJsonStr(): String = {
-    val ncontent = this.nodeInfo.assembleJsonStr()
-    val c1 = JsonMethods.parse(ncontent)
-    val c2 = JsonMethods.parse(s"""{"has-retry-times":${hasRetryTimes}}""")
-    val c3 = c1.merge(c2)
-    JsonMethods.pretty(JsonMethods.render(c3))
-  }
   
   override def toString(): String = {
 	    var str = "  "+this.getClass.getName + "(\n"
 	    str = str + s"    id = ${id},\n"
 	    str = str + s"    name = ${nodeInfo.name},\n"
-	    str = str + s"    status = ${status},\n"
+	    str = str + s"    status = ${this.getStatus()},\n"
 	    str = str + s"    startTime = ${startTime},\n"
 	    str = str + s"    endTime = ${endTime})\n"
 	    str = str + s"    executedMsg = ${executedMsg}\n"

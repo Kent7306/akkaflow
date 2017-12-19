@@ -29,11 +29,6 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   var xmlStr: String = _
   var params = List[String]()
   
-  /**
-   * 由该工作流信息创建属于某工作流实例
-   */
-  def createInstance(parseParams: Map[String, String]): WorkflowInstance = WorkflowInstance(this, parseParams)
-
   def delete(implicit conn: Connection): Boolean = {
     var result = false
     try{
@@ -44,59 +39,19 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 	    conn.commit()
     }catch{
       case e: SQLException => e.printStackTrace();conn.rollback()
+    } finally{
+      if(conn == null) conn.setAutoCommit(true)
     }
     result
   }
-
-  def getEntity(implicit conn: Connection): Option[WorkflowInfo] = {
-    getEntityWithNodeInfo(conn,true)
-	}  
   /**
-   * 是否关联查询得到工作流和相关的节点信息
+   * 查询得到工作流和相关的节点信息
    */
-  def getEntityWithNodeInfo(implicit conn: Connection, isWithNodeInfo: Boolean): Option[WorkflowInfo] = {
+  def getEntity(implicit conn: Connection): Option[WorkflowInfo] = {
     import com.kent.util.Util._
-    val wf = this.deepClone()
     //工作流实例查询sql
-    val queryStr = s"""
-        select name,dir,description,mail_level,mail_receivers,instance_limit,params,xml_str,create_time,last_update_time
-         from workflow where name=${withQuate(name)}
-                    """
-    //节点实例查询sql
-    val queryNodesStr = s"""
-         select name,type from node 
-         where workflow_name = ${withQuate(name)}
-      """
-    val wfOpt = querySql(queryStr, (rs: ResultSet) =>{
-          if(rs.next()){
-            wf.desc = rs.getString("description")
-            wf.name = rs.getString("name")
-            wf.dir = Directory(rs.getString("dir"), 1)
-            wf.instanceLimit = rs.getInt("instance_limit")
-            val levelStr = JsonMethods.parse(rs.getString("mail_level"))
-            val receiversStr = JsonMethods.parse(rs.getString("mail_receivers"))
-            var paramsStr = JsonMethods.parse(rs.getString("params"))
-            wf.mailLevel = (levelStr \\ classOf[JString]).asInstanceOf[List[String]].map { WStatus.withName(_) }
-            wf.mailReceivers = (receiversStr \\ classOf[JString]).asInstanceOf[List[String]]
-            wf.xmlStr = rs.getString("xml_str")
-            wf.params = (paramsStr \\ classOf[JString]).asInstanceOf[List[String]]
-            wf.createTime = Util.getStandarTimeWithStr(rs.getString("create_time"))
-            wf
-          }else{
-            null
-          }
-      })
-    //关联查询节点实例
-    if(isWithNodeInfo && !wfOpt.isEmpty){
-      querySql(queryNodesStr, (rs: ResultSet) => {
-        var nameTypes = List[(String, String)]()
-        while(rs.next()) nameTypes = nameTypes ::: ((rs.getString("name"), rs.getString("type")) :: Nil)
-        wf.nodeList = nameTypes.map { x => NodeInfo(x._2, x._1, name).getEntity.get }.toList
-        wf
-      })
-    }else{
-      wfOpt
-    }
+    val queryStr = s"""select xml_str from workflow where name=${withQuate(name)}"""
+    querySql(queryStr, (rs: ResultSet) =>if(rs.next()) WorkflowInfo(rs.getString("xml_str")) else null)
   }
 
   def save(implicit conn: Connection): Boolean = {
@@ -104,7 +59,6 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
     import com.kent.util.Util._
     import org.json4s.JsonDSL._
     import org.json4s.jackson.JsonMethods._
-    
     val levelStr = compact(mailLevel.map { _.toString()})
     val receiversStr = compact(mailReceivers)
     val paramsStr = compact(params)
@@ -130,28 +84,21 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   	                        last_update_time = ${withQuate(formatStandarTime(nowDate))}
   	    where name = '${name}'
   	    """
-  	  if(this.getEntity.isEmpty){
-      	result = executeSql(insertSql)     
-      }else{
-        result = executeSql(updateSql)
-      }
+  	  result = if(this.getEntity.isEmpty) executeSql(insertSql) else executeSql(updateSql)
   	  executeSql(s"delete from node where workflow_name='${name}'")
   	  this.nodeList.foreach { _.save }
   	  conn.commit()
     }catch{
       case e: SQLException => e.printStackTrace(); conn.rollback()
+    }finally{
+      if(conn != null) conn.setAutoCommit(true)
     }
 	  result
 	}
 }
 
 object WorkflowInfo {
-  //def apply(content: String): WorkflowInfo = WorkflowInfo(XML.loadString(content))
-  def apply(content: String): WorkflowInfo = parseXmlNode(content)
-  /**
-   * 解析xml为一个对象
-   */
-  def parseXmlNode(content: String): WorkflowInfo = {
+  def apply(content: String): WorkflowInfo = {
       val node = XML.loadString(content);
       //val a = WStatus.withName("W_FAILED")
       val nameOpt = node.attribute("name")

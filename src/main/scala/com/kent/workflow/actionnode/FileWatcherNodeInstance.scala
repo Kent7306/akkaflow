@@ -139,7 +139,5 @@ class FileWatcherNodeInstance(override val nodeInfo: FileWatcherNode)  extends A
 }
 
 object FileWatcherNodeInstance {
-  def apply(fwan: FileWatcherNode): FileWatcherNodeInstance = new FileWatcherNodeInstance(fwan)
-  
   class DirNotExistException() extends Exception
 }

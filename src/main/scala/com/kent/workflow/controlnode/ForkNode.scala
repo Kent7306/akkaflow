@@ -1,6 +1,6 @@
 package com.kent.workflow.controlnode
 
-import com.kent.workflow.node.ControlNodeInfo
+import com.kent.workflow.node.ControlNode
 import com.kent.workflow.node.NodeInstance
 import java.sql.Connection
 import com.kent.workflow.node.NodeInfo
@@ -9,21 +9,10 @@ import com.kent.util.Util
 import org.json4s.jackson.JsonMethods
 import org.json4s.JsonAST.JString
 
-class ForkNodeInfo(name: String) extends ControlNodeInfo(name){
+class ForkNode(name: String) extends ControlNode(name){
   var pathList: List[String] = List()
-
-  override def createInstance(workflowInstanceId: String): ForkNodeInstance = {
-    val fni = ForkNodeInstance(this.deepCloneAs[ForkNodeInfo])
-    fni.id = workflowInstanceId
-    fni
-  }
-
-  override def parseJsonStr(contentStr: String){
-    val content = JsonMethods.parse(contentStr)
-    this.pathList = (content \ "paths" \\ classOf[JString]).asInstanceOf[List[String]]
-  }
   
-  override def assembleJsonStr(): String = {
+  override def getJson(): String = {
     import org.json4s.JsonDSL._
     import org.json4s.jackson.JsonMethods._
     val pathStr = compact(render(pathList))
@@ -31,11 +20,9 @@ class ForkNodeInfo(name: String) extends ControlNodeInfo(name){
   }
 }
 
-object ForkNodeInfo {
-  def apply(name: String): ForkNodeInfo = new ForkNodeInfo(name)
-  def apply(node: scala.xml.Node): ForkNodeInfo = parseXmlNode(node)
-  
-  def parseXmlNode(node: scala.xml.Node): ForkNodeInfo = {
+object ForkNode {
+  def apply(name: String): ForkNode = new ForkNode(name)
+  def apply(node: scala.xml.Node): ForkNode = {
 	  val nameOpt = node.attribute("name")
 		val pathList = (node \ "path").map { x => x.attribute("to").get.text }.toList
     if((node \ "@name").size != 1){    
@@ -43,7 +30,7 @@ object ForkNodeInfo {
     }else if(pathList.size <= 0){
        throw new Exception("[fork] "+nameOpt.get.text+":-->[error]:未配置path子标签")
     }
-    val fn = ForkNodeInfo(nameOpt.get.text)
+    val fn = ForkNode(nameOpt.get.text)
     fn.pathList = pathList
     fn
   }

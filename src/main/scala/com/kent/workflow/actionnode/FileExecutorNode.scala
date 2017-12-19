@@ -1,40 +1,21 @@
 package com.kent.workflow.actionnode
 
-import com.kent.workflow.node.ActionNodeInfo
+import com.kent.workflow.node.ActionNode
 import com.kent.workflow.node.NodeInstance
 import com.kent.workflow.node.NodeInfo
 import org.json4s.jackson.JsonMethods
 import com.kent.util.Util
 import java.io.File
 
-class FileExecutorNode(name: String) extends ActionNodeInfo(name) {
+class FileExecutorNode(name: String) extends ActionNode(name) {
   var attachFiles = List[String]()
   var command: String = _
   
-  def createInstance(workflowInstanceId: String): FileExecutorNodeInstance = {
-    val sani = FileExecutorNodeInstance(this.deepCloneAs[FileExecutorNode]) 
-    sani.id = workflowInstanceId
-    sani
-  }
-  
-  override def parseJsonStr(contentStr: String){
-	  super.parseJsonStr(contentStr)
-    val content = JsonMethods.parse(contentStr)
-    import org.json4s._
-    implicit val formats = DefaultFormats
-    this.command = (content \ "command").extract[String]
-    this.attachFiles = (content \ "attach-list" \ classOf[JString]).asInstanceOf[List[String]]
-  }
-  
-  override def assembleJsonStr(): String = {
-		import org.json4s.jackson.JsonMethods._
+  override def getJson(): String = {
     import com.kent.util.Util._
 	  import org.json4s.JsonDSL._
-    val c1 = JsonMethods.parse(super.assembleJsonStr())
     val attStr = JsonMethods.compact(JsonMethods.render(attachFiles))
-    val c2 = JsonMethods.parse(s""" {"command":${transJsonStr(command)},"attach-list":${attStr}}""")
-    val c3 = c1.merge(c2)
-    JsonMethods.pretty(JsonMethods.render(c3))
+    s""" {"command":${transJsonStr(command)},"attach-list":${attStr}}"""
   }
   /**
    * 从命令串中解析可执行文件
@@ -53,9 +34,7 @@ class FileExecutorNode(name: String) extends ActionNodeInfo(name) {
 
 object FileExecutorNode {
   def apply(name: String): FileExecutorNode = new FileExecutorNode(name)
-  def apply(name:String, xmlNode: scala.xml.Node): FileExecutorNode = parseXmlNode(name, xmlNode)
-  
-  def parseXmlNode(name: String, xmlNode: scala.xml.Node): FileExecutorNode = {
+  def apply(name:String, xmlNode: scala.xml.Node): FileExecutorNode = {
 	  val node = FileExecutorNode(name)
 	  //脚本执行命令
 	  val commandSeq = (xmlNode \ "command")

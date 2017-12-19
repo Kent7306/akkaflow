@@ -51,7 +51,3 @@ class ShellNodeInstance(override val nodeInfo: ShellNode) extends ActionNodeInst
     true
   }
 }
-
-object ShellNodeInstance {
-  def apply(hsan: ShellNode): ShellNodeInstance = new ShellNodeInstance(hsan)
-}

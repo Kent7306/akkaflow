@@ -49,12 +49,12 @@ class CoordinatorManager extends DaemonActor{
 		if(isSaved) Master.persistManager ! Save(coor)
 		Master.haDataStorager ! AddCoordinator(coor)
 		if(coordinators.get(coor.name).isEmpty){
-		  LogRecorder.info(COORDINATOR, null, coor.name, s"增加coordinator：${coor.name}")
+		  //LogRecorder.info(COORDINATOR, null, coor.name, s"成功添加coordinator：[${coor.name}]")
 			coordinators = coordinators + (coor.name -> coor) 
 		  ResponseData("success",s"成功添加coordinator[${coor.name}]", null)
 		}else{
 		  coordinators = coordinators + (coor.name -> coor)
-		  LogRecorder.info(COORDINATOR, null, coor.name, s"替换coordinator：${coor.name}")
+		  LogRecorder.info(COORDINATOR, null, coor.name, s"替换coordinator：[${coor.name}]")
 		  ResponseData("success",s"成功替换coordinator[${coor.name}]", null)
 		}
   }
@@ -72,26 +72,6 @@ class CoordinatorManager extends DaemonActor{
     }
   }
   /**
-   * 初始化，从数据库中获取coordinators
-   */
-/*  def init(){
-    import com.kent.main.Master._
-    val isEnabled = config.getBoolean("workflow.mysql.is-enabled")
-    if(isEnabled){
-       val listF = (Master.persistManager ? Query("select name from coordinator")).mapTo[List[List[String]]]
-       listF.andThen{
-         case Success(list) => list.map { x =>
-           val coor = new Coordinator(x(0))
-           val coorF = (Master.persistManager ? Get(coor)).mapTo[Option[Coordinator]]
-           coorF.andThen{
-             case Success(coorOpt) => 
-             if(!coorOpt.isEmpty) add(coorOpt.get, false)
-           }
-         }
-       }
-    }
-  }*/
-  /**
    * 启动
    */
   def start(): Boolean = {
@@ -106,7 +86,8 @@ class CoordinatorManager extends DaemonActor{
    */
   def tick() = {
     import com.kent.coordinate.Coordinator.Status._
-    coordinators.filter { _._2.status == ACTIVE }.foreach { _._2.execute(workflowManager) }
+    coordinators.filter { case(name,coor) => coor.status == ACTIVE }
+      .foreach { case(name,coor) => coor.execute(workflowManager) }
   }
   /**
    * 停止
@@ -120,7 +101,7 @@ class CoordinatorManager extends DaemonActor{
    */
   def setCoordinatorDepend(wfName: String, status: WStatus){
     if(status == W_SUCCESSED)
-      coordinators.foreach(_._2.depends.foreach { x => if(x.workFlowName == wfName)x.isReady=true })
+      coordinators.foreach{ case(name, coor) => coor.changeDependStatus(wfName, true)}
   }
   /**
    * receive方法

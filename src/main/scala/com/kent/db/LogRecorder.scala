@@ -46,7 +46,7 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     val st = formatStandarTime(stime)
     messageList = messageList :+ LogMsg(level, ctype.toString(), sid,name, content, st)
 
-    if(messageList.size > 10 || lastCommitTimeStamp - nowDate.getTime > 10000){
+    if(messageList.size > 0 || lastCommitTimeStamp - nowDate.getTime > 10000){
       val executeList = messageList
       messageList = List()
       val sqls = executeList.map { x => s"""

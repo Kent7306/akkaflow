@@ -3,25 +3,59 @@
 
 	<start name="start" to="data_monitor" />
 
-	<action name="data_monitor" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
-		<data-monitor category="mysql" source-name="order_detail" is-saved="true" is-exceed-error="true" time-mark="${param:stadate}">
+	<action name="data_monitor" desc = "监测日志文件">
+		<data-monitor category="mysql" source-name="order_detail" is-saved="true" is-exceed-error="false" time-mark="${param:stadate}">
 		    <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
-		        <code>
 		        select count(1) from example_order_item_detail
-		        </code>
 		    </source>
-		    <min-threshold type="NUM">
-		        <code>5</code>
-		    </min-threshold>
+		    <min-threshold type="NUM">5</min-threshold>
 		    <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
-		        <code>
-		        select count(1)+10 from example_order_item_detail
-		        </code>
+		        select count(1)-10 from example_order_item_detail
 		    </max-threshold>
 		    <warn-msg>xxxxx,若无配置，则自动生成告警消息</warn-msg>
 		</data-monitor>
+		<ok to="transfer_node"/>
+	</action>
+	
+	<action name="transfer_node">
+		<transfer>
+		    <script>
+		    	echo `pwd`
+		    </script> 
+			<!-- <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+			  select name,xml_str from workflow
+			</source> --> 
+		    <!-- <source type="LFS" path="/tmp/2222" delimited=","></source> -->
+		     <!-- <target type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/test?useSSL=false" username="root" password="root" is-pre-truncate="true" table="bbb">
+		    </target>  -->
+		    <!-- <target type="LFS" path="/tmp/2222" delimited="####" is-pre-del="true"></target> -->
+		</transfer>
+		
 		<ok to="end"/>
 	</action>
+	
+	<!-- <action name="sql_node" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "">
+		<sql type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+		update test_origin_info set origin = 1 ;
+		update test_origin_info set origin_name = '1' ;
+		select sleep(2)
+		</sql>
+		<ok to="sql_node_2"/>
+	</action> -->
+	<!-- <action name="sql_node_2" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "">
+		<sql type="ORACLE" jdbc-url="jdbc:oracle:thin:@123.126.65.199:9147:maildata" username="kuaiduobao" password="DdhMdLLQ37g">
+		select * from dual
+		</sql>
+		<ok to="end"/>
+	</action> -->
+	<!-- <action name="sql_node_2" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "">
+		<sql type="HIVE" jdbc-url="jdbc:hive2://quickstart.cloudera:10000/test?" username="hive" password="hive">
+		drop table if exists bbb;
+		create table bbb as select count(1) cnt from aaa
+		</sql>
+		<ok to="end"/> 
+	</action>-->
+	
 	
 	<end name="end"/>
 </work-flow>

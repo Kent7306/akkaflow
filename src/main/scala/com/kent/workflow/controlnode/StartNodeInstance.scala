@@ -6,12 +6,12 @@ import com.kent.workflow.WorkflowInstance
 import java.sql.Connection
 import org.json4s.jackson.JsonMethods
 
-class StartNodeInstance(override val nodeInfo: StartNodeInfo) extends ControlNodeInstance(nodeInfo){
+class StartNodeInstance(override val nodeInfo: StartNode) extends ControlNodeInstance(nodeInfo){
 
   def getNextNodes(wfi: WorkflowInstance): List[NodeInstance] = 
     wfi.nodeInstanceList.filter { _.nodeInfo.name == nodeInfo.to }.toList
 }
 
 object StartNodeInstance {
-  def apply(startNode: StartNodeInfo): StartNodeInstance = new StartNodeInstance(startNode)
+  def apply(startNode: StartNode): StartNodeInstance = new StartNodeInstance(startNode)
 }

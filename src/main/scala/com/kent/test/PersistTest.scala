@@ -4,7 +4,6 @@ import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
 import com.kent.db.PersistManager
-import com.kent.workflow.controlnode.StartNodeInfo
 import com.kent.util.Util
 import com.kent.workflow.WorkflowInfo
 import com.kent.workflow.WorkflowInstance
@@ -77,8 +76,8 @@ object PersistTest extends App{
   //val wf = WorkflowInfo(wfStr_mac)
   //val wfi = WorkflowInstance(wf)
   val wf = new WorkflowInfo(null)
-  val wfi = wf.createInstance(null)
-  wfi.id = "b2bdfe0c"
-  pm ! Get(wfi)
+  //val wfi = wf.createInstance(null)
+  //wfi.id = "b2bdfe0c"
+  //pm ! Get(wfi)
   
 }

@@ -151,7 +151,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       if(host == "-1") {
         Some(workers(Random.nextInt(workers.size)))
       }else{ //指定host分配
-      	val list = workers.map { _.path.address.host.get }.toList
+      	val list = workers.filter { _.path.address.host.get == host }.toList
       	if(list.size > 0) 
       	  Some(workers(Random.nextInt(list.size))) else None
       }
@@ -246,6 +246,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     ddataF.map{ 
       case DistributeData(wfs,coors,rwfis, wwfis,xmlFiles) => 
         //创建持久化管理器
+        //需要同步
         if(Master.persistManager == null){
         	Master.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
         	val rsF = (Master.persistManager ? Start()).mapTo[Boolean]

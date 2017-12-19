@@ -110,7 +110,3 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
     true
   }
 }
-
-object FileExecutorNodeInstance {
-  def apply(san: FileExecutorNode): FileExecutorNodeInstance = new FileExecutorNodeInstance(san)
-}

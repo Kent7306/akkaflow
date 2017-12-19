@@ -15,6 +15,9 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.kent.pub.ActorTool
 import com.kent.pub.DaemonActor
+import java.net.ConnectException
+import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException
+import java.sql.Statement
 
 class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends DaemonActor{
   implicit var connection: Connection = null
@@ -23,28 +26,34 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
    * init
    */
   def start(): Boolean = {
+    var stat:Statement = null
     if(isEnabled){
-      //注册Driver
-	    Class.forName("com.mysql.jdbc.Driver")
-	    //得到连接
-	    connection = DriverManager.getConnection(url, username, pwd)
-      var content = ""
-      Source.fromFile(this.getClass.getResource("/").getPath + "../config/create_table.sql").foreach { content += _ }
-      val sqls = content.split(";").filter { _.trim() !="" }.toList
       try {
+        //注册Driver
+  	    Class.forName("com.mysql.jdbc.Driver")
+  	    //得到连接
+  	    connection = DriverManager.getConnection(url, username, pwd)
+  	    //启动清理
+        var content = ""
+        Source.fromFile(this.getClass.getResource("/").getPath + "../config/create_table.sql").foreach { content += _ }
+        val sqls = content.split(";").filter { _.trim() !="" }.toList
         connection.setAutoCommit(false)
-      	val stat = connection.createStatement()
+      	stat = connection.createStatement()
         val results = sqls.map { stat.execute(_) }.toList
         connection.commit()
       } catch {
-        case e: Exception => 
-            connection.rollback()
-            log.error("执行初始化建表sql失败,数据库功能将不开启...")
-            e.printStackTrace()
-            return false
+        case e: CommunicationsException => 
+          log.error("连接数据库失败，数据库功能将不开启...")
+          return false
+        case e: Exception =>
+          e.printStackTrace()
+          connection.rollback()
+          log.error("执行初始化建表sql失败,数据库功能将不开启...")
+          return false
+      } finally{
+        if(stat != null) stat.close()
+        connection.setAutoCommit(true)
       }
-      
-      connection.setAutoCommit(true)
       context.become(active orElse commonReceice)
       log.info("检查数据库成功...")
       true

@@ -70,7 +70,8 @@ create table if not exists node_instance (
     status int(1) comment "0:就绪，1:运行中，2:挂起，3:执行成功，4:执行失败，5:杀死",
     stime datetime,
     etime datetime,
-    msg varchar(1024)
+    msg varchar(1024),
+    index(workflow_instance_id)
 );
 
 create table if not exists log_record (

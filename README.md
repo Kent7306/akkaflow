@@ -11,7 +11,7 @@
 * `Http-Server` http服务节点，提供http API查看操作当前akkaflow系统。
 
 **actor对象层级**
-![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/actor%E5%B1%82%E6%AC%A1%E5%85%B3%E7%B3%BB%E5%9B%BE.png)
+	![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/actor%E5%B1%82%E6%AC%A1%E5%85%B3%E7%B3%BB%E5%9B%BE.png)
 
 `akkaflow`工程只是一个后端运行的架构，目前也在不停开发完善中；基于B/S的可视化界面已初步开发，提供工作流执行情况等相关信息查看，可视化拖拉生成工作流与调度器的功能尚未开发。  
 
@@ -132,4 +132,12 @@ akkaflow-ui是独立部署的一套可视化系统，基于访问akkflow数据�
 ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%AE%A1%E7%90%86%E9%A1%B5%E9%9D%A2.png)  
 * 工作流实例列表页面
 ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%9F%A5%E8%AF%A2%E5%88%97%E8%A1%A8.png)  
+
+### 版本计划
+1. 重新封装数据传输节点，关于数据传输节点，本来想集成sqoop1 java api的，但本地生成的java的jdk版本和集群的jdk版本需要一致，考虑到某些集群的jdk版本仍旧是1.6，1.7，而akkaflow的jdk版本起码要1.8或以上，所以还是用sqoop shell（需要节点机器支持sqoop1），并且也没有很好封装sqoop命令；而sqoop2感觉不是很通用简便。
+2. 界面集成一个可视化拖拉配置工作流与调度器的开发功能模块（这一块感觉自己做不来），目前的工作流以及调度器主要还是要自己编写xml文件，不够简便。
+3. 增加运行节点收集机器性能指标的功能。
+4. 外面套一层功能权限管理的模块，区分限制人员角色模块及数据权限，支持多人使用或协助的场景。
+
+* 整套akkaflow框架，包括前后端都是抽空闲时间去做的，个人主要工作方向主要是数据开发与后端开发，所以前端界面并没有做得很漂亮，很多可以展现的东西也没做出来，但是其实很多元数据已经尽量持久化到表中，对于整套框架，基本功能是全的，但是文档方面也没尽责详细说明，越做下去，感觉需要补的东西越来越多，深感一个人的精力有限，所以后面有时间精力再去修复和更新，当然啦，如果其他小伙伴有兴趣的话，欢迎联系加入，无论前后端，毕竟人多力量大。
 

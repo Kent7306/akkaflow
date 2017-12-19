@@ -10,12 +10,12 @@ import com.kent.coordinate.ParamHandler
 import java.util.Date
 import org.json4s.jackson.JsonMethods
 
-class KillNodeInstance (override val nodeInfo: KillNodeInfo) extends ControlNodeInstance(nodeInfo){
+class KillNodeInstance (override val nodeInfo: KillNode) extends ControlNodeInstance(nodeInfo){
 
   def getNextNodes(wfi: WorkflowInstance): List[NodeInstance] = List()
   
   override def terminate(wfa: WorkflowActor): Boolean = {
-    wfa.terminateWith(W_KILLED, "该工作流主动杀死自己")
+    wfa.terminateWith(W_KILLED, "执行到kill节点，主动杀死自己")
     true
   }
 
@@ -23,20 +23,8 @@ class KillNodeInstance (override val nodeInfo: KillNodeInfo) extends ControlNode
     this.nodeInfo.msg = ParamHandler(new Date()).getValue(nodeInfo.msg)
     true
   }
-  
-   override def toString(): String = {
-	    var str = "  "+this.getClass.getName + "(\n"
-	    str = str + s"    id = ${id},\n"
-	    str = str + s"    name = ${nodeInfo.name},\n"
-	    str = str + s"    status = ${status},\n"
-	    str = str + s"    startTime = ${startTime},\n"
-	    str = str + s"    endTime = ${endTime})\n"
-	    str = str + s"    executedMsg = ${executedMsg}\n"
-	    str = str + s"    msg = ${nodeInfo.msg}\n"
-	    str
-	  }
 }
 
 object KillNodeInstance {
-  def apply(killNode: KillNodeInfo): KillNodeInstance = new KillNodeInstance(killNode)
+  def apply(killNode: KillNode): KillNodeInstance = new KillNodeInstance(killNode)
 }

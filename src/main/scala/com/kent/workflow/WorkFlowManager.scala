@@ -142,26 +142,6 @@ class WorkFlowManager extends DaemonActor {
     }
   }
   /**
-   * 初始化，从数据库中获取workflows
-   */
-  /*  def init(){
-    import com.kent.main.Master._
-    val isEnabled = config.getBoolean("workflow.mysql.is-enabled")
-    if(isEnabled){
-       val listF = (Master.persistManager ? Query("select name from workflow")).mapTo[List[List[String]]]
-       listF.andThen{
-         case Success(list) => list.map { x =>
-           val wf = new WorkflowInfo(x(0))
-           val wfF = (Master.persistManager ? Get(wf)).mapTo[Option[WorkflowInfo]]
-           wfF.andThen{
-             case Success(wfOpt) => 
-             if(!wfOpt.isEmpty) add(wfOpt.get, false)
-           }
-         }
-       }
-    }
-  }*/
-  /**
    * 生成工作流实例并执行
    */
   def newAndExecute(wfName: String, params: Map[String, String]): Boolean = {
@@ -169,7 +149,7 @@ class WorkFlowManager extends DaemonActor {
       LogRecorder.error(WORKFLOW_MANAGER, null, null, s"未找到名称为[${wfName}]的工作流")
       false
     } else {
-      val wfi = workflows(wfName).createInstance(params)
+    	val wfi = WorkflowInstance(workflows(wfName), params)
       wfi.parsedParams = params
       //把工作流实例加入到等待队列中
       waittingWorkflowInstance += wfi
@@ -184,7 +164,7 @@ class WorkFlowManager extends DaemonActor {
     if (workflows.get(wfName).isEmpty) {
       ResponseData("fail", s"工作流${wfName}不存在", null)
     } else {
-      val wfi = workflows(wfName).createInstance(params)
+      val wfi = WorkflowInstance(workflows(wfName), params)
       wfi.parsedParams = params
       //把工作流实例加入到等待队列中
       waittingWorkflowInstance += wfi
@@ -201,14 +181,14 @@ class WorkFlowManager extends DaemonActor {
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.id }.toMap
     Master.haDataStorager ! RemoveRWFI(wfInstance.id)
     //根据状态发送邮件告警
-    if (wfInstance.workflow.mailLevel.contains(wfInstance.status)) {
+    if (wfInstance.workflow.mailLevel.contains(wfInstance.getStatus())) {
       Master.emailSender ! EmailMessage(wfInstance.workflow.mailReceivers,
         "workflow告警",
-        s"任务【${wfInstance.actorName}】执行状态：${wfInstance.status}")
+        s"任务【${wfInstance.actorName}】执行状态：${wfInstance.getStatus()}")
     }
     Thread.sleep(1000)
-    LogRecorder.info(WORKFLOW_MANAGER, wfInstance.id, wfInstance.workflow.name, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.status}")
-    coordinatorManager ! WorkFlowExecuteResult(wfInstance.workflow.name, wfInstance.status)
+    LogRecorder.info(WORKFLOW_MANAGER, wfInstance.id, wfInstance.workflow.name, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.getStatus()}")
+    coordinatorManager ! WorkFlowExecuteResult(wfInstance.workflow.name, wfInstance.getStatus())
     true
   }
   /**
@@ -222,7 +202,7 @@ class WorkFlowManager extends DaemonActor {
       Master.haDataStorager ! RemoveRWFI(id)
       val resultF2 = resultF.map {
         case WorkFlowInstanceExecuteResult(x) =>
-          ResponseData("success", s"工作流[${id}]已被杀死", x.status)
+          ResponseData("success", s"工作流[${id}]已被杀死", x.getStatus())
       }
       resultF2
     } else {

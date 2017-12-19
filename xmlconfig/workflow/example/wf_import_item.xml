@@ -1,4 +1,4 @@
-<work-flow name="wf_import_item" dir="/example" desc="导入item数据" mail-level="W_FAILED,W_KILLED"
+<work-flow name="导入item" dir="/example" desc="导入item数据" mail-level="W_FAILED,W_KILLED"
            mail-receivers="492005267@qq.com">
 
 	<start name="start" to="watch_log" />
