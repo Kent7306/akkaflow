@@ -24,6 +24,8 @@ object Event {
   case class AddCoor(content: String)
   case class RemoveCoor(name: String)
   case class UpdateCoor(content: String)
+  case class ResetCoor(name: String)
+  case class TriggerPostWorkflow(name: String)
   case class GetManagers(workflowManager: ActorRef, coorManager: ActorRef)
   //log-recorder
   case class Info(stime: Date,ctype: LogType, sid: String,name: String, content: String)

@@ -59,10 +59,10 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   /**
    * 执行
    */
-  def execute(wfManager: ActorRef): Boolean = {
+  def execute(wfManager: ActorRef, isCheckedSatisfied:Boolean = true): Boolean = {
     import com.kent.coordinate.Coordinator.Status._
     import com.kent.workflow.WorkFlowManager._
-    if(isSatisfyTrigger()) {
+    if(!isCheckedSatisfied || isSatisfyTrigger()) {
       this.status = ACTIVE
       this.workflows.foreach { x => 
         LogRecorder.info(COORDINATOR, null, this.name, s"触发工作流: ${x}")

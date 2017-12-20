@@ -38,7 +38,7 @@ class HttpServer extends ClusterRole {
     					case Success(x) => sdr ! x
     	}
     }else{
-      sdr ! ResponseData("fail","不存在活动的Master",null)
+      sdr ! ResponseData("fail","不存在workflow manager",null)
     }
   }
   private def getResponseFromCoordinatorManager(sdr: ActorRef, event: Any) = {
@@ -49,7 +49,7 @@ class HttpServer extends ClusterRole {
         case Success(x) => sdr ! x
       }
     }else{
-      sdr ! ResponseData("fail","不存在活动的Master",null)
+      sdr ! ResponseData("fail","不存在coordinator Manager",null)
     }
   }
   private def getResponseFromMaster(sdr: ActorRef, event: Any) = {
@@ -83,9 +83,11 @@ class HttpServer extends ClusterRole {
     case event@KillWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
     case event@AddCoor(_) => getResponseFromCoordinatorManager(sender, event)
     case event@RemoveCoor(_) => getResponseFromCoordinatorManager(sender, event)
+    case event@ResetCoor(_) => getResponseFromCoordinatorManager(sender,event)
+    case event@TriggerPostWorkflow(_) => getResponseFromCoordinatorManager(sender,event)
     case event@ManualNewAndExecuteWorkFlowInstance(_, _) => getResponseFromWorkflowManager(sender, event)
     case event@GetWaittingInstances() => getResponseFromWorkflowManager(sender, event)
-      
+    
   }
 }
 object HttpServer extends App{
@@ -161,6 +163,10 @@ object HttpServer extends App{
            handleRequestWithActor(RemoveCoor(name))                    
           }else if(action == "get"){
         	  handleRequestWithResponseData("fail","暂时还没get方法",null)                      
+          }else if(action == "reset"){
+            handleRequestWithActor(ResetCoor(name))  
+          }else if(action == "trigger"){
+            handleRequestWithActor(TriggerPostWorkflow(name)) 
           }else{
         	  handleRequestWithResponseData("fail","action参数有误",null)                     
           }

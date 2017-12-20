@@ -72,6 +72,32 @@ class CoordinatorManager extends DaemonActor{
     }
   }
   /**
+   * （调用）重置指定调度器
+   */
+  def reset(name: String): ResponseData = {
+    if(!coordinators.get(name).isEmpty){
+      coordinators(name).depends.foreach { x => 
+        x.isReady = false
+        LogRecorder.info(COORDINATOR, null, name, s"前置依赖工作流[${x.workFlowName}]准备状态设置为：${x.isReady}")
+      }
+      ResponseData("success",s"成功重置coordinator[${name}]的状态", null)
+    }else{
+      ResponseData("fail",s"coordinator[${name}]不存在", null)
+    }
+  }
+  /**
+   * （调用）触发指定调度器的后置工作流
+   */
+  def triggerPostWorkflow(name: String):ResponseData = {
+    if(!coordinators.get(name).isEmpty){
+      coordinators(name).execute(workflowManager, false)
+      ResponseData("success",s"成功触发后置工作流[${coordinators(name).workflows.mkString(",")}]", null)
+    }else{
+      ResponseData("fail",s"coordinator[${name}]不存在", null)
+    }
+  }
+  
+  /**
    * 启动
    */
   def start(): Boolean = {
@@ -111,6 +137,8 @@ class CoordinatorManager extends DaemonActor{
     case Stop() => sender ! this.stop(); context.stop(self)
     case AddCoor(xmlStr) => sender ! this.add(xmlStr, true)
     case RemoveCoor(name) => sender ! this.remove(name)
+    case ResetCoor(name) => sender ! this.reset(name)
+    case TriggerPostWorkflow(name) => sender ! triggerPostWorkflow(name)
     case WorkFlowExecuteResult(wfName, status) => this.setCoordinatorDepend(wfName, status)
     case GetManagers(wfm, cm) => this.workflowManager = wfm
     case Tick() => tick()
