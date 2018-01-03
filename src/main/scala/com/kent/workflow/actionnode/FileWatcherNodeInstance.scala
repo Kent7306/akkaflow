@@ -9,9 +9,6 @@ import com.kent.main.Worker
 import com.kent.pub.Event._
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
-import com.kent.db.LogRecorder.LogType
-import com.kent.db.LogRecorder.LogType._
-import com.kent.db.LogRecorder
 import com.kent.workflow.actionnode.FileWatcherNodeInstance.DirNotExistException
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
@@ -90,11 +87,9 @@ class FileWatcherNodeInstance(override val nodeInfo: FileWatcherNode)  extends A
           val fileLines = smallFiles.map { case (vFn, vSize) => s"文件：${vFn} -- 大小：${Util.convertByte2Humen(vSize)}" }
           fileLines.foreach(y => fileCondStr = "<p>"+fileCondStr+"</p>"+ y)
           //日志记录
-          LogRecorder.warn(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"工作实例【${this.id}】中节点【${nodeInfo.name}】数据检测低于阈值(${nodeInfo.sizeThreshold})")
-          LogRecorder.warn(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"异常文件以下：")
-          fileLines.foreach { x => 
-            LogRecorder.warn(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, x)
-          }
+          warnLog(s"工作实例【${this.id}】中节点【${nodeInfo.name}】数据检测低于阈值(${nodeInfo.sizeThreshold})")
+          warnLog(s"异常文件以下：")
+          fileLines.foreach { x => warnLog(x)}
           //默认系统的告警信息更为详细
           val content = if(nodeInfo.warnMessage == null || nodeInfo.warnMessage.trim() == ""){
                           s"""<p>工作实例【${this.id}】中节点【${nodeInfo.name}】数据检测低于阈值(${nodeInfo.sizeThreshold})</p>
@@ -109,16 +104,16 @@ class FileWatcherNodeInstance(override val nodeInfo: FileWatcherNode)  extends A
           true 
         }
       }else{
-        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"检测到目录（${nodeInfo.dir}）符合命名要求的文件（${nodeInfo.filename}）个数为${files.size},少于阈值${nodeInfo.numThreshold}, 当前：${files.size}")
+        errorLog(s"检测到目录（${nodeInfo.dir}）符合命名要求的文件（${nodeInfo.filename}）个数为${files.size},少于阈值${nodeInfo.numThreshold}, 当前：${files.size}")
         false
       }
     } catch{
       case e: DirNotExistException => 
-        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"扫描的目录（${nodeInfo.dir}）不存在")
+        errorLog(s"扫描的目录（${nodeInfo.dir}）不存在")
         false
       case e: Exception =>
         e.printStackTrace()
-        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
+        errorLog(e.getMessage)
         false
     }
   }

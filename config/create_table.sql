@@ -2,6 +2,7 @@ set character_set_server = utf8;
 set character_set_database = utf8;
 create table if not exists workflow(
     name varchar(128) primary key  not null,
+    creator varchar(128),
     dir varchar(128),
     description varchar(128),
     mail_level JSON,
@@ -15,6 +16,7 @@ create table if not exists workflow(
 
 create table if not exists coordinator (
     name varchar(128) primary key,
+    creator varchar(128),
     param JSON,
     dir varchar(128),
     cron varchar(128),
@@ -40,6 +42,7 @@ create table if not exists node (
 create table if not exists workflow_instance(
     id varchar(8) primary key not null,
     name varchar(128) not null,
+    creator varchar(128),
     dir varchar(128),
     param JSON,
     status int(1) comment "0:就绪，1:运行中，2:挂起，3:执行成功，4:执行失败，5:杀死",

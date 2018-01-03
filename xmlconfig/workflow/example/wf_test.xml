@@ -1,5 +1,4 @@
-<work-flow name="wf_test" dir="/example" desc="导入item数据" mail-level = "W_FAILED,W_KILLED" 
-	mail-receivers="15018735011@163.com,492005267@qq.com">
+<work-flow name="wf_test" creator="区广能">
 
 	<start name="start" to="data_monitor" />
 
@@ -14,7 +13,15 @@
 		    </max-threshold>
 		    <warn-msg>xxxxx,若无配置，则自动生成告警消息</warn-msg>
 		</data-monitor>
-		<ok to="end"/>
+		<ok to="a1"/>
+	</action>
+	<action name="a1">
+		<script>
+			<code>
+			for i in `seq 0 1500`;do echo $i"****";done
+			</code>
+		</script>
+		<ok to="end"></ok>
 	</action>
 	
 	<end name="end"/>

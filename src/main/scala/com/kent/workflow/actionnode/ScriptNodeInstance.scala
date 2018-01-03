@@ -38,9 +38,7 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
       val attachFileContents = Await.result(attachFileF, 120 seconds)
       //是否能成功读取到文件
       if(attachFileContents.filter{ ! _.isSuccessed}.size > 0){
-        attachFileContents.filter{ ! _.isSuccessed}.foreach { x => 
-          LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, x.msg)
-        }
+        attachFileContents.filter{ ! _.isSuccessed}.foreach { x => errorLog(x.msg) }
         false
       }else{
         //创建执行目录
@@ -64,24 +62,23 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
         val lines = nodeInfo.code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
         FileUtil.writeFile(executeFilePath,lines)
         FileUtil.setExecutable(executeFilePath, true)
-        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"写入到文件：${executeFilePath}")
+        infoLog(s"写入到文件：${executeFilePath}")
         //写入附件文件
         attachFileContents.foreach { x => 
           val afn = FileUtil.getFileName(x.path)
           FileUtil.writeFile(s"${location}/${afn}", x.content)
-          LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到文件：${location}/${afn}")
+          infoLog(s"拷贝到文件：${location}/${afn}")
         }
         //执行
-        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"执行命令: ${executeFilePath} ${paramLine}")
-        val pLogger = ProcessLogger(line => LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
-                                  line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line))
+        infoLog(s"执行命令: ${executeFilePath} ${paramLine}")
+        val pLogger = ProcessLogger(line => infoLog(line), line => errorLog(line))
         executeResult = Process(s"${runFilePath}").run(pLogger)
         if(executeResult.exitValue() == 0) true else false
       }
     }catch{
       case e:Exception => 
         e.printStackTrace();
-        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
+        errorLog(e.getMessage)
         false
     }
   }

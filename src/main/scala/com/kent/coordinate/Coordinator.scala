@@ -36,6 +36,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   var status: Status = SUSPENDED
   var desc: String = _
   var xmlStr: String = _
+  var creator: String = _
   /**
    * 判断是否满足触发
    */
@@ -103,6 +104,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     import com.kent.util.Util._
     conn.setAutoCommit(false)
     executeSql(s"delete from coordinator where name = ${withQuate(name)}")
+    executeSql(s"delete from log_record where ctype = 'COORDINATOR' and name = ${withQuate(name)}")
     val result = executeSql(s"delete from directory_info where name = ${withQuate(name)} and dtype = '0'")
     conn.commit()
     conn.setAutoCommit(true)
@@ -164,7 +166,9 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     //保存父目录
     dir.newLeafNode(name)
     val insertSql = s"""insert into coordinator values(
-                    ${withQuate(name)},${withQuate(paramStr)},
+                    ${withQuate(name)},
+                    ${withQuate(creator)},
+                    ${withQuate(paramStr)},
                     ${withQuate(dir.dirname)},
                     ${withQuate(if(cron == null) null else cron.cronStr)},${withQuate(dependsStr)},
                     ${withQuate(workflowsStr)},${withQuate(formatStandarTime(startDate))},
@@ -176,6 +180,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     val updateSql = s"""
           update coordinator set
                         param = ${withQuate(paramStr)},
+                        creator = ${withQuate(creator)},
                         dir = ${withQuate(dir.dirname)},
                         cron = ${withQuate(if(cron == null) null else cron.cronStr)},
                         depends = ${withQuate(dependsStr)},
@@ -219,6 +224,7 @@ object Coordinator {
     val endDateOpt = node.attribute("end")
     val dirOpt = node.attribute("dir")
     val descOpt = node.attribute("desc")
+    val creatorOpt = node.attribute("creator")
     var cronConfig:String = null;
     if((node \ "trigger" \ "cron").size > 0){
     	cronConfig = (node \ "trigger" \ "cron" \ "@config").text
@@ -228,13 +234,15 @@ object Coordinator {
     val paramList = (node \ "param-list" \ "param").map { x => (x.attribute("name").get.text, x.attribute("value").get.text)}.toList
     
     val sbt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-    val sdate = sbt.parse(startDateOpt.get.text)
-    val edate = sbt.parse(endDateOpt.get.text)
+    
+    val sdate = sbt.parse(if(startDateOpt.isEmpty) "1990-12-29 00:00:00" else startDateOpt.get.text)
+    val edate = sbt.parse(if(endDateOpt.isEmpty) "2090-12-29 00:00:00" else endDateOpt.get.text)
     val cron: CronComponent = CronComponent(cronConfig, sdate, edate)
     
     val coor = new Coordinator(nameOpt.get.text)
     coor.desc = if(descOpt.isEmpty) null else descOpt.get.text
     coor.dir = if(dirOpt.isEmpty) Directory("/tmp",0) else Directory(dirOpt.get.text,0)
+    coor.creator = if(creatorOpt.isEmpty) "Unknown" else creatorOpt.get.text
     coor.startDate = sdate
     coor.endDate = edate
     coor.cron = cron

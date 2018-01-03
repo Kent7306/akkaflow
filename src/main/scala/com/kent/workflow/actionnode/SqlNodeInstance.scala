@@ -4,9 +4,6 @@ import java.sql.Connection
 import java.sql.Statement
 import java.sql.DriverManager
 import com.kent.workflow.node.ActionNodeInstance
-import com.kent.db.LogRecorder
-import com.kent.db.LogRecorder.LogType
-import com.kent.db.LogRecorder.LogType._
 import com.kent.workflow.actionnode.DataMonitorNode.SourceType
 import org.apache.hive.jdbc.HiveStatement
 import scala.collection.JavaConverters._
@@ -26,7 +23,7 @@ class SqlNodeInstance(override val nodeInfo: SqlNode) extends ActionNodeInstance
       case _ => None
     }
     if(driverClsOpt.isEmpty){
-      LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"不支持${nodeInfo.sType}类型")
+      errorLog(s"不支持${nodeInfo.sType}类型")
       return false
     }
     executeSqls(driverClsOpt.get, sqlArr, nodeInfo.jdbcUrl, nodeInfo.username, nodeInfo.password)
@@ -37,7 +34,7 @@ class SqlNodeInstance(override val nodeInfo: SqlNode) extends ActionNodeInstance
     if(stat != null) stat.cancel()
     if(conn != null) conn.close()
     } catch{
-      case e: Exception => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"KILL! ${e}")
+      case e: Exception => errorLog(s"KILL! ${e}")
     }
     true
   }
@@ -58,9 +55,7 @@ class SqlNodeInstance(override val nodeInfo: SqlNode) extends ActionNodeInstance
     			def run() {
     				val hivestat = stat.asInstanceOf[HiveStatement]
     				while (hivestat.hasMoreLogs())  {  
-              hivestat.getQueryLog().asScala.map{ x => 
-                LogRecorder.info(ACTION_NODE_INSTANCE, id, nodeInfo.name, x)
-              }
+              hivestat.getQueryLog().asScala.map{ x => infoLog(x)}
               Thread.sleep(1000)  
             } 
     			}
@@ -77,9 +72,9 @@ class SqlNodeInstance(override val nodeInfo: SqlNode) extends ActionNodeInstance
         e.printStackTrace()
         if(conn != null && this.nodeInfo.sType != SourceType.HIVE) {
           conn.rollback()
-          LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, "进行回滚")
+          errorLog("进行回滚")
         }
-        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
+        errorLog(e.getMessage)
         false
     }finally{
       if(stat != null) stat.close()

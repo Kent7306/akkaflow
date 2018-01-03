@@ -37,7 +37,7 @@ abstract class ActorTool extends Actor with ActorLogging{
    */
   def collectActorInfo():Future[ActorInfo] = {
 		val ai = new ActorInfo()
-    ai.name = s"${self.path.name}(${self.hashCode()})"
+    ai.name = s"${self.path.name}"
 		ai.atype = this.actorType
     val caiFs = context.children.map { child => (child ? CollectActorInfo()).mapTo[ActorInfo]}.toList
     val caisF = Future.sequence(caiFs)

@@ -81,6 +81,7 @@ class HttpServer extends ClusterRole {
     case event@AddWorkFlow(_) => getResponseFromWorkflowManager(sender, event)
     case event@ReRunWorkflowInstance(_) => getResponseFromWorkflowManager(sender, event)
     case event@KillWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
+    case event@RemoveWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
     case event@AddCoor(_) => getResponseFromCoordinatorManager(sender, event)
     case event@RemoveCoor(_) => getResponseFromCoordinatorManager(sender, event)
     case event@ResetCoor(_) => getResponseFromCoordinatorManager(sender,event)
@@ -133,7 +134,8 @@ object HttpServer extends App{
             handleRequestWithResponseData("fail","暂时还没get方法",null)   
           }else if(action == "run"){
              parameterMap {
-               paras => handleRequestWithActor(ManualNewAndExecuteWorkFlowInstance(name, paras))
+               paras => 
+                 handleRequestWithActor(ManualNewAndExecuteWorkFlowInstance(name, paras))
              }
           }
           else{
@@ -195,7 +197,10 @@ object HttpServer extends App{
             handleRequestWithActor(ReRunWorkflowInstance(id))
           }else if(action == "kill"){
         	  handleRequestWithActor(KillWorkFlowInstance(id))                     
-          }else{
+          }else if(action == "del"){
+            handleRequestWithActor(RemoveWorkFlowInstance(id))
+          }
+          else{
         	  handleRequestWithActor("fail","action参数有误",null)                     
           }
         }
@@ -221,7 +226,7 @@ object HttpServer extends App{
     val route = wfRoute ~ coorRoute ~ wfiRoute ~ clusterRoute
   
    val bindingFuture = Http().bindAndHandle(route, "localhost", 8090)
-    def shutdwon(){
+   def shutdwon(){
       bindingFuture.flatMap(_.unbind()).onComplete(_ => system.terminate())
     }
 }

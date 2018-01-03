@@ -10,9 +10,6 @@ import java.util.Date
 import java.io.PrintWriter
 import java.io.File
 import com.kent.util.Util
-import com.kent.db.LogRecorder.LogType
-import com.kent.db.LogRecorder.LogType._
-import com.kent.db.LogRecorder
 import akka.pattern.{ ask, pipe }
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.util.Timeout
@@ -48,12 +45,10 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
       val (executeFileContent, attachFileContents) = Await.result(resultF, 120 seconds)
       //能读取到文件
       if(!executeFileContent.isSuccessed){
-        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, executeFileContent.msg)
+        errorLog(executeFileContent.msg)
         false
       }else if(attachFileContents.filter{ ! _.isSuccessed}.size > 0){
-        attachFileContents.filter{ ! _.isSuccessed}.foreach { x => 
-          LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, x.msg)
-        }
+        attachFileContents.filter{ ! _.isSuccessed}.foreach { x => errorLog(x.msg)}
         false
       }else{
         //创建执行目录
@@ -65,12 +60,12 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
         val efn = FileUtil.getFileName(executeFileContent.path)
         FileUtil.writeFile(s"${location}/${efn}", executeFileContent.content)
         FileUtil.setExecutable(s"${location}/${efn}", true)
-        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到文件：${location}/${efn}")
+        infoLog(s"拷贝到文件：${location}/${efn}")
         //写入附件文件
         attachFileContents.foreach { x => 
           val afn = FileUtil.getFileName(x.path)
           FileUtil.writeFile(s"${location}/${afn}", x.content)
-          LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"拷贝到文件：${location}/${afn}")
+          infoLog(s"拷贝到文件：${location}/${afn}")
         }
         //替换到临时目录中执行
         val oldExecFilePath = this.nodeInfo.analysisExecuteFilePath()
@@ -87,9 +82,8 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
         FileUtil.setExecutable(runFilePath, true)
         
     		//执行
-        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"执行命令: ${newCommand}")
-        val pLogger = ProcessLogger(line => LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
-                                  line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line))
+        infoLog(s"执行命令: ${newCommand}")
+        val pLogger = ProcessLogger(line => infoLog(line), line => errorLog(line))
         executeResult = Process(runFilePath).run(pLogger)
         if(executeResult.exitValue() == 0) true else false
           true
@@ -98,7 +92,7 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
     } catch {
       case e: Exception => 
         e.printStackTrace()
-        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
+        errorLog(e.getMessage)
         false
     }
   }

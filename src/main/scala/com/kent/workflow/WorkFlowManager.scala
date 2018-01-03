@@ -130,15 +130,36 @@ class WorkFlowManager extends DaemonActor {
   /**
    * 删
    */
-  def remove(name: String): ResponseData = {
+  def remove(name: String): Future[ResponseData] = {
     if (!workflows.get(name).isEmpty) {
-      LogRecorder.info(WORKFLOW_MANAGER, null, name, s"删除工作流：${name}")
-      Master.persistManager ! Delete(workflows(name))
-      Master.haDataStorager ! RemoveWorkflow(name)
-      workflows = workflows.filterNot { x => x._1 == name }.toMap
-      ResponseData("success", s"成功删除工作流${name}", null)
+      val rsF = (Master.persistManager ? Delete(workflows(name))).mapTo[Boolean]
+      rsF.map { 
+        case x if x == true =>
+          LogRecorder.info(WORKFLOW_MANAGER, null, name, s"删除工作流：${name}")
+          Master.haDataStorager ! RemoveWorkflow(name)
+          workflows = workflows.filterNot { x => x._1 == name }.toMap
+          ResponseData("success", s"成功删除工作流${name}", null)
+        case _ => 
+          ResponseData("fail", s"删除工作流${name}出错(数据库删除失败)", null)
+      }
     } else {
-      ResponseData("fail", s"工作流${name}不存在", null)
+      Future{ResponseData("fail", s"工作流${name}不存在", null)}
+    }
+  }
+  def removeInstance(id: String): Future[ResponseData] = {
+    if(id == null || id.trim() == ""){
+      Future{ResponseData("fail", s"无效实例id", null)}
+    }else{
+    	val rsF1 = (Master.persistManager ? ExecuteSql(s"delete from workflow_instance where id = '${id}'")).mapTo[Boolean]     
+    	val rsF2 = (Master.persistManager ? ExecuteSql(s"delete from node_instance where workflow_instance_id = '${id}'")).mapTo[Boolean]     
+			val rsF3 = (Master.persistManager ? ExecuteSql(s"delete from log_record where sid = '${id}'")).mapTo[Boolean]     
+      val listF = List(rsF1, rsF2, rsF3)
+    	Future.sequence(listF).map {
+    	  case l if l.contains(false) =>
+    	    ResponseData("fail", s"删除工作流${id}失败（数据库问题）", null)
+    	  case _ =>
+    	    ResponseData("success", s"成功删除工作流${id}", null)
+    	}
     }
   }
   /**
@@ -296,7 +317,8 @@ class WorkFlowManager extends DaemonActor {
     case Stop() =>
       sender ! this.stop(); context.stop(self)
     case AddWorkFlow(content) => sender ! this.add(content, true)
-    case RemoveWorkFlow(name) => sender ! this.remove(name)
+    case RemoveWorkFlow(name) => this.remove(name) pipeTo sender
+    case RemoveWorkFlowInstance(id) => this.removeInstance(id) pipeTo sender
     case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)
     case ManualNewAndExecuteWorkFlowInstance(name, params) => sender ! this.manualNewAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)

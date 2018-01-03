@@ -35,14 +35,11 @@ class ShellNodeInstance(override val nodeInfo: ShellNode) extends ActionNodeInst
       FileUtil.writeFile(runFilePath,runLines)
       FileUtil.setExecutable(runFilePath, true)  
       
-      val pLogger = ProcessLogger(line =>LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
-                                  line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line))
+      val pLogger = ProcessLogger(line =>infoLog(line), line => errorLog(line))
       executeResult = Process(s"${runFilePath}").run(pLogger)
       if(executeResult.exitValue() == 0) true else false
     }catch{
-      case e:Exception => 
-        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
-        false
+      case e:Exception => errorLog(e.getMessage) ;false
     }
   }
 

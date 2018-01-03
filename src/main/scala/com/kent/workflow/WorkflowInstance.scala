@@ -81,7 +81,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     val levelStr = compact(workflow.mailLevel.map { _.toString()})
     val receiversStr = compact(workflow.mailReceivers)
 	  val insertSql = s"""
-	     insert into workflow_instance values(${withQuate(id)},${withQuate(workflow.name)},${withQuate(workflow.dir.dirname)},
+	     insert into workflow_instance values(${withQuate(id)},${withQuate(workflow.name)},${withQuate(workflow.creator)},${withQuate(workflow.dir.dirname)},
 	                                          ${withQuate(paramStr)},'${status.id}',${withQuate(workflow.desc)},
 	                                          ${withQuate(levelStr)},${withQuate(receiversStr)},${workflow.instanceLimit},
 	                                          ${withQuate(formatStandarTime(startTime))},${withQuate(formatStandarTime(endTime))},
@@ -182,6 +182,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     var result = false
     try{
       conn.setAutoCommit(false)
+      executeSql(s"delete from log_record where id = '${id}'")
 	    result = executeSql(s"delete from workflow_instance where id='${id}'")
 	    executeSql(s"delete from node_instance where workflow_instance_id='${id}'")
 	    conn.commit()

@@ -19,6 +19,7 @@ import com.kent.pub.DaemonActor
 import com.kent.db.LogRecorder
 import com.kent.db.LogRecorder.LogType
 import com.kent.db.LogRecorder.LogType._
+import scala.concurrent.Future
 
 class CoordinatorManager extends DaemonActor{
   var coordinators: Map[String, Coordinator] = Map()
@@ -61,14 +62,19 @@ class CoordinatorManager extends DaemonActor{
   /**
    * 删
    */
-  def remove(name: String): ResponseData = {
+  def remove(name: String): Future[ResponseData] = {
     if(!coordinators.get(name).isEmpty){
-    	Master.persistManager ! Delete(coordinators(name))
-    	coordinators = coordinators.filterNot {x => x._1 == name}.toMap
-    	LogRecorder.info(COORDINATOR, null, name, s"删除coordinator[${name}]")
-    	ResponseData("success",s"成功删除coordinator[${name}]", null)
+    	val rsF = (Master.persistManager ? Delete(coordinators(name))).mapTo[Boolean]
+    	rsF.map { 
+    	  case x if x == true =>
+    	    coordinators = coordinators.filterNot {x => x._1 == name}.toMap
+    	    LogRecorder.info(COORDINATOR, null, name, s"删除coordinator[${name}]")
+    	    ResponseData("success",s"成功删除coordinator[${name}]", null)
+    	  case _ => 
+    	    ResponseData("fail",s"删除coordinator[${name}]失败（数据库删除失败）", null)
+    	}
     }else{
-      ResponseData("fail",s"coordinator[${name}]不存在", null)
+      Future(ResponseData("fail",s"coordinator[${name}]不存在", null))
     }
   }
   /**
@@ -136,7 +142,7 @@ class CoordinatorManager extends DaemonActor{
     case Start() => this.start()
     case Stop() => sender ! this.stop(); context.stop(self)
     case AddCoor(xmlStr) => sender ! this.add(xmlStr, true)
-    case RemoveCoor(name) => sender ! this.remove(name)
+    case RemoveCoor(name) => this.remove(name) pipeTo sender
     case ResetCoor(name) => sender ! this.reset(name)
     case TriggerPostWorkflow(name) => sender ! triggerPostWorkflow(name)
     case WorkFlowExecuteResult(wfName, status) => this.setCoordinatorDepend(wfName, status)

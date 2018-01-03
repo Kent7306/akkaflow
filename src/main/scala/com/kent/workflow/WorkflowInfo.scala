@@ -19,6 +19,7 @@ import com.kent.coordinate.ParamHandler
 
 class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Daoable[WorkflowInfo] {
 	import com.kent.workflow.WorkflowInfo.WStatus._
+  var creator: String = _
   var desc: String = _
   var nodeList:List[NodeInfo] = List()
   var createTime: Date = _
@@ -68,13 +69,14 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
       //保存父目录
      dir.newLeafNode(name)
   	  val insertSql = s"""
-  	     insert into workflow values(${withQuate(name)},${withQuate(dir.dirname)},${withQuate(desc)},
+  	     insert into workflow values(${withQuate(name)},${withQuate(creator)},${withQuate(dir.dirname)},${withQuate(desc)},
   	     ${withQuate(levelStr)},${withQuate(receiversStr)},${instanceLimit},
   	     ${withQuate(paramsStr)}, ${withQuate(transformXmlStr(xmlStr))},
   	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))})
   	    """
   	  val updateSql = s"""
   	    update workflow set description = ${withQuate(desc)}, 
+  	                        creator = ${withQuate(creator)},
   	                        dir = ${withQuate(dir.dirname)},
   	                        mail_level = ${withQuate(levelStr)}, 
   	                        mail_receivers = ${withQuate(receiversStr)}, 
@@ -102,6 +104,7 @@ object WorkflowInfo {
       val node = XML.loadString(content);
       //val a = WStatus.withName("W_FAILED")
       val nameOpt = node.attribute("name")
+      val creatorOpt = node.attribute("creator")
       val descOpt = node.attribute("desc")
       val createTimeOpt = node.attribute("create-time")
       val mailLevelOpt = node.attribute("mail-level")
@@ -113,9 +116,11 @@ object WorkflowInfo {
       if(descOpt != None) wf.desc = descOpt.get.text
     	wf.nodeList = (node \ "_").map{x => val n = NodeInfo(x); n.workflowName = nameOpt.get.text; n }.toList
     	wf.createTime = if(createTimeOpt != None) Util.getStandarTimeWithStr(createTimeOpt.get.text) else Util.nowDate
-    	if(!mailLevelOpt.isEmpty){
+    	if(mailLevelOpt.isDefined){
     	  val levels = mailLevelOpt.get.text.split(",")
     	  wf.mailLevel = levels.map { x => WStatus.withName(x)}.toList   //??? 这里可能后续要调整一下，不直接用枚举名称
+    	}else{
+    	  wf.mailLevel= List(WStatus.W_FAILED)
     	}
     	if(!mailReceiversOpt.isEmpty){
     	  wf.mailReceivers = mailReceiversOpt.get.text.split(",").toList
@@ -124,6 +129,7 @@ object WorkflowInfo {
     	  wf.instanceLimit = intanceLimitOpt.get.text.toInt
     	}
     	wf.dir = if(dirOpt.isEmpty) Directory("/tmp",1) else Directory(dirOpt.get.text,1)
+    	wf.creator = if(creatorOpt.isEmpty) "Unknown" else creatorOpt.get.text
     	
     	wf.xmlStr = content
     	wf.params = ParamHandler.extractParams(content)

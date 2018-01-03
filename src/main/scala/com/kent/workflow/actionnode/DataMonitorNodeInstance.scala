@@ -11,9 +11,6 @@ import java.util.Date
 import java.io.PrintWriter
 import java.io.File
 import com.kent.util.Util
-import com.kent.db.LogRecorder.LogType
-import com.kent.db.LogRecorder.LogType._
-import com.kent.db.LogRecorder
 import akka.pattern.{ ask, pipe }
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.util.Timeout
@@ -54,10 +51,10 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
 			  val titleMark = if(nodeInfo.isExceedError) "Error" else "Warn"
 			  actionActor.sendMailMsg(null, s"【${titleMark}】data-monitor数据异常", content)
 			  result = if(nodeInfo.isExceedError == true){
-			    LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, content)
+			    errorLog(content)
 			    false 
 			  }else {
-			    LogRecorder.warn(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, content)
+			    warnLog(content)
 			    result
 			  }
       }
@@ -73,7 +70,7 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
     }catch{
       case e:Exception => 
         e.printStackTrace();
-        LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, e.getMessage)
+        errorLog(e.getMessage)
         false
     }
   }
@@ -137,9 +134,9 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       val lines = content.split("\n").filter { x => x.trim() != "" }.toList
       FileUtil.writeFile(executeFilePath,lines)
       FileUtil.setExecutable(executeFilePath, true)
-      LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"写入到文件：${executeFilePath}")
+      infoLog(s"写入到文件：${executeFilePath}")
       //执行
-      LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"执行命令: ${executeFilePath}")
+      infoLog(s"执行命令: ${executeFilePath}")
       val rsNum: String = s"${executeFilePath}" !!
       val num = rsNum.trim().toDouble
       num

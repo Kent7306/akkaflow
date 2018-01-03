@@ -1,4 +1,4 @@
-<coordinator name="coor_test"  start="2016-09-10 10:00:00" end="2018-09-10 10:00:00" is-enabled="false" dir="/example" desc="每分钟启动">    
+<coordinator name="coor_test" author="区广能" is-enabled="false" dir="/example" desc="每分钟启动">    
     <trigger> 
         <cron config="*/5 * * * * *"/>
     </trigger>  

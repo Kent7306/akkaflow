@@ -1,6 +1,6 @@
-<work-flow name="wf_loop_job"  dir="/example" desc="测试循环" instance-limit="5">
-        <start name="start" to="a1" />
-        <action name="a1" desc="执行情况">
+<work-flow name="循环工作流"  creator="区广能" dir="/example" desc="测试循环" instance-limit="5">
+        <start name="start" to="步骤1" />
+        <action name="步骤1" desc="执行情况">
             <script>
                 <code>
                 <![CDATA[
@@ -18,9 +18,9 @@
                 </code>
             </script>
             <ok to="end"/>
-            <error to="a2"/>
+            <error to="步骤2"/>
         </action>
-        <action name="a2" desc="等待2秒,循环">
+        <action name="步骤2" desc="等待2秒,循环">
             <script>
                 <code>
                 <![CDATA[
@@ -28,7 +28,7 @@
                     ]]>
                 </code>
             </script>
-            <ok to="a1"/>
+            <ok to="步骤1"/>
         </action>
         <end name="end"/>
 </work-flow>

@@ -9,11 +9,20 @@ import java.util.Calendar
 import java.util.Date
 import org.json4s.jackson.JsonMethods
 import com.kent.workflow.ActionActor
+import com.kent.db.LogRecorder
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
 
 abstract class ActionNodeInstance(override val nodeInfo: ActionNode) extends NodeInstance(nodeInfo) {
   var hasRetryTimes: Int = 0
   var allocateHost: String = _
   var actionActor: ActionActor = _
+  
+  //进行日志截断
+  private val logLimiteNum: Int = 1000
+  private var logIdx: Int = 0
+  
+  
   def kill():Boolean
   
   /**
@@ -52,6 +61,22 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNode) extends Nod
     wfa.getNextNodesToWaittingQueue(this)
     return true
   }
+  /**
+   * INFO日志级别，超出则用以截断日志
+   */
+  def infoLog(line: String) = {
+    logIdx += 1
+    if(logIdx < logLimiteNum) LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line)
+    else if(logIdx == logLimiteNum) errorLog(line)
+  }
+  /**
+   * ERROR日志级别
+   */
+  def errorLog(line: String) = LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line) 
+  /**
+   * WARN日志级别
+   */
+  def warnLog(line: String) = LogRecorder.warn(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line) 
   
   override def toString(): String = {
 	    var str = "  "+this.getClass.getName + "(\n"

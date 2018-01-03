@@ -44,7 +44,7 @@ class Worker extends ClusterRole {
    * 创建action actor
    */
   def createActionActor(actionNodeInstance: ActionNodeInstance):ActorRef = {
-		val actionActorRef = context.actorOf(Props(ActionActor(actionNodeInstance)), actionNodeInstance.name)
+		val actionActorRef = context.actorOf(Props(ActionActor(actionNodeInstance)), actionNodeInstance.hashCode()+"")
 		runningActionActors = runningActionActors + (actionNodeInstance.name -> actionActorRef)
 		actionActorRef
   }

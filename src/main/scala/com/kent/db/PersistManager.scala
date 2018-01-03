@@ -68,8 +68,9 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
   def active: Actor.Receive = {
     //??? 后续改成future
     case Save(obj) => obj.save
-    case Delete(obj) => obj.delete
+    case Delete(obj) => sender ! obj.delete
     case Get(obj) => sender ! obj.getEntity
+    case ExecuteSql(sql) => sender ! executeSql(sql)
     case Query(str) => sender ! queryList(str)
   }
   /**
@@ -79,7 +80,8 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     case Start() => sender ! this.start()
     case Get(obj) => sender ! None
     case Save(obj) => 
-    case Delete(obj) =>
+    case ExecuteSql(sql) => sender ! true
+    case Delete(obj) => sender ! true
   }
   /**
    * 查询结果数组
@@ -116,9 +118,8 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
    * 执行sql
    */
   def executeSql(sql: String)(implicit conn: Connection): Boolean = {
-	  //println(sql)
     val stat = conn.createStatement()
-    var result:Boolean = false
+    var result:Boolean = true
     try{
     	result = stat.execute(sql)      
     }catch{

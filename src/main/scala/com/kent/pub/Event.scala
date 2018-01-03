@@ -36,6 +36,7 @@ object Event {
   case class Delete[A](obj: Daoable[A])
   case class Get[A](obj: Daoable[A])
   case class Query(query: String)
+  case class ExecuteSql(sql: String)
   //email-sender
   case class EmailMessage(toUsers: List[String],subject: String,htmlText: String)
   //wfm
@@ -46,6 +47,7 @@ object Event {
   case class KillWorkFlowInstance(id: String)
   case class AddWorkFlow(content: String)
   case class RemoveWorkFlow(wfName: String)
+  case class RemoveWorkFlowInstance(id: String)
   case class ReRunWorkflowInstance(worflowInstanceId: String)
   case class WorkFlowInstanceExecuteResult(workflowInstance: WorkflowInstance)
   case class WorkFlowExecuteResult(wfName: String, status: WStatus)

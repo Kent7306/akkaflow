@@ -72,10 +72,9 @@ class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNo
     val lines = code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
     FileUtil.writeFile(executeFilePath,lines)
     FileUtil.setExecutable(executeFilePath, true)
-    LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, s"写入到文件：${executeFilePath}")
+    infoLog(s"写入到文件：${executeFilePath}")
     //执行
-    val pLogger = ProcessLogger(line => LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line),
-                              line => LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line)) 
+    val pLogger = ProcessLogger(line => infoLog(line), line => errorLog(line)) 
     executeResult = Process(s"${runFilePath}").run(pLogger)
     if(executeResult.exitValue() == 0) true else false
     
