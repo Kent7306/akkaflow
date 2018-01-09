@@ -64,7 +64,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
    * 发送邮件
    */
   def sendMailMsg(toUsers: List[String],subject: String,htmlText: String){
-    workflowActorRef ! EmailMessage(toUsers, subject, htmlText)
+    workflowActorRef ! EmailMessage(toUsers, subject, htmlText, List())
   }
   /**
    * 结束

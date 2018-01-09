@@ -3,23 +3,19 @@
 
 #####一个调度器文件定义示例
 ```xml
-<coordinator name="coor1_2" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" dir="/tmp/test">    
-    <trigger>
-        <cron config="* * * * * *"/>
-        <depend-list>
-          <depend wf="wf_1" />
-          <depend wf="wf_2" />
-        </depend-list>
-    </trigger>
-    <workflow-list>
-      <workflow path="wf_3"></workflow>
-      <workflow path="wf_4"></workflow>
-    </workflow-list>
+<coordinator name="coor_join_order_and_item" is-enabled="false" dir="/example" desc="依赖启动">    
+    <depend-list cron="*/30 * * * *">
+        <workflow name="wf_import_item" />
+        <workflow name="wf_import_order" />
+    </depend-list>
+    <trigger-list>
+      <workflow name="wf_join_order_and_item"></workflow>
+    </trigger-list>
     <param-list>
-        <param name="yestoday" value="${time.today|yyyy-MM-dd|-1 day}"/>
-        <param name="lastMonth" value="${time.today|yyyyMM|-1 month}"/>
-        <param name="yestoday2" value="${time.yestoday|yyyy/MM/dd}"/>
-        <param name="hdfs_dir" value="hdfs:///user/kent/log/${yestoday2}/*"/>
+        <param name="stime" value="${time.today|yyyy-MM-dd hh:mm}"/>
+        <param name="yestory" value="${time.yestoday|yyyy-MM-dd}"/>
+        <param name="yestoday2" value="${time.today|yyyyMMdd|-1 day}"/>
+        <param name="stadate" value="${time.today|yyyy-MM-dd hh}"/>
     </param-list>
 </coordinator>
 ```
@@ -27,59 +23,53 @@
 整个调度器配置定义在`coordinator`标签中,`coordinator`作为最外层的标签。
 ####* 属性
 `name`：必填，名称，用来标识唯一的`coordinator`.</br>
-`start`：可选，调度器的开始生效时间，默认从很久以前开始，格式为，yyyy-MM-dd HH:mm:ss</br>
-`end`：可选，调度器的开始失效时间，默认从很久以后结束，格式为，yyyy-MM-dd HH:mm:ss</br>
+`start-time`：可选，调度器的开始生效时间，默认从很久以前开始，格式为，yyyy-MM-dd HH:mm:ss</br>
+`end-time`：可选，调度器的开始失效时间，默认从很久以后结束，格式为，yyyy-MM-dd HH:mm:ss</br>
+`creator`：可选，创建者，默认为Unknown。</br>
 `is-enabled`：可选，是否生效，默认为true。</br>
 `desc`：可选，调度器描述。</br>
 `dir`：可选，该coordinator的存放目录，默认为/tmp。</br>
 ####* 示例
 ```xml
-<!-- example 1 -->
-<coordinator name="coor1_2" start="2016-09-10 10:00:00" end="2017-09-10 10:00:00" desc="this is a coordinator" dir="/tmp/test"> 
+<!-- example 1 full-->
+<coordinator name="coor1_2" creator="kent" start-time="2016-09-10 10:00:00" end-time="2017-09-10 10:00:00" desc="this is a coordinator" dir="/tmp/test"> 
 	...
 </coordinator>
 
-<!-- example 2 -->
+<!-- example 2 simplified-->
 <coordinator name="coor1_3">
 	...
 </coordinator>
 ```
 ####* 标签内容
-####&lt;trigger/&gt;
+####&lt;depend-list/&gt;
 只有满足时间触发，并且前置依赖任务成功执行完成，才能触发该调度器执行后置依赖工作流。</br>
-`<cron/>`子标签，可选，默认无，时间触发设置，属性`config`，必填，类似于linux中的crontab周期时间点配置。</br>
-`<depend-list>`子标签，可选，默认无，其下层包括子标签`<depend/>`列表，工作流前置依赖，属性`wf`，必填，填写前置依赖的工作流。</br>
+`cron`属性，可选，默认无，时间触发设置，类似于linux中的crontab周期时间点配置。</br>
+`<workflow>`子标签，必填，前置依赖的任务流，可配置多个，`name`属性，必填，指定依赖的任务流</br>
 示例</br>
 ```xml
 <!-- 每天1点触发，并且前置依赖于wf_1，wf_2 -->
-<trigger>
-   <cron config="0 1 * * * *"/>
-   <depend-list>
-     <depend wf="wf_1" />
-     <depend wf="wf_2" />
-   </depend-list>
-</trigger>
+<depend-list cron="0 1 * * *">
+        <workflow name="wf_1" />
+        <workflow name="wf_2" />
+</depend-list>
 <!-- 每周一午夜触发 -->
-<trigger>
-	<cron config="midnight on monday"/>
-</trigger>
+<depend-list cron="midnight on monday"></depend-list>
 <!-- 前置依赖于wf_1，wf_2 -->
-<trigger>
-	<depend-list>
-     <depend wf="wf_1" />
-     <depend wf="wf_2" />
-   </depend-list>
-</trigger>
+<depend-list>
+        <workflow name="wf_1" />
+        <workflow name="wf_2" />
+</depend-list>
 ```
-####&lt;workflow-list/&gt;
-配置的后置依赖工作流列表，当前置依赖被满足后，会触发后置任务启动。</br>
-`<workflow/>`子标签，必填，可以包含多个子标签，属性`path`选择后置依赖的工作流名称。</br>
+####&lt;trigger-list/&gt;
+配置的后置触发工作流列表，当前置依赖被满足后，会触发后置任务启动。</br>
+`<workflow/>`子标签，必填，可以包含多个子标签，属性`name`选择后置触发的工作流名称。</br>
 示例</br>
 ```xml
-<workflow-list>
-	<workflow path="wf_3"></workflow>
-	<workflow path="wf_4"></workflow>
-</workflow-list>
+<trigger-list>
+      <workflow name="wf_3"></workflow>
+      <workflow name="wf_4"></workflow>
+</trigger-list>
 ```
 ####&lt;param-list/&gt;
 参数列表，转化后的参数列表作为触发后的后置工作流实例的参数，在工作流定义中看到`${param:xxx}`，就是使用了相关参数。参数包括自定义参数与内置参数，目前内置参数只包含时间相关操作的参数，注意参数顺序，下面的参数可以使用上面的参数。</br>

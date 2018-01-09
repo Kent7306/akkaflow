@@ -23,7 +23,7 @@ import com.kent.util.FileUtil
 class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeInstance(nodeInfo)  {
   implicit val timeout = Timeout(60 seconds)
   private var executeResult: Process = _
-
+  private var dir:File = _
   override def execute(): Boolean = {
     try {
       val wfmPath = this.actionActor.workflowActorRef.path.parent
@@ -53,7 +53,7 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
       }else{
         //创建执行目录
         var location = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
-        val dir = new File(location)
+        dir = new File(location)
         dir.deleteOnExit()
         dir.mkdirs()
         //写入执行文件
@@ -82,7 +82,7 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
         FileUtil.setExecutable(runFilePath, true)
         
     		//执行
-        infoLog(s"执行命令: ${newCommand}")
+        //infoLog(s"执行命令: ${newCommand}")
         val pLogger = ProcessLogger(line => infoLog(line), line => errorLog(line))
         executeResult = Process(runFilePath).run(pLogger)
         if(executeResult.exitValue() == 0) true else false
@@ -94,6 +94,8 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
         e.printStackTrace()
         errorLog(e.getMessage)
         false
+    } finally {
+      FileUtil.deleteDirOrFile(dir)
     }
   }
 
@@ -101,6 +103,7 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
     if(executeResult != null){
       executeResult.destroy()
     }
+    FileUtil.deleteDirOrFile(dir)
     true
   }
 }

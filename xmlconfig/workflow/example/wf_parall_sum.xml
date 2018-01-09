@@ -1,4 +1,5 @@
-<work-flow name="wf_parall_sum"  dir="/example" desc="">
+<work-flow name="wf_parall_sum"  dir="/example"
+mail-level="W_FAILED,W_KILLED" mail-receivers="gzouguangneng@corp.netease.com">
         <start name="start" to="clean" />
         <action name="clean">
             <script>

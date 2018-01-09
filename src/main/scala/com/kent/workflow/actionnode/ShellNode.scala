@@ -7,7 +7,16 @@ import com.kent.workflow.node.NodeInfo
 import java.sql.ResultSet
 import java.sql.ResultSet
 import org.json4s.jackson.JsonMethods
-
+/**
+<!--example 1 -->
+<shell>
+   <command>cd /home/xxx; hdfs dfs -rm -r /xxx/xxx/xxxx</command>
+</shell>
+<!-- example 2 -->
+<shell>
+   <command>/home/tmp/run_data.sh xxx</command>
+</shell>
+ */
 class ShellNode(name: String) extends ActionNode(name) {
   var command: String = _
   

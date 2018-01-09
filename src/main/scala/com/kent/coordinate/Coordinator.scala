@@ -19,9 +19,9 @@ import com.kent.pub.Event._
 import com.kent.db.LogRecorder.LogType
 import com.kent.db.LogRecorder.LogType._
 import com.kent.db.LogRecorder
+import org.json4s.JsonAST.JValue
 
 class Coordinator(val name: String) extends Daoable[Coordinator] with DeepCloneable[Coordinator] {
-	import com.kent.coordinate.Coordinator.Status._
 	import com.kent.coordinate.Coordinator.Depend
 	//存放参数原始信息
   var paramList: List[Tuple2[String, String]] = List()
@@ -32,8 +32,8 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   var endDate: Date = _
   var dir: Directory = _
   var depends: List[Depend] = List()
-  var workflows: List[String] = List()
-  var status: Status = SUSPENDED
+  var triggers: List[String] = List()
+ // var status: Status = SUSPENDED
   var desc: String = _
   var xmlStr: String = _
   var creator: String = _
@@ -42,9 +42,11 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
    */
   def isSatisfyTrigger():Boolean = {
     if(this.startDate.getTime <= Util.nowTime 
-        && this.endDate.getTime >= Util.nowTime
+        && this.endDate.getTime >= Util.nowTime 
         && isEnabled) {
-    	if(this.depends.filterNot { _.isReady }.size == 0 && (this.cron == null || this.cron.isAfterExecuteTime)) true else false      
+    	if(this.depends.filterNot { _.isReady }.size == 0 
+    	    && ((this.cron == null && this.depends.size > 0) || (this.cron != null && this.cron.isAfterExecuteTime))) 
+    	  true else false      
     }else false
   }
 	/**
@@ -53,6 +55,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
 	def changeDependStatus(dependWfName: String, dependIsReady:Boolean) = {
 	  this.depends.filter { _.workFlowName == dependWfName }.foreach { x =>
 	    x.isReady = dependIsReady 
+	    Master.persistManager ! Save(this)
   		LogRecorder.info(COORDINATOR, null, this.name, s"前置依赖工作流[${dependWfName}]准备状态设置为：${dependIsReady}")
 	  }
 	}
@@ -61,11 +64,9 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
    * 执行
    */
   def execute(wfManager: ActorRef, isCheckedSatisfied:Boolean = true): Boolean = {
-    import com.kent.coordinate.Coordinator.Status._
     import com.kent.workflow.WorkFlowManager._
     if(!isCheckedSatisfied || isSatisfyTrigger()) {
-      this.status = ACTIVE
-      this.workflows.foreach { x => 
+      this.triggers.foreach { x => 
         LogRecorder.info(COORDINATOR, null, this.name, s"触发工作流: ${x}")
         wfManager ! NewAndExecuteWorkFlowInstance(x, translateParam(this.paramList)) 
       }
@@ -80,6 +81,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
    */
   private def resetTrigger(): Boolean = {
     if(this.cron == null || this.cron.setNextExecuteTime()){
+      Master.persistManager ! Save(this)
     	this.depends.foreach { _.isReady = false}
     	true      
     }else{
@@ -111,56 +113,14 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     result
   }
 
-  def getEntity(implicit conn: Connection): Option[Coordinator] = {
-    import com.kent.util.Util._
-    import org.json4s.JsonDSL._
-    import org.json4s.jackson.JsonMethods._
-    val newCoor = this.deepClone()
-    
-    val queryStr = s"""
-      select name,param,dir,cron,depends,workflow_names,stime,etime,is_enabled,
-	    status,description,xml_str,create_time,last_update_time from coordinator
-	    where name = ${withQuate(name)}
-	                  """
-    val coorOpt = querySql(queryStr, (rs: ResultSet) =>{
-      if(rs.next()){
-        val json = parse(rs.getString("param"))
-        newCoor.paramList = for{ JObject(ele) <- json; (k, JString(v)) <- ele} yield (k,v)
-        newCoor.xmlStr = rs.getString("xml_str")
-        val cronStr = rs.getString("cron")
-        val stime = getStandarTimeWithStr(rs.getString("stime"))
-        val etime = getStandarTimeWithStr(rs.getString("etime"))
-        newCoor.cron = CronComponent(cronStr, stime, etime)
-        newCoor.startDate = stime
-        newCoor.endDate = etime
-        newCoor.cronStr = cronStr
-        
-        val dependsValues = parse(rs.getString("depends"))
-        val dependsStrList = (dependsValues \\ classOf[JString]).asInstanceOf[List[String]]
-        newCoor.depends = dependsStrList.map { x => new Depend(x, false) }.toList
-        val wfnamesValue = parse(rs.getString("workflow_names"))
-        newCoor.workflows = (wfnamesValue \\ classOf[JString]).asInstanceOf[List[String]]
-        newCoor.isEnabled = if (rs.getString("is_enabled") == "1") true else false
-        newCoor.status = Coordinator.Status.getStatusWithId(rs.getInt("status"))
-        newCoor.desc = rs.getString("description")
-        newCoor.dir = Directory(rs.getString("dir"),0)
-        newCoor.xmlStr = rs.getString("xml_str")
-        newCoor
-      }else{
-        null
-      }
-    })
-    coorOpt
-  }
-
   def save(implicit conn: Connection): Boolean = {
     import com.kent.util.Util._
     import org.json4s.JsonDSL._
     import org.json4s.jackson.JsonMethods._
     
     val paramStr = compact(render(paramList))
-    val dependsStr = compact(depends.map(_.workFlowName).toList)
-    val workflowsStr = compact(workflows)
+    val dependsStr = compact(depends.map(x => ("name" -> x.workFlowName) ~ ("is_ready" -> x.isReady)).toList)
+    val triggersStr = compact(triggers)
     val enabledStr = if(isEnabled)1 else 0
     conn.setAutoCommit(false)
     //保存父目录
@@ -171,9 +131,9 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
                     ${withQuate(paramStr)},
                     ${withQuate(dir.dirname)},
                     ${withQuate(if(cron == null) null else cron.cronStr)},${withQuate(dependsStr)},
-                    ${withQuate(workflowsStr)},${withQuate(formatStandarTime(startDate))},
+                    ${withQuate(triggersStr)},${withQuate(formatStandarTime(startDate))},
                     ${withQuate(formatStandarTime(endDate))},${enabledStr},
-                    ${status.id},${withQuate(desc)},${withQuate(Util.transformXmlStr(xmlStr))},
+                    ${withQuate(desc)},${withQuate(Util.transformXmlStr(xmlStr))},
                     ${withQuate(formatStandarTime(nowDate))},
                     ${withQuate(formatStandarTime(nowDate))})"""
     
@@ -184,18 +144,21 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
                         dir = ${withQuate(dir.dirname)},
                         cron = ${withQuate(if(cron == null) null else cron.cronStr)},
                         depends = ${withQuate(dependsStr)},
-                        workflow_names = ${withQuate(workflowsStr)},
+                        triggers = ${withQuate(triggersStr)},
                         stime = ${withQuate(formatStandarTime(startDate))},
                         etime = ${withQuate(formatStandarTime(endDate))},
                         is_enabled = ${enabledStr},
-                        status = ${status.id},
                         description = ${withQuate(desc)},
                         xml_str = ${withQuate(Util.transformXmlStr(xmlStr))},
                         last_update_time = ${withQuate(formatStandarTime(nowDate))}
           where name = ${withQuate(name)}
       """
-    val result = if(this.getEntity.isEmpty) executeSql(insertSql)
-             else executeSql(updateSql)
+          
+    val isExistSql = s"select name from coordinator where name = ${withQuate(name)}"
+    val isExist = querySql[Boolean](isExistSql, rs =>
+      if(rs.next()) true else false
+    )
+    val result = if(!isExist.get) executeSql(insertSql) else executeSql(updateSql)
     conn.commit()
     conn.setAutoCommit(true)
     result
@@ -206,6 +169,8 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
      newCoor.cron = if(this.cron != null) this.cron.deepClone() else null;
      newCoor
   }
+  //暂时不用实现
+  def getEntity(implicit conn: Connection): Option[Coordinator] = ???
   
 }
 object Coordinator {
@@ -220,18 +185,18 @@ object Coordinator {
     val isEnabledOpt = node.attribute("is-enabled")
     val isEnabled = if(isEnabledOpt.isEmpty || isEnabledOpt.get.text.trim() == "") true 
                     else isEnabledOpt.get.text.toBoolean
-    val startDateOpt = node.attribute("start")
-    val endDateOpt = node.attribute("end")
+    val startDateOpt = node.attribute("start-time")
+    val endDateOpt = node.attribute("end-time")
     val dirOpt = node.attribute("dir")
     val descOpt = node.attribute("desc")
     val creatorOpt = node.attribute("creator")
     var cronConfig:String = null;
-    if((node \ "trigger" \ "cron").size > 0){
-    	cronConfig = (node \ "trigger" \ "cron" \ "@config").text
+    if((node \ "depend-list" \ "@cron").size > 0){
+    	cronConfig = (node \ "depend-list" \ "@cron").text
     }
-    val depends = (node \ "trigger" \ "depend-list" \ "depend").map { x => new Depend((x \ "@wf").text, false) }.toList
-    val workflows = (node \ "workflow-list" \ "workflow").map(x => x.attribute("path").get.text).toList
-    val paramList = (node \ "param-list" \ "param").map { x => (x.attribute("name").get.text, x.attribute("value").get.text)}.toList
+    val depends = (node \ "depend-list" \ "workflow").map { x => new Depend((x \ "@name").text, false) }.toList
+    val triggers = (node \ "trigger-list" \ "workflow").map(x => (x \"@name").text).toList
+    val paramList = (node \ "param-list" \ "param").map { x => ((x \ "@name")text, (x \ "@value").text)}.toList
     
     val sbt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
     
@@ -250,24 +215,10 @@ object Coordinator {
     coor.paramList = paramList
     coor.depends = depends
     coor.cronStr = cronConfig
-    import com.kent.coordinate.Coordinator.Status._
-    coor.status = ACTIVE
-    coor.workflows = workflows
+    coor.triggers = triggers
     coor.xmlStr = xmlStr
     coor
   }
-  /**
-   * coordinator 状态枚举
-   */
-	object Status extends Enumeration {
-		type Status = Value
-		val ACTIVE, SUSPENDED, FINISHED = Value
-		def getStatusWithId(id: Int): Status = {
-      var sta: Status = ACTIVE  
-      Status.values.foreach { x => if(x.id == id) return x }
-      sta
-    }
-	}
 	
 	//依赖类
 	case class Depend(workFlowName: String,var isReady: Boolean)

@@ -1,16 +1,12 @@
-<coordinator name="coor_import_order" start="2016-09-10 10:00:00" end="2018-09-10 10:00:00" 
-    is-enabled="true" dir="/example"
-    desc="每10分钟启动">    
-    <trigger>
-        <cron config="*/10 * * * * *"/>
-    </trigger>
-    <workflow-list>
-      <workflow path="wf_import_order"></workflow>
-    </workflow-list>
+<coordinator name="coor_import_order" is-enabled="false" dir="/example" desc="每10分钟启动">    
+    <depend-list cron="*/1 * * * *"></depend-list>
+    <trigger-list>
+      <workflow name="wf_import_order"></workflow>  
+    </trigger-list>
     <param-list>
         <param name="stime" value="${time.today|yyyy-MM-dd hh:mm}"/>
         <param name="yestory" value="${time.yestoday|yyyy-MM-dd}"/>
         <param name="yestoday2" value="${time.today|yyyyMMdd|-1 day}"/>
-        <param name="stadate" value="param_content"/>
-    </param-list>
+        <param name="stadate" value="param_content"/>  
+    </param-list>  
 </coordinator>

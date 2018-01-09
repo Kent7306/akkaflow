@@ -139,6 +139,8 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       infoLog(s"执行命令: ${executeFilePath}")
       val rsNum: String = s"${executeFilePath}" !!
       val num = rsNum.trim().toDouble
+      val file = new File(executeFilePath)
+      FileUtil.deleteDirOrFile(file)
       num
     }
     /**

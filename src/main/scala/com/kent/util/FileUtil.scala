@@ -98,5 +98,19 @@ object FileUtil {
       false
     }
   }
-	 
+  /**
+   * 递归删除目录，或指定文件
+   */
+	 def deleteDirOrFile(dir: File):Boolean = {
+	      if(dir == null) 
+	        return true
+	      else if(dir.isDirectory()) {
+            val children = dir.list().foreach { x => 
+              val rs = deleteDirOrFile(new File(dir, x))
+              if(!rs)  return false
+            }
+        }
+        // 目录此时为空，可以删除
+        return dir.delete()
+    }
 }

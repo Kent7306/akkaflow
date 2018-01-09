@@ -1,15 +1,11 @@
-<coordinator name="coor_test" author="区广能" is-enabled="false" dir="/example" desc="每分钟启动">    
-    <trigger> 
-        <cron config="*/5 * * * * *"/>
-    </trigger>  
-    <workflow-list>
-      <workflow path="wf_test"></workflow>   
-    </workflow-list>
+<coordinator name="coor_test" author="区广能" dir="/example" is-enabled="false">    
+    <depend-list cron="*/1 * * * * *">
+    </depend-list>  
+    <trigger-list>
+      	<workflow path="wf_test"></workflow>   
+    </trigger-list>
     <param-list>
         <param name="yestoday" value="${time.today|yyyy-MM-dd|-1 day}"/>
-        <param name="stadate" value="2017-03-04"/>
-        <param name="stadate2" value="2017-08-07"/>
-        <param name="x" value="pl"/>
-        <param name="y" value="txt"/>
+        <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
     </param-list>
 </coordinator>     

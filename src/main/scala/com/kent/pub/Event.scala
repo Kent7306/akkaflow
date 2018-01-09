@@ -38,7 +38,7 @@ object Event {
   case class Query(query: String)
   case class ExecuteSql(sql: String)
   //email-sender
-  case class EmailMessage(toUsers: List[String],subject: String,htmlText: String)
+  case class EmailMessage(toUsers: List[String],subject: String,htmlText: String, attachFiles: List[String])
   //wfm
   case class NewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
   case class ManualNewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])

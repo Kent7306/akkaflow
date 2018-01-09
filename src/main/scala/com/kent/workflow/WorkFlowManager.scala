@@ -71,7 +71,6 @@ class WorkFlowManager extends DaemonActor {
    * 扫描等待队列
    */
   def tick() {
-    import com.kent.coordinate.Coordinator.Status._
     //从等待队列中找到满足运行的工作流实例
     def getSatisfiedWFIfromWaitingWFIs(): Option[WorkflowInstance] = {
       for (wfi <- waittingWorkflowInstance) {
@@ -204,8 +203,8 @@ class WorkFlowManager extends DaemonActor {
     //根据状态发送邮件告警
     if (wfInstance.workflow.mailLevel.contains(wfInstance.getStatus())) {
       Master.emailSender ! EmailMessage(wfInstance.workflow.mailReceivers,
-        "workflow告警",
-        s"任务【${wfInstance.actorName}】执行状态：${wfInstance.getStatus()}")
+        "【Akkaflow告警】",
+        s"任务【${wfInstance.actorName}】执行状态：${wfInstance.getStatus()}",List[String]())
     }
     Thread.sleep(1000)
     LogRecorder.info(WORKFLOW_MANAGER, wfInstance.id, wfInstance.workflow.name, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.getStatus()}")

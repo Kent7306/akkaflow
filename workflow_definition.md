@@ -1,61 +1,76 @@
 ## 工作流定义文档说明
-很多时候，在数据处理过程当中，或数据仓库构建过程当中，产生一系列子任务按一定顺序组织，类似有向无环拓扑图。一个处理过程，从开始节点，多个子任务并发或串行执行，由结束节点终止该过程，这样的一个处理过程，可以称作`工作流`，`akkaflow`框架的工作流的定义参考了`Oozie`的语法，但相对于`Oozie`更为轻量级和简便使用。  
+很多时候，在数据处理过程当中，或数据仓库构建过程当中，产生一系列子任务按一定顺序组织，类似有向无环拓扑图。一个处理过程，从开始节点，多个子任务并发或串行执行，终止于结束节点，这样的一个处理过程，可以称作`工作流`，`akkaflow`框架的工作流的定义参考了`Oozie`的语法，但相对于`Oozie`更为轻量级和简便使用。  
 ##### 一个工作流文件定义示例
 ```xml
-<work-flow name="wf_import_item" dir="/example" desc="导入item数据" mail-level="W_FAILED,W_KILLED"  mail-receivers="492005267@qq.com">
-	<start name="start" to="watch_log" />
+<work-flow name="wf_import_item" desc="导入item数据" >
 
-	<action name="watch_log" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
-	    <file-watcher>
-	        <file dir="example/import_item">item_*.log</file> 
-	        <size-warn-message enable="true" size-threshold="2MB"></size-warn-message> 
-	    </file-watcher>
-	    <ok to="fork"/>
-	</action>
+  <start name="start" to="watch_log" />
 
-	<fork name="fork">
-         <path to="clean_import" />
-         <path to="sleep" />
-    </fork> 
+  <action name="watch_log" desc = "监测日志文件">
+      <file-watcher>
+          <file dir="example/import_item">item_*.log</file>
+          <size-warn-message enable="true" size-threshold="2MB"></size-warn-message>
+      </file-watcher>
+      <ok to="fork"/>
+  </action>
 
-	<action name="clean_import" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "清洗日志并导入数据库">
-		<file-executor>
-			<command>example/import_item/clean_import.sh "${param:stime}"</command>
-			<attach-list>
-				<file>example/import_item/item_1.log</file>
-				<file>example/import_item/item_2.log</file>
-			</attach-list>
-		</file-executor>
-	    <ok to="join_node"/>
-	</action>
- 
-	<action name="sleep" retry-times="1" interval="1" timeout="500" host="127.0.0.1" desc = "放慢过程">
-	    <script>
-		    <code><![CDATA[
-	           	for i in `seq 1 10`
-	           	do sleep 2;echo $i
-	           	done
+  <fork name="fork">
+       <path to="clean" />
+       <path to="sleep" />
+  </fork>
+
+  <action name="clean" desc = "清洗日志">
+      <script>
+          <code>
+            stime="${param:stime}"
+            cat ./item_1.log item_2.log | awk -v st="$stime" '{print st"---"$0}' > /tmp/item.result
+          </code>
+          <attach-list>
+            <file>example/import_item/item_1.log</file>
+            <file>example/import_item/item_2.log</file>
+          </attach-list>
+      </script>
+      <ok to="import"/>
+  </action>
+
+  <action name="import" desc = "导入数据库">
+      <transfer>
+          <source type="LFS" path="/tmp/item.result" delimited="---"></source>
+          <target type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false"
+                  username="root" password="root" table="example_item">
+              <pre-sql>delete from example_item where ds = '${param:stime}'</pre-sql>
+          </target>
+      </transfer>
+      <ok to="join_node"/>
+  </action>
+
+  <action name="sleep" desc = "放慢过程">
+      <script>
+        <code><![CDATA[
+              for i in `seq 1 10`
+              do sleep 2;echo $i
+              done
             ]]></code>
         </script>
-	    <ok to="join_node"/>
-	</action>
-	
-	<join name="join_node" to="data_monitor"/>
-	
-	<action name="data_monitor" retry-times="2" interval="8" timeout="500" host="127.0.0.1" desc = "监测日志文件">
-		<data-monitor category="mysql" source-name="example_item" is-saved="true" is-exceed-error="true" time-mark="${param:stime}">
-		    <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
-		        select count(1) from example_item where ds = '${param:stime}'
-		    </source>
-		    <min-threshold type="NUM">2</min-threshold>
-		    <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
-		        select count(1)+10 from example_item where ds = '${param:stime}'
-		    </max-threshold>
-		</data-monitor>
-		<ok to="end"/>
-	</action>
-	
-	<end name="end"/>
+      <ok to="join_node"/>
+  </action>
+
+  <join name="join_node" to="data_monitor"/>
+
+  <action name="data_monitor" desc = "监测日志文件">
+    <data-monitor category="mysql" source-name="example_item" is-saved="true" is-exceed-error="true" time-mark="${param:stime}">
+        <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+            select count(1) from example_item where ds = '${param:stime}'
+        </source>
+        <min-threshold type="NUM">2</min-threshold>
+        <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+            select count(1)+10 from example_item where ds = '${param:stime}'
+        </max-threshold>
+    </data-monitor>
+    <ok to="end"/>
+  </action>
+
+  <end name="end"/>
 </work-flow>
 ```  
 
@@ -63,6 +78,7 @@
 整个工作流的节点定义在`workflow`标签中,若工作流定义在一个文件中，这`workflow`作为最外层的标签.  
 #### * 属性
 * `name`：必填，工作流名称，用来标识唯一的工作流
+* `creator`：可选，默认为Unknown，当前工作流创建者
 * `mail-level`： 可选，默认无。工作流邮件级别，当工作流实例执行完毕后，根据执行后状态来决定是否发送邮件，目前工作流实例执行完毕后有三种状态（杀死，失败，成功），对应值为`W_SUCCESSED`, `W_FAILED`, `W_KILLED`。
 * `mail-receivers`： 可选，默认无。工作流邮件接受者，指定哪些邮箱可接收该工作流执行情况反馈
 * `dir`：可选，该工作流的存放目录，默认为/tmp。
@@ -169,7 +185,7 @@ kill节点，用来杀死当前工作流实例，而被杀死的工作流实例�
 ##### * 子标签: 
 * `<ok/>`，子标签，属性`to`，节点执行成功指向下一节点
 * `<error/>`，子标签，属性`to`，节点重试后仍然失败时，指向下一节点
-* 可以指定不同类型的动作子标签，目前有`<command/>`, `<script/>`, `<file-watcher/>`, 动作节点标签类型说明详见下文
+* 可以指定不同类型的动作子标签，目前有 `<script/>`, `<file-watcher/>`，`<sql/>`,`<shell/>`,`<transfer/>`,`<data-monitor/>`,`<file-executor/>`, 动作节点标签类型说明详见下文
 
 
 ##### * 示例

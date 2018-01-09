@@ -97,7 +97,7 @@ class CoordinatorManager extends DaemonActor{
   def triggerPostWorkflow(name: String):ResponseData = {
     if(!coordinators.get(name).isEmpty){
       coordinators(name).execute(workflowManager, false)
-      ResponseData("success",s"成功触发后置工作流[${coordinators(name).workflows.mkString(",")}]", null)
+      ResponseData("success",s"成功触发后置工作流[${coordinators(name).triggers.mkString(",")}]", null)
     }else{
       ResponseData("fail",s"coordinator[${name}]不存在", null)
     }
@@ -116,11 +116,7 @@ class CoordinatorManager extends DaemonActor{
   /**
    * 扫描
    */
-  def tick() = {
-    import com.kent.coordinate.Coordinator.Status._
-    coordinators.filter { case(name,coor) => coor.status == ACTIVE }
-      .foreach { case(name,coor) => coor.execute(workflowManager) }
-  }
+  def tick() = coordinators.foreach { case(name,coor) => coor.execute(workflowManager) }
   /**
    * 停止
    */

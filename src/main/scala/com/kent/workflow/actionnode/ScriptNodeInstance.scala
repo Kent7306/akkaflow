@@ -25,6 +25,7 @@ import com.kent.util.FileUtil
 class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeInstance(nodeInfo)  {
   private var executeResult: Process = _
   implicit val timeout = Timeout(60 seconds)
+  var dir:File = null
   
   override def execute(): Boolean = {
     try {
@@ -44,7 +45,7 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
         //创建执行目录
         var location = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
         val executeFilePath = s"${location}/akkaflow_script"
-        val dir = new File(location)
+        dir = new File(location)
         dir.deleteOnExit()
         dir.mkdirs()
         //写入执行入口文件
@@ -62,7 +63,7 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
         val lines = nodeInfo.code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
         FileUtil.writeFile(executeFilePath,lines)
         FileUtil.setExecutable(executeFilePath, true)
-        infoLog(s"写入到文件：${executeFilePath}")
+        //infoLog(s"写入到文件：${executeFilePath}")
         //写入附件文件
         attachFileContents.foreach { x => 
           val afn = FileUtil.getFileName(x.path)
@@ -70,7 +71,7 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
           infoLog(s"拷贝到文件：${location}/${afn}")
         }
         //执行
-        infoLog(s"执行命令: ${executeFilePath} ${paramLine}")
+        //infoLog(s"执行命令: ${executeFilePath} ${paramLine}")
         val pLogger = ProcessLogger(line => infoLog(line), line => errorLog(line))
         executeResult = Process(s"${runFilePath}").run(pLogger)
         if(executeResult.exitValue() == 0) true else false
@@ -80,6 +81,8 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
         e.printStackTrace();
         errorLog(e.getMessage)
         false
+    }finally {
+      FileUtil.deleteDirOrFile(dir)
     }
   }
 
@@ -87,6 +90,7 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
     if(executeResult != null){
       executeResult.destroy()
     }
+    FileUtil.deleteDirOrFile(dir)
     true
   }
 }

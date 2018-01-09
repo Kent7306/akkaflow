@@ -229,10 +229,13 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
                       config.getBoolean("workflow.log-mysql.is-enabled")
                     )
     //Email参数配置
+   val isHasPort = config.hasPath("workflow.email.smtp-port")
    val emailConfig = (config.getString("workflow.email.hostname"),
-                      config.getInt(("workflow.email.smtp-port")),
+                      if(isHasPort) Some(config.getInt("workflow.email.smtp-port")) else None,
+                      config.getBoolean("workflow.email.auth"),
                       config.getString("workflow.email.account"),
                       config.getString("workflow.email.password"),
+                      config.getString("workflow.email.charset"),
                       config.getBoolean("workflow.email.is-enabled")
                     )
    //xmlLoader参数配置
@@ -254,7 +257,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         }
         //创建邮件发送器
         if(Master.emailSender == null){
-        	Master.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5)),"mail-sender")
+        	Master.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5,emailConfig._6,emailConfig._7)),"mail-sender")
         }
         //创建日志记录器
         if(Master.logRecorder == null){

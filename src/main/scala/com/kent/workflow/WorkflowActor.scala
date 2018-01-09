@@ -51,7 +51,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
    */
   def start():Boolean = {
     LogRecorder.info(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, s"工作流实例:[${this.workflowInstance.workflow.name}:${this.workflowInstance.id}]开始启动")
-	  log.info(s"工作流实例:[${this.workflowInstance.workflow.name}:${this.workflowInstance.id}]开始启动")
+	  log.debug(s"工作流实例:[${this.workflowInstance.workflow.name}:${this.workflowInstance.id}]开始启动")
 	  
 	  //保存工作流实例
 	  workflowInstance.startTime = Util.nowDate
@@ -193,7 +193,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   	  //保存工作流实例
   	  this.workflowInstance.endTime = Util.nowDate
       this.workflowInstance.changeStatus(status)
-      log.info("工作流实例："+workflowInstance.actorName+"执行完毕.执行状态: "+status)
+      log.debug("工作流实例："+workflowInstance.actorName+"执行完毕.执行状态: "+status)
       sdr ! WorkFlowInstanceExecuteResult(workflowInstance.deepClone())
   	  context.stop(self) 
     }
@@ -212,10 +212,10 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     case Start() => workflowManageActorRef = sender;start()
     case Kill() => kill(sender)
     case ActionExecuteResult(sta, msg) => handleActionResult(sta, msg, sender)
-    case EmailMessage(toUsers, subject, htmlText) => 
+    case EmailMessage(toUsers, subject, htmlText, attachFiles) => 
       val users = if(toUsers == null || toUsers.size == 0) workflowInstance.workflow.mailReceivers else toUsers
       if(users.size > 0){
-      	Master.emailSender ! EmailMessage(users, subject, htmlText)      
+      	Master.emailSender ! EmailMessage(users, subject, htmlText, attachFiles)      
       }
     case Tick() => tick()
   }

@@ -15,14 +15,14 @@ import java.io.File
 import com.kent.util.FileUtil
 
 class ShellNodeInstance(override val nodeInfo: ShellNode) extends ActionNodeInstance(nodeInfo)  {
-  var executeResult: Process = _
-
+  var executeResult: Process = _ 
+  var dir:File = _
   override def execute(): Boolean = {
     try {
       //创建执行目录
       var location = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
       val executeFilePath = s"${location}/akkaflow_script"
-      val dir = new File(location)
+      dir = new File(location)
       dir.deleteOnExit()
       dir.mkdirs()
       //写入执行入口文件
@@ -40,11 +40,14 @@ class ShellNodeInstance(override val nodeInfo: ShellNode) extends ActionNodeInst
       if(executeResult.exitValue() == 0) true else false
     }catch{
       case e:Exception => errorLog(e.getMessage) ;false
+    }finally {
+      dir.deleteOnExit()
     }
   }
 
   def kill(): Boolean = {
     if(executeResult != null)executeResult.destroy()
+    dir.deleteOnExit()
     true
   }
 }
