@@ -81,11 +81,8 @@ workflow {
 ```
 
 其中，因为akkaflow支持分布式部署，当前伪分布部署，可以把master、master-standby、worker、http-servers在同一台机器的不同端口启动，设置jdbc连接，告警邮件设置
-* 启动角色（注意顺序）  
-启动master节点：`bin/master-startup`  
-启动master-standby节点：`bin/master-standby-startup`  
-启动worker节点：`bin/worker-startup`  
-启动http-server服务器：`/bin/httpserver-startup`  
+* 启动角色（独立部署模式）  
+  `./standalone-startup`
 * 查看启动日志
 日志追加到`./logs/run.log`中，tail一下日志，看下启动时是否有异常，无异常则表示启动成功。  
 * 查看进程
@@ -98,7 +95,7 @@ workflow {
 2124 MasterStartup
 ```
 
-**注意**：akkaflow工作流的定义、调度器的定义存放于xmlconfig下，akkaflow启动时，会自动扫描xmlconfig下面的文件，生成对应的worflow或coordinator提交给Master，所以新建的工作流、调度器定义文件，可以放到该目录中，安装包下的xmlconfig/example下有工作流与调度器定义示例。  
+**注意**：akkaflow工作流的定义、调度器的定义可以存放于xmlconfig下，akkaflow启动时，会自动扫描xmlconfig下面的文件，生成对应的worflow或coordinator提交给Master，所以新建的工作流、调度器定义文件，可以放到该目录中，安装包下的xmlconfig/example下有工作流与调度器定义示例。  
 
 ### 使用
 #### 基于命令行操作
@@ -112,9 +109,12 @@ workflow {
 
 * akkaflow操作命令集
   `akka`是命令集入口
+  ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%91%BD%E4%BB%A4%E9%9B%86%E5%85%A5%E5%8F%A3.jpg) 
+  命令集合列表
+   ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%91%BD%E4%BB%A4%E9%9B%86%E5%90%88.jpg)
   
 
-**注意:**除了节点启动命令，其他的命令日常中不会经常直接使用，因为把工作流或调度器定义的xml文件放在xmlconfig目录下，可自动扫描添加对应工作流或调度器，而工作流与调度器的其他操作可在akkflow-ui上直接操作。
+**注意:**除了节点启动命令，把工作流或调度器定义的xml文件放在xmlconfig目录下，可自动扫描添加对应工作流或调度器，也可以用命令提交，在akka-ui界面下，工作流与调度器的其他操作可直接操作。
 使用示例说明文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B%E8%AF%B4%E6%98%8E.md)   
 
 #### akkaflow-ui可视化界面
