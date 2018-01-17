@@ -41,8 +41,8 @@
 ```scala
 workflow {
   nodes {   //集群节点
-      master = "127.0.0.1:2751"    //主节点，所部署机器的ip与端口
-    master_standby = "127.0.0.1:2752"  //备份主节点
+  	master = "127.0.0.1:2751"    //主节点，所部署机器的ip与端口，目前只支持单主节点
+   master_standby = "127.0.0.1:2752"  //备份主节点
   	workers = ["127.0.0.1:2851","127.0.0.1:2852","127.0.0.1:2853"]   //工作节点，所部署机器的ip与端口，支持单个机器上多个工作节点
   	http-servers = ["127.0.0.1:2951"]
   }
@@ -60,13 +60,17 @@ workflow {
   }
   email {	//告警邮箱设置
   	hostname = "smtp.163.com"
+  	//smtp端口，可选
   	smtp-port = 465
+  	auth = true
   	account = "15018735011@163.com"
-  	password = "******"
-  	is-enabled = false
+  	password = "*****"
+  	charset = "utf8"
+  	is-enabled = true
   }
   action {	//临时执行脚本的目录
   	script-location = "./tmp"
+  	hdfs-uri = ""
   }
   xml-loader {	//xml装载器配置
   	workflow-dir = "xmlconfig/workflow"
@@ -98,22 +102,17 @@ workflow {
 
 ### 使用
 #### 基于命令行操作
-* 节点启动命令  
+* 角色节点操作命令  
+ standalone模式启动：`./standalone-startup.sh`(该模式下会启动master、worker、httpserver)
  master节点启动：`./master-startup`  
  worker节点启动：`./worker-startup`  
- http_server节点启动：`./httpserver-startup`  
-* 增加工作流 `submit-workflow [file]`
-示例： `./submit-workflow /tmp/wf_import_order.xml`  
-* 增加coordinator`submit-coor [file]`
-示例： `./submit-coor /tmp/coor_import_order.xml`  
-* 删除工作流`del-workflow [wf_name]`
-示例： `del-workflow wf_import_order`  
-* 删除coordintor `del-coor [coor_name]`
-示例：`./del-workflow coor_import_order`  
-* 杀死工作流实例`kill-wf-instance [instance_id]`
-示例: `./kill-wf-instance ac733154`  
-* 重跑工作流实例`rerun-wf-instance [instance_id]`
-示例：`./rerun-wf-instance ac733154`  
+ http_server节点启动：`./httpserver-startup` 
+ master-standby节点启动：`bin/master-standby-startup`  
+ 关闭集群：`./shutdown-cluster`
+
+* akkaflow操作命令集
+  `akka`是命令集入口
+  
 
 **注意:**除了节点启动命令，其他的命令日常中不会经常直接使用，因为把工作流或调度器定义的xml文件放在xmlconfig目录下，可自动扫描添加对应工作流或调度器，而工作流与调度器的其他操作可在akkflow-ui上直接操作。
 使用示例说明文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B%E8%AF%B4%E6%98%8E.md)   

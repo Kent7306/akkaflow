@@ -1,0 +1,15 @@
+#!/bin/bash
+
+cd `dirname $0`
+source ./head.sh
+
+if [ $# -ne 1 ];then
+echo -e "【使用】\n\takka coor -trigger <调度器名称>"
+echo -e "【说明】\n\t触发运行指定调度器的后置任务"
+echo -e "【示例】\n\takka coor -trigger coor_parall_sum\n"
+exit 1
+fi
+coor_name=$1
+result=`curl -s -XGET "http://$host:$port/akkaflow/coor/$coor_name?action=trigger"`
+echo $result | iconv -f utf8 -t $local_lang
+echo ""

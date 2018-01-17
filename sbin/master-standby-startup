@@ -5,5 +5,5 @@ script_dir=`dirname "$0"`
 
 cd $script_dir/..
 mkdir -p logs
-nohup bin/master-standby-startup >> logs/run.log &
-cd $user_dir
+nohup bin/master-standby-startup 1> logs/run.log 2>1 &
+tail -300f logs/run.log

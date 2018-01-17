@@ -107,14 +107,14 @@ object DataMonitorNode {
   	val ieeOpt = xmlNode.attribute("is-exceed-error")
   	node.isExceedError = if(ieeOpt.isDefined) ieeOpt.get.text.toBoolean else node.isExceedError
   	
-	  if(scOpt.isEmpty){
+	  if(node.isSaved && scOpt.isEmpty){
 	    throw new Exception(s"节点[data-monitor: ${name}] 未配置属性: category")
 	  }
-	  if(snOpt.isEmpty){
+	  if(node.isSaved && snOpt.isEmpty){
 		  throw new Exception(s"节点[data-monitor: ${name}] 未配置属性: source-name")	    
 	  }
-	  node.category = scOpt.get.text
-	  node.sourceName = snOpt.get.text
+	  if(scOpt.isDefined) node.category = scOpt.get.text
+	  if(snOpt.isDefined) node.sourceName = snOpt.get.text
 	  
 	  //source
 	  val sourceSeq = (xmlNode \ "source")

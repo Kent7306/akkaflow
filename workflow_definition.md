@@ -191,7 +191,7 @@ kill节点，用来杀死当前工作流实例，而被杀死的工作流实例�
 ##### * 示例
 ```xml
 <!-- example 1 -->
-<action name="node_1" host="127.0.0.1" retry-time=10 interval=300 timeout=6000 desc="action example desc">
+<action name="node_1" host="127.0.0.1" retry-times=10 interval=300 timeout=6000 desc="action example desc">
 	...
 	<ok to="next_ok_node"/>
 	<error to="next_error_node"/>

@@ -1,0 +1,42 @@
+#!/bin/bash
+cd `dirname $0`
+source ./head.sh
+
+space="    "
+function get_hf
+{
+    local len=$1
+    local str=""
+    ((len=len-1))
+    for i in `seq 1 $len`;do
+       str=$str"####"
+    done
+    str=$str"+---"
+    echo "${YELLOW}$str${NC}"
+}
+
+function f_node
+{
+    local id=$1
+    local level=$2
+    ((level=level+1))
+    local_mysql -s -N -e "use wf;
+        select id,is_leaf,name from directory_info where pid = '$id' and dtype=0;
+    " 2>/dev/null | while read line;do
+        local cid=`echo $line |cut -d ' ' -f 1`
+        local name=`echo $line |cut -d ' ' -f 3`
+        local is_leaf=`echo $line |cut -d ' ' -f 2`
+        if [ $is_leaf -eq 1 ];then
+            name=${GREEN}$name${NC}
+        else
+            name=${BLUE}$name${NC}
+        fi
+        tmp=`get_hf $level`
+        echo -e "${tmp//#/ }$name"
+        f_node $cid $level
+    done
+}
+echo -e "=================================${GREEN}调度器列表${NC}====================================="
+f_node -1 0
+
+echo ""

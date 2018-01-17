@@ -1,0 +1,79 @@
+#!/bin/bash
+cd `dirname $0`
+source ./head.sh
+
+##显示基本信息
+function f_base() 
+{
+    wf_name=$1
+    wf_data=`
+    local_mysql -s -N -e "use wf;
+    select name c1,creator c2,dir c3,description c4,mail_level c5,
+           mail_receivers c6,instance_limit c7,params c8,create_time  c9 
+        from workflow where name='$wf_name'
+    " 2>/dev/null
+    `
+    depend_coors=`
+    local_mysql -s -N -e "use wf;
+    select name cname from coordinator where JSON_CONTAINS(triggers,'[\"$wf_name\"]')
+    " 2>/dev/null`
+
+
+    echo -e "=================================${GREEN}工作流信息${NC}====================================="
+    echo "$wf_data" | awk -F '\t' -v dcoors=$depend_coors '{
+        print "工 作 流: "$1
+        print "创 建 者: "$2
+        print "目    录: "$3
+        print "参    数: "$8
+        print "告警级别: "$5
+        print "收件人员: "$6
+        print "实例上限: "$7
+        print "创建时间: "$9
+        print "前置依赖: "dcoors
+        print "描    述: "$4
+    }'
+    echo -e "=================================${GREEN}节点运行信息${NC}====================================="
+    local_mysql -e "use wf;
+    select name 节点名称,type 节点类型,if(description is null,'',description) 描述
+    from node
+    where workflow_name = '$wf_name';
+    "  2>/dev/null
+}
+
+##显示xml
+function f_xml() 
+{
+    wf_name=$1
+    echo -e "=================================${GREEN}工作流xml信息${NC}====================================="
+    local_mysql -s -e "use wf;
+    select xml_str from workflow where name='$wf_name'
+    "  2>/dev/null | awk '{gsub(/\\\\n/,"@@@@",$0);print $0}' | awk '{gsub(/\\n/,"\n",$0);print $0}' |  awk '{gsub(/@@@@/,"\\\\n",$0);print $0}'
+}
+
+
+if [ $# -lt 1 ];then
+echo -e "【使用】\n\takka workflow -info [-xml] <workflow_name>"
+echo -e "【说明】\n\t显示工作流相关信息,若加-xml，则显示实例xml信息"
+echo -e "【示例】\n\takka workflow -info wf_parall_sum"
+echo -e "\takka workflow -info -xml wf_parall_sum\n"
+exit 1
+fi
+
+show_type="base"
+while [ $# -gt 0 ];do
+    case "$1" in
+      --xml)
+        show_type="xml"
+        shift;;
+      *)
+       wfid=$1
+       shift
+       ;;
+    esac
+done
+
+if [ "$show_type" == "xml" ];then
+    f_xml $wfid
+else
+    f_base $wfid
+fi

@@ -82,6 +82,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     case Save(obj) => 
     case ExecuteSql(sql) => sender ! true
     case Delete(obj) => sender ! true
+    case Query(str) => sender ! List[List[String]]()
   }
   /**
    * 查询结果数组

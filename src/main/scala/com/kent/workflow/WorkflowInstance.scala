@@ -22,12 +22,14 @@ import com.kent.pub.Directory
 import com.kent.coordinate.ParamHandler
 import com.kent.pub.Event._
 import com.kent.main.Master
+import akka.pattern.{ ask, pipe }
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[WorkflowInstance] with Daoable[WorkflowInstance] {
-  var id: String = Util.produce8UUID
+  var id: String = _
   def actorName = s"${id}"
-  var parsedParams:Map[String, String] = Map()
+  var paramMap:Map[String, String] = Map()
   var startTime: Date = _
   var endTime: Date = _
   private var status: WStatus = W_PREP     
@@ -45,7 +47,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     str = str + s"  mailLevel = ${workflow.mailLevel},\n"
     str = str + s"  toUser = ${workflow.mailReceivers},\n"
     str = str + s"  name = ${workflow.name},\n"
-    str = str + s"param = ${parsedParams},\n"
+    str = str + s"paramMap = ${paramMap},\n"
     str = str + s"  actorName = ${actorName},\n"
     str = str + s"  status = ${status},\n"
     str = str + s"  startTime = ${startTime},\n"
@@ -77,7 +79,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     import org.json4s.JsonDSL._
     import org.json4s.jackson.JsonMethods._
     import com.kent.util.Util._
-    val paramStr = compact(render(parsedParams))
+    val paramStr = compact(render(paramMap))
     val levelStr = compact(workflow.mailLevel.map { _.toString()})
     val receiversStr = compact(workflow.mailReceivers)
 	  val insertSql = s"""
@@ -197,24 +199,31 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
 
 object WorkflowInstance {
   /**
-   * 由一个workflow对象产生一个实例
+   * 由一个xml和转换前参数产生一个实例
    */
-  def apply(wf: WorkflowInfo, parseParams: Map[String, String]): WorkflowInstance = {
-    if(wf != null){
-      val parseXmlStr = ParamHandler(Util.nowDate).getValue(wf.xmlStr, parseParams)
+  def apply(id: String,xmlStr: String, paramMap: Map[String, String]): WorkflowInstance = {
+    if(xmlStr != null && xmlStr.trim() != ""){
+      val parseXmlStr = ParamHandler(Util.nowDate).getValue(xmlStr, paramMap)
       val parseWf = WorkflowInfo(parseXmlStr)
     	val wfi = new WorkflowInstance(parseWf)
+      wfi.id = if(id == null || id.trim() == "") Util.produce8UUID else id
+      wfi.paramMap = paramMap
     	wfi.nodeInstanceList = wfi.workflow.nodeList.map { _.createInstance(wfi.id) }.toList
     	wfi      
     } else{
       val wfi = new WorkflowInstance(null)
+      wfi.id = if(id == null && id.trim() == "") Util.produce8UUID else id
+      wfi.paramMap = paramMap
       wfi
     }
   }
-  def apply(wfiid: String): WorkflowInstance = {
-    val wf = new WorkflowInfo(null)
-    val wfi = new WorkflowInstance(wf)
-    wfi.id = wfiid
-    wfi
-  }
+  /**
+   * 由一个workflow对象产生一个实例
+   */
+  def apply(wf: WorkflowInfo, parseParams: Map[String, String]): WorkflowInstance = WorkflowInstance(null, wf.xmlStr, parseParams)
+  def apply(id: String, wf: WorkflowInfo, parseParams: Map[String, String]): WorkflowInstance = WorkflowInstance(id, wf.xmlStr, parseParams)
+  /**
+   * 由wfiid生成一个空壳的实例
+   */
+  def apply(id: String): WorkflowInstance = WorkflowInstance(id, "", Map[String, String]())
 }

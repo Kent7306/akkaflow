@@ -1,0 +1,113 @@
+#!/bin/bash
+cd `dirname $0`
+source ./head.sh
+
+##显示基本信息
+function f_base() 
+{
+    wfid=$1
+    ins_data=`
+    local_mysql -s -N -e "use wf;
+    select id c1,name c2,param c3,stime c4,etime c5,create_time c6,dir c7,
+           case status when 1 then '运行中'
+              when 3 then '成功'
+              when 4 then '失败'
+              when 5 then '已杀死'
+           else status end c8,
+            description c9,mail_level c10,mail_receivers c11,instance_limit c12,
+           UNIX_TIMESTAMP(if(etime is null,curtime(),etime)) - UNIX_TIMESTAMP(STIME) c13
+    from workflow_instance where id='$wfid'
+    " 2>/dev/null`
+
+    wf_name=`echo "$ins_data" | awk -F '\t' '{print $2}'`
+
+    depend_coors=`
+    local_mysql -s -N -e "use wf;
+    select name cname from coordinator where JSON_CONTAINS(triggers,'[\"$wf_name\"]')
+    " 2>/dev/null`
+
+
+    echo -e "=================================${GREEN}工作流信息${NC}====================================="
+    echo "$ins_data" | awk -F '\t' -v dcoors=$depend_coors '{
+        print "实 例 ID: "$1
+        print "工 作 流: "$2
+        print "运行状态: "$8
+        print "开始时间: "$4
+        print "运行时长: "$13
+        print "目    录: "$7
+        print "参    数: "$3
+        print "告警级别: "$10
+        print "收件人员: "$11
+        print "实例上限: "$12
+        print "前置依赖: "dcoors
+        print "描    述: "$9
+    }'
+    echo -e "=================================${GREEN}节点运行信息${NC}====================================="
+    local_mysql -e "use wf;
+    select name 节点名称,type 节点类型,case status when 1 then '运行中'
+                  when 3 then '成功'
+                  when 4 then '失败'
+                  when 5 then '已杀死'
+            else status end  状态,etime-stime 运行时长（s）,stime 开始时间,
+         if(msg is null,'',msg) 执行信息,if(description is null,'',description) 描述
+    from node_instance
+    where workflow_instance_id = '$wfid' order by stime;
+    "  2>/dev/null
+}
+
+##显示日志
+function f_log() 
+{
+    wfid=$1
+    echo -e "=================================${GREEN}实例日志信息${NC}====================================="
+    local_mysql -s -e "use wf;
+    select concat('[',level,'] [',stime,']',if(ctype='ACTION_NODE_INSTANCE',concat('[',name,']'),'')) 日志信息,content 内容      
+    from log_record where sid = '$wfid' 
+    order by stime;
+    "  2>/dev/null
+}
+
+##显示xml
+function f_xml() 
+{
+    wfid=$1
+    echo -e "=================================${GREEN}实例xml信息${NC}====================================="
+    local_mysql -s -e "use wf;
+    select xml_str from workflow_instance where id='$wfid'
+    "  2>/dev/null | awk '{gsub(/\\\\n/,"@@@@",$0);print $0}' | awk '{gsub(/\\n/,"\n",$0);print $0}' |  awk '{gsub(/@@@@/,"\\\\n",$0);print $0}'
+}
+
+
+if [ $# -lt 1 ];then
+echo -e "【使用】\n\takka instance -info [-log|-xml] <instance_id>"
+echo -e "【说明】\n\t显示工作流实例相关信息,若加--log，则显示实例日志，若加--xml，则显示实例xml信息"
+echo -e "【示例】\n\takka instance -info 574de284"
+echo -e "\takka instance -info -log 574de284"
+echo -e "\takka instance -info -xml 574de284\n"
+exit 1
+fi
+
+show_type="base"
+while [ $# -gt 0 ];do
+    case "$1" in
+      --log)
+        show_type="log"
+        shift;;
+      --xml)
+        show_type="xml"
+        shift;;
+      *)
+       wfid=$1
+       shift
+       ;;
+    esac
+done
+
+if [ "$show_type" == "log" ];then
+    f_log $wfid
+elif [ "$show_type" == "xml" ];then
+    f_xml $wfid
+else
+    f_base $wfid
+fi
+exit 1

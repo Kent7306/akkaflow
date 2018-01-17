@@ -6,4 +6,4 @@ cd $bin_dir
 source ./head.sh
 
 result=`curl -s -XGET "http://$host:$port/akkaflow/cluster?action=shutdown"`
-echo $result
+echo $result | iconv -f utf8 -t $local_lang

@@ -79,10 +79,12 @@ class HttpServer extends ClusterRole {
     case event@CollectClusterActorInfo() => getResponseFromMaster(sender,event)
     case event@RemoveWorkFlow(_) =>  getResponseFromWorkflowManager(sender, event)
     case event@AddWorkFlow(_) => getResponseFromWorkflowManager(sender, event)
-    case event@ReRunWorkflowInstance(_) => getResponseFromWorkflowManager(sender, event)
+    case event@CheckWorkFlowXml(_) => getResponseFromWorkflowManager(sender, event)
+    case event@ReRunWorkflowInstance(_,_) => getResponseFromWorkflowManager(sender, event)
     case event@KillWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
     case event@RemoveWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
     case event@AddCoor(_) => getResponseFromCoordinatorManager(sender, event)
+    case event@CheckCoorXml(_) => getResponseFromCoordinatorManager(sender, event)
     case event@RemoveCoor(_) => getResponseFromCoordinatorManager(sender, event)
     case event@ResetCoor(_) => getResponseFromCoordinatorManager(sender,event)
     case event@TriggerPostWorkflow(_) => getResponseFromCoordinatorManager(sender,event)
@@ -145,15 +147,17 @@ object HttpServer extends App{
       }
     } ~ path("akkaflow" / "workflow"){
       post {
-        formField('content){ content =>
+        formField('xml){ content =>
           parameter('action){ action => {
             	if(action == "add" && content != null && content.trim() != ""){
             	  handleRequestWithActor(AddWorkFlow(content))  
+            	}else if(action == "check" && content != null && content.trim() != ""){
+            	  handleRequestWithActor(CheckWorkFlowXml(content))  
             	}else{
             	 handleRequestWithResponseData("fail","action参数有误",null)    
             	}
             }
-          }
+          }  
         }
       }
     }
@@ -176,11 +180,13 @@ object HttpServer extends App{
       }
     } ~ path("akkaflow" / "coor"){
       post{
-        formField('content){ content =>
+        formField('xml){ content =>
           parameter('action){
             action => {
               if(action == "add" && content != null && content.trim() != ""){
             	  handleRequestWithActor(AddCoor(content)) 	  
+            	}else if(action == "check" && content != null && content.trim() != ""){
+            	  handleRequestWithActor(CheckCoorXml(content)) 	  
             	}else{
             	  handleRequestWithResponseData("fail","action参数有误",null)    
             	}
@@ -194,7 +200,7 @@ object HttpServer extends App{
       id => parameter('action){
         action => {
           if(action == "rerun"){
-            handleRequestWithActor(ReRunWorkflowInstance(id))
+            handleRequestWithActor(ReRunWorkflowInstance(id, false))
           }else if(action == "kill"){
         	  handleRequestWithActor(KillWorkFlowInstance(id))                     
           }else if(action == "del"){

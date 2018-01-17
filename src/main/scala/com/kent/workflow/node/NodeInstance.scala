@@ -19,7 +19,7 @@ import scala.concurrent.Future
 
 abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance] with DeepCloneable[NodeInstance]{
   var id: String = _
-  private var status: Status = PREP
+  var status: Status = PREP
   var executedMsg: String = _
   var startTime: Date= _
   var endTime: Date = _

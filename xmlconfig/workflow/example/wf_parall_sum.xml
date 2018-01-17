@@ -1,5 +1,5 @@
 <work-flow name="wf_parall_sum"  dir="/example"
-mail-level="W_FAILED,W_KILLED" mail-receivers="gzouguangneng@corp.netease.com">
+mail-level="W_FAILED,W_KILLED" mail-receivers="gzouguangneng@corp.netease.com" instance-limit="4" >
         <start name="start" to="clean" />
         <action name="clean">
             <script>
@@ -190,7 +190,7 @@ mail-level="W_FAILED,W_KILLED" mail-receivers="gzouguangneng@corp.netease.com">
             <script>
                 <code>
                 <![CDATA[
-                    cat /tmp/num.txt | awk '{s += $1} END{print "a10算出来的总数是："s}'
+                    cat /tmp/num.txt | awk '{s += $1} END{print "a10算出来的总数-----是："s}'
                     ]]>
                 </code>
             </script>

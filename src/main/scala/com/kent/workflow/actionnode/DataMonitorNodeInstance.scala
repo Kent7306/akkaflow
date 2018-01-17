@@ -134,9 +134,9 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       val lines = content.split("\n").filter { x => x.trim() != "" }.toList
       FileUtil.writeFile(executeFilePath,lines)
       FileUtil.setExecutable(executeFilePath, true)
-      infoLog(s"写入到文件：${executeFilePath}")
+     // infoLog(s"写入到文件：${executeFilePath}")
       //执行
-      infoLog(s"执行命令: ${executeFilePath}")
+     // infoLog(s"执行命令: ${executeFilePath}")
       val rsNum: String = s"${executeFilePath}" !!
       val num = rsNum.trim().toDouble
       val file = new File(executeFilePath)

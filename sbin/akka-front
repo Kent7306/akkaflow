@@ -1,0 +1,79 @@
+#!/bin/bash
+cd `dirname $0`
+source ./head.sh
+
+function show_info
+{
+    stadate=`date +'%F'`
+    date_arr=()
+    for i in `seq 0 13`;do
+    date_arr[$i]=`date +"%F" -d "${stadate} -$i day"`
+    done
+    echo -e "=================================${GREEN}近七天实例执行统计${NC}====================================="
+    local_mysql -e "use wf;
+    select status,
+           sum(if(stadate='${date_arr[0]}',cnt,0)) '${date_arr[0]}',
+           sum(if(stadate='${date_arr[1]}',cnt,0)) '${date_arr[1]}',
+           sum(if(stadate='${date_arr[2]}',cnt,0)) '${date_arr[2]}',
+           sum(if(stadate='${date_arr[3]}',cnt,0)) '${date_arr[3]}',
+           sum(if(stadate='${date_arr[4]}',cnt,0)) '${date_arr[4]}',
+           sum(if(stadate='${date_arr[5]}',cnt,0)) '${date_arr[5]}',
+           sum(if(stadate='${date_arr[6]}',cnt,0)) '${date_arr[6]}',
+           sum(if(stadate='${date_arr[7]}',cnt,0)) '${date_arr[7]}'
+    from (
+        select case status
+               when 3 then '成功'
+               when 4 then '失败'
+               when 5 then '杀死'
+               else 'Unknown' end status,
+               DATE_FORMAT(stime,'%Y-%m-%d') stadate,count(1) cnt
+        from workflow_instance where status in (3,4,5) and stime >= date_add(now() ,interval -14 day)
+        group by status,DATE_FORMAT(stime,'%Y-%m-%d')
+    ) a
+    group by status
+    " 2>/dev/null
+
+    result=`curl -s -XGET "http://127.0.0.1:8090/akkaflow/workflow/watting_instance/list" | iconv -f utf8 -t gbk`
+
+    length=`echo $result | jq .data[].length | wc -l`
+    if [ $length -gt 0 ];then
+    echo -e "=================================${GREEN}等待中的工作流实例队列${NC}====================================="
+    echo "|  实例ID    |  工作流名称"
+        ((length=length-1))
+        for i in `seq 0 $length`;do
+            id=`echo $result | jq .data[$i].wfid | grep -Eo "[^\"]+?"`
+            name=`echo $result | jq .data[$i].name | grep -Eo "[^\"]+?"`
+            echo "|  "$id"  |  "$name
+        done
+        echo ""
+    fi
+
+
+
+    echo -e "=================================${GREEN}运行中工作流实例${NC}====================================="
+    local_mysql -e "use wf;
+    select id 实例ID,name 工作流名称,creator 创建者,stime 开始时间,
+           UNIX_TIMESTAMP(if(etime is null,curtime(),etime)) - UNIX_TIMESTAMP(STIME) 运行时长
+    from workflow_instance where status = 1
+    order by stime desc;
+    " 2>/dev/null
+    echo ""
+    echo -e "=================================${GREEN}运行结束工作流实例${NC}====================================="
+    local_mysql -e "use wf;
+    select id 实例ID,name 工作流名称,creator 创建者,
+           case status when 1 then '运行中'
+                  when 3 then '成功'
+                  when 4 then '失败'
+                  when 5 then '已杀死'
+               else status end 运行状态,
+           stime 开始时间,
+           etime 结束时间,
+           UNIX_TIMESTAMP(if(etime is null,curtime(),etime)) - UNIX_TIMESTAMP(STIME) 运行时长
+    from workflow_instance where status in ('3','4','5')
+    order by stime desc limit 20;
+    " 2>/dev/null
+    echo "只显示最近20个"
+}
+
+
+show_info

@@ -23,7 +23,7 @@ class Directory(val dirname: String,val dtype: Int) extends Daoable[Directory] w
   /**
    * 保存叶子节点
    */
-  def newLeafNode(nodeName: String)(implicit conn: Connection): Boolean = {
+  def saveLeafNode(nodeName: String)(implicit conn: Connection): Boolean = {
     val pid = mkdir(dirname)
     if(getLeafNode(nodeName, pid).isEmpty){
       delLeafNode(nodeName)
@@ -98,8 +98,8 @@ object Directory extends App{
   implicit var connection: Connection = null
   Class.forName("com.mysql.jdbc.Driver")
   connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/wf?useSSL=false", "root", "root")
-  a.newLeafNode("wf_join")
-  b.newLeafNode("coordinatxxxx")
+  a.saveLeafNode("wf_join")
+  b.saveLeafNode("coordinatxxxx")
   connection.close()
 }
 

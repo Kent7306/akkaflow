@@ -1,0 +1,23 @@
+#!/bin/bash
+
+user_dir=`pwd`
+cd `dirname $0`
+source ./head.sh
+
+if [ $# -ne 1 ];then
+echo -e "【使用】\n\takka workflow -add <xml文件>"
+echo -e "【说明】\n\t添加某一工作流xml文件"
+echo -e "【示例】\n\takka workflow -add ~/akkaflow/xmlconfig/workflow/example/wf_parall_sum.xml\n"
+exit 1
+fi
+
+file=$1
+is_asoluted=`echo $file | grep -E "^\s*\/" | wc -l`
+if [ $is_asoluted -eq 0 ];then
+    file=$user_dir/$file
+fi
+con=`iconv -f gbk -t utf8 $file |sh ./url-encode|awk '{str=str"%0a"$0} END{print str}'`
+result=`curl -s -XPOST -d "xml=$con" "http://$host:$port/akkaflow/workflow?action=add"`
+
+echo $result | iconv -f utf8 -t $local_lang
+echo ""

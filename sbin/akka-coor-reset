@@ -1,0 +1,14 @@
+#!/bin/bash
+cd `dirname $0`
+source ./head.sh
+
+if [ $# -ne 1 ];then
+echo -e "【使用】\n\takka coor -reset <调度器名称>"
+echo -e "【说明】\n\t重置指定调度器的前置任务状态"
+echo -e "【示例】\n\takka coor -reset coor_parall_sum\n"
+exit 1
+fi
+coor_name=$1
+result=`curl -s -XGET "http://$host:$port/akkaflow/coor/$coor_name?action=reset"`
+echo $result | iconv -f utf8 -t $local_lang
+echo ""

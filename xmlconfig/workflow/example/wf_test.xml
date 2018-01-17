@@ -1,4 +1,5 @@
-<work-flow name="wf_test" creator="区广能">
+<work-flow name="wf_test" creator="区广能" mail-level="W_FAILED,W_KILLED"
+           mail-receivers="gzouguangneng@corp.netease.com">
 
 	<start name="start" to="data_monitor" />
 
@@ -18,7 +19,8 @@
 	<action name="a1">
 		<script>
 			<code>
-			for i in `seq 0 1500`;do echo $i"****";done
+			for i in `seq 0 100`;do echo $i"****";done
+			sfddfdf
 			</code>
 		</script>
 		<ok to="end"></ok>

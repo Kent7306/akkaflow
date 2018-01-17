@@ -98,7 +98,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     case RemoveWorkFlow(wfId) => workflowManager ! RemoveWorkFlow(wfId)
     case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
     case AskWorker(host: String) => sender ! allocateWorker(host: String)
-    case ReRunWorkflowInstance(id: String) => workflowManager ! ReRunWorkflowInstance(id)
     case ShutdownCluster() =>  shutdownCluster(sender)
     case CollectClusterActorInfo() => 
       val sdr = sender

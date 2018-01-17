@@ -33,7 +33,6 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
   var dir: Directory = _
   var depends: List[Depend] = List()
   var triggers: List[String] = List()
- // var status: Status = SUSPENDED
   var desc: String = _
   var xmlStr: String = _
   var creator: String = _
@@ -81,8 +80,8 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
    */
   private def resetTrigger(): Boolean = {
     if(this.cron == null || this.cron.setNextExecuteTime()){
-      Master.persistManager ! Save(this)
     	this.depends.foreach { _.isReady = false}
+      Master.persistManager ! Save(this)
     	true      
     }else{
     	false
@@ -124,7 +123,7 @@ class Coordinator(val name: String) extends Daoable[Coordinator] with DeepClonea
     val enabledStr = if(isEnabled)1 else 0
     conn.setAutoCommit(false)
     //保存父目录
-    dir.newLeafNode(name)
+    dir.saveLeafNode(name)
     val insertSql = s"""insert into coordinator values(
                     ${withQuate(name)},
                     ${withQuate(creator)},

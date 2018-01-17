@@ -67,7 +67,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
     try{
       conn.setAutoCommit(false)
       //保存父目录
-     dir.newLeafNode(name)
+     dir.saveLeafNode(name)
   	  val insertSql = s"""
   	     insert into workflow values(${withQuate(name)},${withQuate(creator)},${withQuate(dir.dirname)},${withQuate(desc)},
   	     ${withQuate(levelStr)},${withQuate(receiversStr)},${instanceLimit},
@@ -101,7 +101,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 
 object WorkflowInfo {
   def apply(content: String): WorkflowInfo = {
-      val node = XML.loadString(content);
+      val node = XML.loadString(content)
       //val a = WStatus.withName("W_FAILED")
       val nameOpt = node.attribute("name")
       val creatorOpt = node.attribute("creator")
@@ -143,6 +143,15 @@ object WorkflowInfo {
       var sta: WStatus = W_PREP  
       WStatus.values.foreach { x => if(x.id == id) return x }
       sta
+    }
+    def getStatusName(status: WStatus):String = {
+      status match {
+        case W_PREP => "就绪"
+        case W_RUNNING => "运行中"
+        case W_SUSPENDED => "成功"
+        case W_FAILED => "失败"
+        case W_KILLED => "杀死"
+      }
     }
   }
 }

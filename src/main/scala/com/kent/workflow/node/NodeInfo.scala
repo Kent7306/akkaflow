@@ -23,6 +23,8 @@ abstract class NodeInfo(var name: String) extends Daoable[NodeInfo] with DeepClo
    */
   def getCateJson(): String
   def getJson(): String
+  
+  def getType = this.getClass.getName.split("\\.").last
   /**
    * 组装对象的content内容
    */
@@ -53,12 +55,24 @@ abstract class NodeInfo(var name: String) extends Daoable[NodeInfo] with DeepClo
   def save(implicit conn: Connection): Boolean = {
     import com.kent.util.Util._
     val isAction = if (this.isInstanceOf[ActionNode]) 1 else 0
-    val insertStr = s"""
+    val insertSql = s"""
       insert into node 
       values(${withQuate(name)},${isAction},${withQuate(this.getClass.getName.split("\\.").last)},
       ${withQuate(assembleJson())},${withQuate(workflowName)},${withQuate(desc)})
       """
-      executeSql(insertStr)
+    val updateSql = s"""
+      update node set is_action = ${isAction},
+                      type = ${withQuate(this.getClass.getName.split("\\.").last)},
+                      content = ${withQuate(assembleJson())},
+                      description = ${withQuate(desc)})
+      where name = values(${withQuate(name)} and workflow_name = ${withQuate(workflowName)}
+      """
+      
+    val isExistSql = s"select name from node where name = ${withQuate(name)} and workflow_name = ${withQuate(workflowName)}"
+    val isExist = querySql[Boolean](isExistSql, rs =>
+      if(rs.next()) true else false
+    )
+    if(!isExist.get) executeSql(insertSql) else executeSql(updateSql)
   }
 
   /**
@@ -89,6 +103,16 @@ object NodeInfo {
       var sta: Status = PREP
       Status.values.foreach { x => if (x.id == id) return x }
       sta
+    }
+    def getStatusName(status: Status):String = {
+      status match {
+        case PREP => "就绪"
+        case RUNNING => "运行中"
+        case SUSPENDED => "挂起"
+        case SUCCESSED => "成功"
+        case FAILED => "失败"
+        case KILLED => "杀死"
+      }
     }
   }
 

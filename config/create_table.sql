@@ -104,10 +104,5 @@ create table if not exists data_monitor(
     workflow_instance_id varchar(8) not null, 
     remark varchar(1024) comment '备注'
 );
-
-truncate node;
-truncate workflow;
-truncate directory_info;
-truncate coordinator;
 delete from node_instance where workflow_instance_id in (select id from workflow_instance where status = 1);
 delete from workflow_instance where status = 1

@@ -14,6 +14,7 @@ import com.kent.pub.DaemonActor
 import com.kent.db.LogRecorder.LogType
 import akka.actor.ActorRef
 import java.util.Date
+import java.sql.ResultSet
 
 class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends DaemonActor with Daoable[Any] {
   import com.kent.db.LogRecorder.LogType._
@@ -35,6 +36,7 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     case Info(stime, ctype, sid, name, content) => logging("INFO", stime, ctype, sid, name, Util.escapeStr(content))
     case Warn(stime, ctype, sid, name, content) => logging("WARN", stime, ctype, sid, name, Util.escapeStr(content))
     case Error(stime, ctype, sid, name, content) => logging("ERROR", stime, ctype, sid, name, Util.escapeStr(content))
+    case GetLog(ctype,sid,name) => sender ! getLog(ctype, sid, name)
   }
   
   var messageList:List[LogMsg] = List()
@@ -70,12 +72,41 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     case Info(stime, ctype, sid, name, content) => log.info(loggingStr(stime,ctype, sid, name, content))
     case Warn(stime, ctype, sid, name, content) => log.warning(loggingStr(stime,ctype, sid, name, content))
     case Error(stime, ctype, sid, name, content) => log.error(loggingStr(stime,ctype, sid, name, content))
+    case GetLog(ctype,sid,name) => sender ! List[List[String]]()
   }
   
   override def postStop(){
     if(connection != null)connection.close()
   }
-
+  /**
+   * 获取日志
+   */
+  def getLog(ctype: LogType, sid: String,name: String):List[List[String]] = {
+    val c1 = if(ctype != null) s"ctype = '${ctype}'" else "1 = 1";
+    val c2 = if(sid != null) s"sid = '${sid}'" else "1 = 1";
+    val c3 = if(name != null) s"name = '${name}'" else "1 = 1";
+    val sql = s"""
+      select level,stime,name,content from log_record where ${c1} and ${c2} and ${c3} order by stime
+      """
+    queryList(sql)
+  }
+  
+    /**
+   * 查询结果数组
+   */
+  def queryList(sql: String): List[List[String]] = {
+    val listOpt = querySql[List[List[String]]](sql, (rs: ResultSet) =>{
+     var rowList = List[List[String]]()
+     val colCnt = rs.getMetaData.getColumnCount
+     while(rs.next()){
+       val row = (1 to colCnt by 1).map { x => rs.getString(x) }.toList
+       rowList = rowList :+ row
+     }
+     rowList
+    })
+    if(listOpt.isEmpty) null else listOpt.get
+  }
+  
   def delete(implicit conn: Connection): Boolean = {
     ???
   }
