@@ -76,13 +76,13 @@ object TestMail extends App{
 				}
   }
   
-  def f() = sendMail("mfast2.163.internal",None, false , "3c_mail@service.netease.com", "",
-      "3c_mail@service.netease.com", List("gzouguangneng@corp.netease.com"), 
+  def f() = sendMail("xxxxx",None, false , "", "",
+      "xxxx", List(""), 
       "test2", "你好，这是测试文件", 
       "utf8", List())
       
-  def f2() = sendMail("smtp.163.com",Some(465),true , "15018735011@163.com", "WoCaoNiMa1", 
-      "15018735011@163.com",List("gzouguangneng@corp.netease.com"),
+  def f2() = sendMail("xxxx",Some(465),true , "xxxxx", "xxxx", 
+      "xxxx",List("xxxxx"),
       "test1", "你好，这是测试文件222", "utf8",List())
       
    

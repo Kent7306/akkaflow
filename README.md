@@ -82,7 +82,7 @@ workflow {
 
 其中，因为akkaflow支持分布式部署，当前伪分布部署，可以把master、master-standby、worker、http-servers在同一台机器的不同端口启动，设置jdbc连接，告警邮件设置
 * 启动角色（独立部署模式）  
-  `./standalone-startup`
+  执行: `./standalone-startup`
 * 查看启动日志
 日志追加到`./logs/run.log`中，tail一下日志，看下启动时是否有异常，无异常则表示启动成功。  
 * 查看进程
