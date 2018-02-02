@@ -266,7 +266,7 @@ class WorkFlowManager extends DaemonActor {
 	<tr><td>开始时间</td><td>${Util.formatStandarTime(wfi.startTime)}</td></tr>
 	<tr><td>运行时长</td><td>${((wfi.endTime.getTime-wfi.startTime.getTime)/1000).toInt}</td></tr>
 	<tr><td>目录</td><td>${wfi.workflow.dir.dirname}</td></tr>
-	<tr><td>参数</td><td>${wfi.paramMap.map{case(k,v) => s"$k:$v"}.mkString(",")}</td></tr>
+	<tr><td>参数</td><td>${wfi.paramMap.map{case(k,v) => s"$k:$v"}.mkString(", ")}</td></tr>
 	<tr><td>告警级别</td><td>${wfi.workflow.mailLevel.mkString(",")}</td></tr>
 	<tr><td>收件人员</td><td>${wfi.workflow.mailReceivers.mkString(",")}</td></tr>
 	<tr><td>描述</td><td>${wfi.workflow.desc}</td></tr>
@@ -280,7 +280,8 @@ class WorkFlowManager extends DaemonActor {
 	    <td>${x.nodeInfo.getType}</td>
 	    <td>${Status.getStatusName(x.status)}</td>
 	    <td>${Util.formatStandarTime(x.startTime)}</td>
-	    <td>${if(x.startTime == null) "--" else ((x.endTime.getTime-x.startTime.getTime)/1000).toInt}</td>
+	    <td>${if(x.startTime == null || x.endTime == null) "--" 
+	      else ((x.endTime.getTime-x.startTime.getTime)/1000).toInt}</td>
 	    <td>${x.executedMsg}</td>
 	    <td>${x.nodeInfo.desc}</td>
 	  </tr>

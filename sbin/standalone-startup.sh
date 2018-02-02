@@ -1,13 +1,13 @@
 #!/bin/bash
-source ~/.bash_profile
-echo -e "开始启动Master节点"
+cd `dirname $0`
+source ./head.sh
 ./master-startup
 sleep 5
-echo -e "开始启动Worker节点"
-./worker-startup
-sleep 1
-echo -e "开始启动HttpServer节点"
 ./httpserver-startup
+sleep 3
+./worker-startup
+sleep 2
 tail -500f ../logs/run.log &
-sleep 15
+sleep 10
+ps -ef | grep tail | grep "/logs/run.log" | awk '{print $2}' | xargs kill -9
 exit 0

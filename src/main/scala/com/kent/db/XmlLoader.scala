@@ -48,7 +48,7 @@ class XmlLoader(wfXmlPath: String, coorXmlPath: String, interval: Int) extends D
    */
   def loadXmlFiles():Boolean = {
     def getNewFileContents(path: String):List[Tuple2[File,String]] = {
-    		val files = FileUtil.listFilesWithExtensions(new File(path), List("xml"))
+    		val files = FileUtil.listFilesWithExtensions(new File(path), List("xml","coor","wf"))
     		//新增或修改
     		val newFiles = files.filter { x => fileMap.get(x.getName).isEmpty || fileMap(x.getName) != x.lastModified()}.toList
     		newFiles.foreach { x => 
