@@ -123,6 +123,8 @@ akkaflow-ui是分离部署的一套可视化系统，基于访问akkflow数据�
 ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E9%A6%96%E9%A1%B5%E7%9B%91%E6%8E%A7.png)    
 * 工作流管理页面
 ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%AE%A1%E7%90%86%E9%A1%B5%E9%9D%A2.png)  
+* 任务实例告警邮件
+![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%91%8A%E8%AD%A6%E9%82%AE%E4%BB%B6.png) 
 
 ### 版本计划
 1. 重新封装数据传输节点，关于数据传输节点，本来想集成sqoop1 java api的，但本地生成的java的jdk版本和集群的jdk版本需要一致，考虑到某些集群的jdk版本仍旧是1.6，1.7，而akkaflow的jdk版本起码要1.8或以上，所以还是用sqoop shell（需要节点机器支持sqoop1），并且也没有很好封装sqoop命令；而sqoop2感觉不是很通用简便。
