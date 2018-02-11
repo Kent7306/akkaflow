@@ -1,73 +1,37 @@
 ## 工作流定义文档说明
-很多时候，在数据处理过程当中，或数据仓库构建过程当中，产生一系列子任务按一定顺序组织，类似有向无环拓扑图。一个处理过程，从开始节点，多个子任务并发或串行执行，终止于结束节点，这样的一个处理过程，可以称作`工作流`，`akkaflow`框架的工作流的定义参考了`Oozie`的语法，但相对于`Oozie`更为轻量级和简便使用。  
+很多时候，在数据处理过程当中，或数据仓库构建过程当中，产生一系列子任务按一定顺序组织，类似有向无环拓扑图。一个处理过程，从开始节点，多个子任务并发或串行执行，终止于结束节点，这样的一个处理过程，可以称作`工作流`。 
 ##### 一个工作流文件定义示例
 ```xml
-<work-flow name="wf_import_item" desc="导入item数据" >
+<work-flow name="test_a" creator="Kent" mail-receivers="492005267@qq.com"
+    dir="/TMP" desc="测试a">
+  <!-- 调度配置 -->
+  <coordinator is-enabled="true">
+      <depend-list cron="0 */2 * * *"></depend-list>
+      <param-list>
+          <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
+      </param-list>
+  </coordinator>
+  <!-- 节点列表 -->
+  <start name="start" to="data_monitor" />
 
-  <start name="start" to="watch_log" />
-
-  <action name="watch_log" desc = "监测日志文件">
-      <file-watcher>
-          <file dir="example/import_item">item_*.log</file>
-          <size-warn-message enable="true" size-threshold="2MB"></size-warn-message>
-      </file-watcher>
-      <ok to="fork"/>
+  <action name="data_monitor" retry-times="5" interval="1" desc = "监测源数据">
+      <data-monitor>
+          <source type="COMMAND">ORACLE -e "select count(1) from dual"</source>
+          <min-threshold type="NUM">1</min-threshold>
+          <warn-msg>填写检测异常信息</warn-msg>
+      </data-monitor>
+      <ok to="script"/>
   </action>
 
-  <fork name="fork">
-       <path to="clean" />
-       <path to="sleep" />
-  </fork>
-
-  <action name="clean" desc = "清洗日志">
+  <action name="script" desc = "执行脚本">
       <script>
-          <code>
-            stime="${param:stime}"
-            cat ./item_1.log item_2.log | awk -v st="$stime" '{print st"---"$0}' > /tmp/item.result
-          </code>
-          <attach-list>
-            <file>example/import_item/item_1.log</file>
-            <file>example/import_item/item_2.log</file>
-          </attach-list>
+          <code><![CDATA[
+            for i in `seq 0 20`;do
+                echo -e "$i****${param:stadate}***";
+            done
+          ]]></code>
       </script>
-      <ok to="import"/>
-  </action>
-
-  <action name="import" desc = "导入数据库">
-      <transfer>
-          <source type="LFS" path="/tmp/item.result" delimited="---"></source>
-          <target type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false"
-                  username="root" password="root" table="example_item">
-              <pre-sql>delete from example_item where ds = '${param:stime}'</pre-sql>
-          </target>
-      </transfer>
-      <ok to="join_node"/>
-  </action>
-
-  <action name="sleep" desc = "放慢过程">
-      <script>
-        <code><![CDATA[
-              for i in `seq 1 10`
-              do sleep 2;echo $i
-              done
-            ]]></code>
-        </script>
-      <ok to="join_node"/>
-  </action>
-
-  <join name="join_node" to="data_monitor"/>
-
-  <action name="data_monitor" desc = "监测日志文件">
-    <data-monitor category="mysql" source-name="example_item" is-saved="true" is-exceed-error="true" time-mark="${param:stime}">
-        <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
-            select count(1) from example_item where ds = '${param:stime}'
-        </source>
-        <min-threshold type="NUM">2</min-threshold>
-        <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
-            select count(1)+10 from example_item where ds = '${param:stime}'
-        </max-threshold>
-    </data-monitor>
-    <ok to="end"/>
+      <ok to="end"></ok>
   </action>
 
   <end name="end"/>
@@ -85,7 +49,7 @@
 * `instance-limit`: 可选，该工作流同时运行的实例上限，默认不设上限
 
 #### * 子标签
-* `workflow`标签中包含各定义的节点，节点类型分为两大类，控制节点与动作节点。
+* `workflow`标签中包含各定义的节点，节点类型分为三大类，调度配置节点、控制节点、动作节点。
 
 #### * 示例
 ```xml
@@ -99,8 +63,55 @@
 	....
 </workflow>
 ```
-
-###控制节点标签
+### 调度器配置	&lt;coordinator/&gt;
+可配置时间触发、前置依赖或者二者结合，其中时间触发类似于Linux上的crontab功能，指定某个时间点触发当前工作流；而前置依赖是依赖于某个工作流的完成来触发。akkflow的coordinator既可以配置时间与依赖触发，也可以二者组合配置。另外，调度器中可配置参数，并且有内置参数与相关系统参数。
+####* 属性
+`start-time`：可选，调度器的开始生效时间，默认从很久以前开始，格式为，yyyy-MM-dd HH:mm:ss</br>
+`end-time`：可选，调度器的开始失效时间，默认从很久以后结束，格式为，yyyy-MM-dd HH:mm:ss</br>
+`is-enabled`：可选，是否生效，默认为true。</br>
+####* 标签内容
+####&lt;depend-list/&gt;
+只有满足时间触发，并且前置依赖任务成功执行完成，才能触发该调度器执行后置依赖工作流。</br>
+`cron`属性，可选，默认无，时间触发设置，类似于linux中的crontab周期时间点配置。</br>
+`<workflow>`子标签，必填，前置依赖的任务流，可配置多个，`name`属性，必填，指定依赖的任务流</br>
+示例</br>
+```xml
+<!-- 每天1点触发，并且前置依赖于wf_1，wf_2 -->
+<depend-list cron="0 1 * * *">
+        <workflow name="wf_1" />
+        <workflow name="wf_2" />
+</depend-list>
+<!-- 每周一午夜触发 -->
+<depend-list cron="midnight on monday"></depend-list>
+```
+####&lt;param-list/&gt;
+参数列表，转化后的参数列表作为触发后的后置工作流实例的参数，在工作流定义中看到`${param:xxx}`，就是使用了相关参数。参数包括自定义参数与内置参数，目前内置参数只包含时间相关操作的参数，注意参数顺序，下面的参数可以使用上面的参数。</br>
+`<param/>`子标签，可选，自定义参数，属性`name`为参数变量名，属性`value`为参数值，`value`可以引用其他自定义变量或内置变量，多个子标签`<param/>`时，相同参数变量，下面的会替换上面的参数；下面的参数值可以引用上面的参数变量。</br>
+#####内置时间变量
+`time.today` -> 当前日期，格式为yyyy-MM-dd，如2017-01-07</br>
+`time.yestoday` -> 昨天日期，格式为yyyy-MM-dd，如2017-01-06</br>
+`time.cur_month` -> 当前月份，格式为yyyy-MM，如2017-01</br>
+`time.last_month` -> 上个月份，格式为yyyy-MM，如2016-12</br>
+时间格式化和计算
+`${time.today|yyyy-MM-dd|-1 day}` -> 假如当前日期为2017-01-07，那么结果为2017-01-06；当前日期减少一天，然后格式化。</br>
+`${time.last_month|yyyy-MM|2 month}` -> 假如当前日期为2017-01-07，那么结果为2017-02；当前月份加两个月，然后格式化。
+示例</br>
+`${time.today|yyyy-MM-dd HH:mm:ss|-1 hour}` -> 假如当前时间为2017-01-07 12:12:12，那么结果为2017-01-07 11:12:12；当前时间减去一个小时，然后格式化。</br>
+目前支持计算的时间单位有`month`, `day`, `hour`, `minute`</br>
+示例</br>
+```xml
+<param-list>
+	<!--定义参数action，取值delete-->
+   <param name="action" value="delete"/>
+	<!--定义参数yestory，取值用内置时间变量计算-->
+   <param name="yestoday" value="${time.today|yyyy-MM-dd|-1 day}"/>
+   <!--定义参数yestoday2，取值用内置时间变量计算-->
+   <param name="yestoday2" value="${time.yestoday|yyyy/MM/dd}"/>
+   <!--定义参数hdfs_dir，取值引用上面的参数yestoday2-->
+   <param name="hdfs_dir" value="hdfs:///user/kent/log/${yestoday2}/*"/>
+</param-list>
+```
+### 控制节点标签
 
 #### &lt;start/&gt;
 开始节点，工作流开始的地方，每个工作流只能有一个`start`节点。
@@ -375,23 +386,25 @@ shell命令执行节点，远程shell命令执行，可以执行指定所部署�
 
 ##### * 示例
 ```xml
-<!-- example 1 监测日志文件-->
+<!-- example 1 监测数据库记录-->
+<data-monitor>
+     <source type="COMMAND">ORACLE -e "select count(1) from dual"</source>
+     <min-threshold type="NUM">1</min-threshold>
+     <warn-msg>填写检测异常信息</warn-msg>
+</data-monitor>
+
+<!-- example 2 监测日志文件-->
 <data-monitor category="mysql" source-name="example_item" is-saved="true" is-exceed-error="true" time-mark="${param:stime}">
-   <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+   <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf" username="root" password="root">
        select count(1) from example_item where ds = '${param:stime}'
    </source>
    <min-threshold type="NUM">2</min-threshold>
-   <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
+   <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf" username="root" password="root">
        select count(1)+10 from example_item where ds = '${param:stime}'
    </max-threshold>
 </data-monitor>
 
-<!-- example 2 监测日志文件-->
-<data-monitor category="mysql" source-name="example_item" is-saved="true" time-mark="${param:stime}">
-   <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
-       select count(1) from example_item where ds = '${param:stime}'
-   </source>
-</data-monitor>
+
 ```
 
 

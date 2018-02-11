@@ -3,37 +3,67 @@ cd `dirname $0`
 source ./head.sh
 
 ##显示基本信息
-function f_base() 
+function f_base()
 {
     wf_name=$1
     wf_data=`
-    local_mysql -s -N -e "use wf;
+    akka_mysql -s -N -e "use $mysql_db;
     select name c1,creator c2,dir c3,description c4,mail_level c5,
-           mail_receivers c6,instance_limit c7,params c8,create_time  c9 
+           mail_receivers c6,instance_limit c7,params c8,create_time  c9
         from workflow where name='$wf_name'
     " 2>/dev/null
     `
-    depend_coors=`
-    local_mysql -s -N -e "use wf;
-    select name cname from coordinator where JSON_CONTAINS(triggers,'[\"$wf_name\"]')
-    " 2>/dev/null`
+    #调度器信息
+    coor_info=`
+    akka_mysql -s -N -e "use $mysql_db;
+    select coor_enable,coor_param,coor_cron,coor_depends,coor_stime,coor_etime,coor_next_cron_time from workflow where name='$wf_name'
+    " 2>/dev/null
+    `
+    #任务告警级别
+    mail_level=`echo -e "$wf_data" | awk -F '\t' '{tmp=$5;gsub(/"|\[|\]| /,"",tmp);
+                gsub(/W_FAILED/,"失败告警",tmp);gsub(/W_KILLED/,"杀死告警",tmp);gsub(/W_SUCCESSED/,"成功告警",tmp)} END{print tmp}'`
 
 
+    depend_wfs=`
+    echo "$coor_info" | awk -F '\t' '{
+         tmp=$4;gsub(/\[|\]|"name":|"is_ready":|"/,"",tmp);
+         gsub(/\},/,"\n",tmp);
+         gsub(/\}|\{| /,"",tmp);
+         gsub(/,/," -> ",tmp);
+         gsub(/false/,"未就绪",tmp);
+         gsub(/true/,"已准备",tmp)};
+      END{print tmp}' |
+    awk '{if(NR == 1){str=str""$0}else{str=str"\n          "$0}} END{print str}'
+    `
+    trigger_wfs=`
+    akka_mysql -s -N -e "use $mysql_db;
+    select name from workflow where JSON_CONTAINS(coor_depends,'[{\"name\":\"$wf_name\"}]')
+    " 2>/dev/null | awk '{if(NR == 1){str=str""$0}else{str=str"\n          "$0}} END{print str}'`
+    #调度器是否可用
+    coor_enable=`echo "$coor_info" | awk -F '\t' '{tmp=$1;gsub(/1/,"可用",tmp);gsub(/0/,"不可用",tmp)} END{print tmp}'`
     echo -e "=================================${GREEN}工作流信息${NC}====================================="
-    echo "$wf_data" | awk -F '\t' -v dcoors=$depend_coors '{
+    echo "$wf_data" | awk -F '\t' -v ml="$mail_level" '{
         print "工 作 流: "$1
         print "创 建 者: "$2
         print "目    录: "$3
         print "参    数: "$8
-        print "告警级别: "$5
+        print "告警级别: "ml
         print "收件人员: "$6
         print "实例上限: "$7
         print "创建时间: "$9
-        print "前置依赖: "dcoors
         print "描    述: "$4
     }'
+    echo -e "=================================${GREEN}调度配置${NC}====================================="
+    echo "$coor_info" | awk -F '\t' -v tw="$trigger_wfs" -v dw="$depend_wfs" -v ce="$coor_enable" '{
+        print "是否可用: "ce
+        print "调度参数: "$2
+        print "时间触发: "$3"  ("$7")"
+        print "前置依赖: "dw
+        print "后置触发: "tw
+        print "生效时段: "$5" - "$6
+    }'
     echo -e "=================================${GREEN}节点运行信息${NC}====================================="
-    local_mysql -e "use wf;
+    akka_mysql -e "use $mysql_db;
     select name 节点名称,type 节点类型,if(description is null,'',description) 描述
     from node
     where workflow_name = '$wf_name';
@@ -41,15 +71,27 @@ function f_base()
 }
 
 ##显示xml
-function f_xml() 
+function f_xml()
 {
     wf_name=$1
     echo -e "=================================${GREEN}工作流xml信息${NC}====================================="
-    local_mysql -s -e "use wf;
+    akka_mysql -s -e "use $mysql_db;
     select xml_str from workflow where name='$wf_name'
-    "  2>/dev/null | awk '{gsub(/\\\\n/,"@@@@",$0);print $0}' | awk '{gsub(/\\n/,"\n",$0);print $0}' |  awk '{gsub(/@@@@/,"\\\\n",$0);print $0}'
+    "  2>/dev/null | awk '{gsub(/\\\\n/,"@@@@",$0);gsub(/\\\\t/,"!!!!",$0);print $0}' \
+    | awk '{gsub(/\\n/,"\n",$0);gsub(/\\t/,"\t",$0);print $0}' |  awk '{gsub(/@@@@/,"\\n",$0);gsub(/!!!!/,"\\t",$0);print $0}'
 }
-
+##显示日志
+function f_log()
+{
+    wfid=$1
+    echo -e "=================================${GREEN}实例日志信息${NC}====================================="
+    akka_mysql -s -e "use $mysql_db;
+    select concat('[',level,'] [',stime,']',if(ctype='ACTION_NODE_INSTANCE',concat('[',name,']'),'')) 日志信息,content 内容
+    from (
+        select * from log_record where ctype = 'WORKFLOW_MANAGER' and name = '$wfid' order by stime desc limit 100
+    ) a order by stime
+    "  2>/dev/null
+}
 
 if [ $# -lt 1 ];then
 echo -e "【使用】\n\takka workflow -info [-xml] <workflow_name>"
@@ -65,6 +107,9 @@ while [ $# -gt 0 ];do
       --xml)
         show_type="xml"
         shift;;
+      --log)
+        show_type="log"
+        shift;;
       *)
        wfid=$1
        shift
@@ -74,6 +119,8 @@ done
 
 if [ "$show_type" == "xml" ];then
     f_xml $wfid
+elif [ "$show_type" == "log" ];then
+   f_log $wfid
 else
     f_base $wfid
 fi

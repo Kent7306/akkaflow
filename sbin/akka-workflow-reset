@@ -1,0 +1,14 @@
+#!/bin/bash
+cd `dirname $0`
+source ./head.sh
+
+if [ $# -ne 1 ];then
+echo -e "【使用】\n\takka workflow -reset <工作流名称>"
+echo -e "【说明】\n\t重置指定工作流调度器前置任务状态"
+echo -e "【示例】\n\takka workflow -reset wf_parall_sum\n"
+exit 1
+fi
+wf_name=$1
+result=`curl -s -XGET "http://$host:$port/akkaflow/workflow/$wf_name?action=reset"`
+echo $result | iconv -f utf8 -t $local_lang
+echo ""

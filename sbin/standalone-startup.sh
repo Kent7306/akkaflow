@@ -7,7 +7,7 @@ sleep 5
 sleep 3
 ./worker-startup
 sleep 2
-tail -500f ../logs/run.log &
+tail -1000f ../logs/run.log &
 sleep 10
 ps -ef | grep tail | grep "/logs/run.log" | awk '{print $2}' | xargs kill -9
 exit 0

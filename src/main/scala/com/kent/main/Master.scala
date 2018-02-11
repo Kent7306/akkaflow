@@ -9,7 +9,6 @@ import akka.actor.ActorRef
 import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
-import com.kent.coordinate.CoordinatorManager
 import com.kent.workflow.WorkFlowManager
 import com.kent.db.PersistManager
 import akka.pattern.{ ask, pipe }
@@ -32,7 +31,6 @@ import com.kent.ddata.HaDataStorager.AddWorkflow
 import com.kent.workflow.WorkflowInfo
 import com.kent.ddata.HaDataStorager._
 import com.kent.workflow.WorkflowInstance
-import com.kent.coordinate.Coordinator
 import com.kent.coordinate.CronComponent
 import scala.concurrent.Await
 import akka.actor.ExtendedActorSystem
@@ -50,7 +48,6 @@ import jnr.ffi.annotations.Synchronized
 
 class Master(var isActiveMember:Boolean) extends ClusterRole {
   import com.kent.pub.ClusterRole.RStatus._
-  var coordinatorManager: ActorRef = _
   var workflowManager: ActorRef = _
   var xmlLoader: ActorRef = _
   var httpServerRef:ActorRef = _
@@ -96,7 +93,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
 		  kwalF pipeTo sender
     case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
     case RemoveWorkFlow(wfId) => workflowManager ! RemoveWorkFlow(wfId)
-    case AddCoor(coorStr) => coordinatorManager ! AddCoor(coorStr)
     case AskWorker(host: String) => sender ! allocateWorker(host: String)
     case ShutdownCluster() =>  shutdownCluster(sender)
     case CollectClusterActorInfo() => 
@@ -204,11 +200,10 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     def getDData():Future[DistributeData] = {
       for {
         wfs <- (Master.haDataStorager ? GetWorkflows()).mapTo[List[WorkflowInfo]]
-        coors <- (Master.haDataStorager ? GetCoordinators()).mapTo[List[Coordinator]]
         rWFIs <- (Master.haDataStorager ? GetRWFIs()).mapTo[List[WorkflowInstance]]
   	    wWFIs <- (Master.haDataStorager ? GetWWFIs()).mapTo[List[WorkflowInstance]]
   	    xmlFiles <- (Master.haDataStorager ? GetXmlFiles()).mapTo[Map[String,Long]]
-      } yield DistributeData(wfs,coors,rWFIs,wWFIs,xmlFiles)
+      } yield DistributeData(wfs,rWFIs,wWFIs,xmlFiles)
     }
     this.status = R_INITING
     val isPreparedF = prepareMasterEnv()
@@ -239,14 +234,13 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
                     )
    //xmlLoader参数配置
    val xmlLoaderConfig = (config.getString("workflow.xml-loader.workflow-dir"),
-                      config.getString(("workflow.xml-loader.coordinator-dir")),
                       config.getInt("workflow.xml-loader.scan-interval")
                     )
     this.isActiveMember = true
     //获取distributed数据来构建子actors
     val ddataF = getDData()
     ddataF.map{ 
-      case DistributeData(wfs,coors,rwfis, wwfis,xmlFiles) => 
+      case DistributeData(wfs,rwfis, wwfis,xmlFiles) => 
         //创建持久化管理器
         //需要同步
         if(Master.persistManager == null){
@@ -265,12 +259,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         }
         //创建xml装载器
         if(xmlLoader == null){
-        	xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2, xmlLoaderConfig._3, xmlFiles)),"xml-loader")
-        }
-        //创建coordinator管理器
-        if(coordinatorManager == null){
-          coors.foreach { x => x.cron = CronComponent(x.cronStr,x.startDate,x.endDate) }
-          coordinatorManager = context.actorOf(Props(CoordinatorManager(coors)),"cm")
+        	xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2, xmlFiles)),"xml-loader")
         }
         //创建workflow管理器
         if(workflowManager == null){
@@ -278,9 +267,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
           val allwwfis = rwfis ++ wwfis
           workflowManager = context.actorOf(Props(WorkFlowManager(wfs, allwwfis)),"wfm")
         }
-        Thread.sleep(4000)
-        coordinatorManager ! GetManagers(workflowManager,coordinatorManager)
-        workflowManager ! GetManagers(workflowManager,coordinatorManager)
         
         //通知http-server
         if(this.httpServerRef != null){
@@ -303,7 +289,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
    */
   private def startDaemons(){
     	this.status = R_STARTED
-			coordinatorManager ! Start()
 			workflowManager ! Start()
 			xmlLoader ! Start() 
 			log.info("开始运行...")
@@ -315,12 +300,10 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
 	  this.status = R_PREPARE
 	  this.isActiveMember = false
     val rF1 = if(xmlLoader != null) (xmlLoader ? Stop()).mapTo[Boolean] else Future{true}
-    var rF2 = if(coordinatorManager != null) (coordinatorManager ? Stop()).mapTo[Boolean] else Future{true}
     var rF3 = if(workflowManager != null) (workflowManager ? Stop()).mapTo[Boolean] else Future{true}
-    val list = List(rF1, rF2, rF3)
+    val list = List(rF1, rF3)
     val rF = Future.sequence(list).map { x => 
       this.xmlLoader = null
-      this.coordinatorManager = null
       this.workflowManager = null
       if(x.filter { !_ }.size > 0) false else true 
     }
@@ -364,7 +347,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
    * 关闭集群
    */
   def shutdownCluster(sdr: ActorRef) = {
-     if(coordinatorManager!=null) coordinatorManager ! Stop()
      if(xmlLoader!=null) xmlLoader ! Stop()
      if(workflowManager!=null){
        val result = (workflowManager ? KllAllWorkFlow()).mapTo[ResponseData]

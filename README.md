@@ -1,8 +1,8 @@
 ## akkaflow
 演示系统: [点击这里](http://47.93.186.236:8080/akkaflow-ui/home/login)  用户/密码：admin/admin  
 ### 简介
-`akkaflow`是一个基于`akka`架构上构建的分布式高可用ETL调度工具，可以把一个job中子任务按照拓扑关系在集群中不同的节点上并行执行，高效利用集群资源；提供多个工具节点，可监控文件数据情况，对数据及任务进行监控告警，异常处理等。其中工作流定义类似`Oozie`，相对简洁轻量级，可作为构建数据仓库、或大数据平台上的调度工具。  
-整个`akkaflow`架构目前包含有四个节点角色：Master-Active、Master-Standby、Worker、Http-Server，每个角色可以独立部署于不同机器上，支持高可用性（HA），节点中包含以下模块：调度模块，执行模块，告警模块，日志模块，持久化模块。工作流定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)，调度器定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/coordinator_definition.md) ，使用示例说明文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B%E8%AF%B4%E6%98%8E.md)   。
+`akkaflow`是一个基于`akka`架构上构建的分布式高可用ETL调度工具，可以把一个job中子任务按照拓扑关系在集群中不同的节点上并行执行，高效利用集群资源；提供多个工具节点，可监控文件数据情况，对数据及任务进行监控告警，异常处理等。其中工作流定义相对简洁轻量级，可作为构建数据仓库、或大数据平台上的调度工具。  
+整个`akkaflow`架构目前包含有四个节点角色：Master-Active、Master-Standby、Worker、Http-Server，每个角色可以独立部署于不同机器上，支持高可用性（HA），节点中包含以下模块：调度模块，执行模块，告警模块，日志模块，持久化模块。工作流定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)。
 **节点角色关系图**
 ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E8%8A%82%E7%82%B9%E8%A7%92%E8%89%B2%E5%85%B3%E7%B3%BB%E5%9B%BE.png)
 * `Master-Active` 活动主节点，调度触发工作流实例，分发子任务
@@ -10,7 +10,7 @@
 * `Worker` 任务节点，可部署在多个机器上，运行主节点分发过来的任务，并反馈运行结果。
 * `Http-Server` http服务节点，提供http API查看操作当前akkaflow系统。
 
-**actor对象层级**
+**Actor对象层级**
 	![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/actor%E5%B1%82%E6%AC%A1%E5%85%B3%E7%B3%BB%E5%9B%BE.png)
 
 `akkaflow`工程只是一个后端运行的架构，目前也在不停开发完善中；基于B/S的可视化界面已初步开发，提供工作流执行情况等相关信息查看，可视化拖拉生成工作流与调度器的功能尚未开发。  
@@ -22,13 +22,14 @@
 
 #### 2、安装
 * 安装环境：Linux系统、jdk1.8或以上、MySQL5.7或以上
+
 #### 3、目录说明
 * `bin` 存放基本命令（一般不会直接使用）
 * `sbin` 存放用户操作命令，如启动节点命令等
 * `lib` 存放相关jar包
 * `logs` 存放相关日志
 * `config` 存放相关配置文件
-* `xmlconfig` 存放工作流与调度器定义的目录，master节点启动时从该目录载入workflow与coordinator
+* `xmlconfig` 存放工作流定义的目录，master节点启动时从该目录载入workflow
 * `example` 存放示例相关数据
 * `tmp` 存放作为worker执行相关动作节点的临时执行目录，可配置，对应`workflow.action.script-location`
 
@@ -95,7 +96,7 @@ workflow {
 2124 MasterStartup
 ```
 
-**注意**：akkaflow工作流的定义、调度器的定义可以存放于xmlconfig下，akkaflow启动时，会自动扫描xmlconfig下面的文件，生成对应的worflow或coordinator提交给Master，所以新建的工作流、调度器定义文件，可以放到该目录中，安装包下的xmlconfig/example下有工作流与调度器定义示例。  
+**注意**：akkaflow工作流定义可以存放于xmlconfig下，akkaflow启动时，会自动不断扫描xmlconfig下面的文件，生成对应的worflow提交给Master，所以新建的工作流文件，可以放到该目录中，安装包下的xmlconfig/example下有工作流定义示例。  
 
 ### 使用
 #### 基于命令行操作
@@ -114,23 +115,14 @@ workflow {
    ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%91%BD%E4%BB%A4%E9%9B%86%E5%90%88.jpg)
   
 
-**注意:**除了节点启动命令，把工作流或调度器定义的xml文件放在xmlconfig目录下，可自动扫描添加对应工作流或调度器，也可以用命令提交，在akka-ui界面下，工作流与调度器的其他操作可直接操作。
-使用示例说明文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/%E4%BD%BF%E7%94%A8%E7%A4%BA%E4%BE%8B%E8%AF%B4%E6%98%8E.md)   
+**注意:**除了节点启动命令，把工作流定义的xml文件放在xmlconfig目录下，可自动扫描添加对应工作流或调度器，也可以用命令提交，在akka-ui界面下，工作流与调度器的其他操作可直接操作。  
 
 #### akkaflow-ui可视化界面
-akkaflow-ui是独立部署的一套可视化系统，基于访问akkflow数据库与调用接口来展现akkflow的运行信息，与akkflow系统是完全解耦的，并且akkflow-ui暂时未开源。  
+akkaflow-ui是分离部署的一套可视化系统，基于访问akkflow数据库与调用接口来展现akkflow的运行信息，与akkflow系统是完全解耦的，并且akkflow-ui暂时未开源。  
 * 首页监控页面
-![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E9%A6%96%E9%A1%B5%E7%9B%91%E6%8E%A7.png)  
-* 数据监控查询页面
-![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E6%95%B0%E6%8D%AE%E7%9B%91%E6%8E%A7%E9%A1%B5%E9%9D%A2.png)  
-* 工作流实例页面
-![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%B7%A5%E4%BD%9C%E6%B5%81%E5%AE%9E%E4%BE%8B%E9%A1%B5%E9%9D%A2.png)  
-* coordinator管理页面
-![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E8%B0%83%E5%BA%A6%E5%99%A8%E7%AE%A1%E7%90%86%E9%A1%B5%E9%9D%A2.png)  
+![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E9%A6%96%E9%A1%B5%E7%9B%91%E6%8E%A7.png)    
 * 工作流管理页面
 ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%AE%A1%E7%90%86%E9%A1%B5%E9%9D%A2.png)  
-* 工作流实例列表页面
-![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%B7%A5%E4%BD%9C%E6%B5%81%E6%9F%A5%E8%AF%A2%E5%88%97%E8%A1%A8.png)  
 
 ### 版本计划
 1. 重新封装数据传输节点，关于数据传输节点，本来想集成sqoop1 java api的，但本地生成的java的jdk版本和集群的jdk版本需要一致，考虑到某些集群的jdk版本仍旧是1.6，1.7，而akkaflow的jdk版本起码要1.8或以上，所以还是用sqoop shell（需要节点机器支持sqoop1），并且也没有很好封装sqoop命令；而sqoop2感觉不是很通用简便。

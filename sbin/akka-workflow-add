@@ -16,7 +16,7 @@ is_asoluted=`echo $file | grep -E "^\s*\/" | wc -l`
 if [ $is_asoluted -eq 0 ];then
     file=$user_dir/$file
 fi
-con=`iconv -f gbk -t utf8 $file |sh ./url-encode|awk '{str=str"%0a"$0} END{print str}'`
+con=`iconv -f ${local_lang} -t utf8 $file |sh ./url-encode|awk '{str=str"%0a"$0} END{print str}'`
 result=`curl -s -XPOST -d "xml=$con" "http://$host:$port/akkaflow/workflow?action=add"`
 
 echo $result | iconv -f utf8 -t $local_lang

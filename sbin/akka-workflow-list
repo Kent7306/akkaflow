@@ -11,7 +11,7 @@ function get_hf
     for i in `seq 1 $len`;do
        str=$str"####"
     done
-    str=$str"+---"
+    str=$str"+--- "
     echo "${YELLOW}$str${NC}"
 }
 
@@ -20,14 +20,22 @@ function f_node
     local id=$1
     local level=$2
     ((level=level+1))
-    local_mysql -s -N -e "use wf;
-        select id,is_leaf,name from directory_info where pid = '$id' and dtype=1;
+    akka_mysql -s -N -e "use $mysql_db;
+select id,is_leaf,a.name,creator,description
+from (
+  select id,is_leaf,name from directory where pid = '$id'
+) a left outer join (
+  select name,creator,if(length(description) > 60,concat(substring(description,1,60),'...'),description) description
+  from workflow
+) b on a.name = b.name
     " 2>/dev/null | while read line;do
         local cid=`echo $line |cut -d ' ' -f 1`
         local name=`echo $line |cut -d ' ' -f 3`
         local is_leaf=`echo $line |cut -d ' ' -f 2`
+        local creator=`echo $line |cut -d ' ' -f 4`
+        local description=`echo $line |cut -d ' ' -f 5-`
         if [ $is_leaf -eq 1 ];then
-            name=${GREEN}$name${NC}
+            name="${GREEN}$name${NC}   【$creator】【$description】"
         else
             name=${BLUE}$name${NC}
         fi

@@ -41,17 +41,6 @@ class HttpServer extends ClusterRole {
       sdr ! ResponseData("fail","不存在workflow manager",null)
     }
   }
-  private def getResponseFromCoordinatorManager(sdr: ActorRef, event: Any) = {
-    if(activeMaster != null){
-      val cm = context.actorSelection(activeMaster.path / "cm")
-      val resultF = (cm ? event).mapTo[ResponseData]
-      resultF.andThen{
-        case Success(x) => sdr ! x
-      }
-    }else{
-      sdr ! ResponseData("fail","不存在coordinator Manager",null)
-    }
-  }
   private def getResponseFromMaster(sdr: ActorRef, event: Any) = {
     if(activeMaster != null){
       val master = context.actorSelection(activeMaster.path)
@@ -83,11 +72,8 @@ class HttpServer extends ClusterRole {
     case event@ReRunWorkflowInstance(_,_) => getResponseFromWorkflowManager(sender, event)
     case event@KillWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
     case event@RemoveWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
-    case event@AddCoor(_) => getResponseFromCoordinatorManager(sender, event)
-    case event@CheckCoorXml(_) => getResponseFromCoordinatorManager(sender, event)
-    case event@RemoveCoor(_) => getResponseFromCoordinatorManager(sender, event)
-    case event@ResetCoor(_) => getResponseFromCoordinatorManager(sender,event)
-    case event@TriggerPostWorkflow(_) => getResponseFromCoordinatorManager(sender,event)
+    case event@Reset(_) => getResponseFromWorkflowManager(sender,event)
+    case event@Trigger(_) => getResponseFromWorkflowManager(sender,event)
     case event@ManualNewAndExecuteWorkFlowInstance(_, _) => getResponseFromWorkflowManager(sender, event)
     case event@GetWaittingInstances() => getResponseFromWorkflowManager(sender, event)
     
@@ -135,12 +121,14 @@ object HttpServer extends App{
           }else if(action == "get"){
             handleRequestWithResponseData("fail","暂时还没get方法",null)   
           }else if(action == "run"){
-             parameterMap {
-               paras => 
+             parameterMap { paras => 
                  handleRequestWithActor(ManualNewAndExecuteWorkFlowInstance(name, paras))
              }
-          }
-          else{
+          }else if(action == "reset"){
+               handleRequestWithActor(Reset(name))                    
+          }else if(action == "trigger"){
+               handleRequestWithActor(Trigger(name))                    
+          }else{
         	  handleRequestWithResponseData("fail","action参数有误",null)                      
           }
         }
@@ -158,40 +146,6 @@ object HttpServer extends App{
             	}
             }
           }  
-        }
-      }
-    }
-    //coordinator
-    val coorRoute = path("akkaflow" / "coor" / Segment){           
-      name => parameter('action){
-        action => {
-          if(action == "del"){
-           handleRequestWithActor(RemoveCoor(name))                    
-          }else if(action == "get"){
-        	  handleRequestWithResponseData("fail","暂时还没get方法",null)                      
-          }else if(action == "reset"){
-            handleRequestWithActor(ResetCoor(name))  
-          }else if(action == "trigger"){
-            handleRequestWithActor(TriggerPostWorkflow(name)) 
-          }else{
-        	  handleRequestWithResponseData("fail","action参数有误",null)                     
-          }
-        }
-      }
-    } ~ path("akkaflow" / "coor"){
-      post{
-        formField('xml){ content =>
-          parameter('action){
-            action => {
-              if(action == "add" && content != null && content.trim() != ""){
-            	  handleRequestWithActor(AddCoor(content)) 	  
-            	}else if(action == "check" && content != null && content.trim() != ""){
-            	  handleRequestWithActor(CheckCoorXml(content)) 	  
-            	}else{
-            	  handleRequestWithResponseData("fail","action参数有误",null)    
-            	}
-            }
-          }
         }
       }
     }
@@ -229,7 +183,7 @@ object HttpServer extends App{
       }
     }
     
-    val route = wfRoute ~ coorRoute ~ wfiRoute ~ clusterRoute
+    val route = wfRoute ~ wfiRoute ~ clusterRoute
   
    val bindingFuture = Http().bindAndHandle(route, "localhost", 8090)
    def shutdwon(){

@@ -1,0 +1,29 @@
+<work-flow name="test_c" creator="Kent" mail-receivers="15018735011@163.com"
+    dir="/TMP" desc="测试c">
+  <!-- 调度配置 -->
+  <coordinator is-enabled="true">
+      <depend-list> 
+          <workflow name="test_a"></workflow>
+          <workflow name="test_b"></workflow>
+      </depend-list>
+      <param-list>
+          <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
+      </param-list>
+  </coordinator>
+  <!-- 节点列表 -->
+  <start name="start" to="script" />
+
+  <action name="script" desc = "执行脚本">
+      <script>
+          <code><![CDATA[ 
+            for i in `seq 0 15`;do
+                sleep 1
+                echo -e "$i****${param:stadate}***testc";
+            done
+          ]]></code>
+      </script>
+      <ok to="end"></ok>
+  </action>
+
+  <end name="end"/>
+</work-flow>

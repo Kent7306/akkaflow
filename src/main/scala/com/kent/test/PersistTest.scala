@@ -56,7 +56,6 @@ object PersistTest extends App{
       </work-flow>
       """
     
-  import com.kent.coordinate.CoordinatorManager._
   import com.kent.workflow.WorkFlowManager._
   val config = ConfigFactory.parseString(conf)
   val system = ActorSystem("akkaflow", config)

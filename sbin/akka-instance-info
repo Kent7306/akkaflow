@@ -3,11 +3,11 @@ cd `dirname $0`
 source ./head.sh
 
 ##显示基本信息
-function f_base() 
+function f_base()
 {
     wfid=$1
     ins_data=`
-    local_mysql -s -N -e "use wf;
+    akka_mysql -s -N -e "use $mysql_db;
     select id c1,name c2,param c3,stime c4,etime c5,create_time c6,dir c7,
            case status when 1 then '运行中'
               when 3 then '成功'
@@ -19,31 +19,28 @@ function f_base()
     from workflow_instance where id='$wfid'
     " 2>/dev/null`
 
-    wf_name=`echo "$ins_data" | awk -F '\t' '{print $2}'`
-
-    depend_coors=`
-    local_mysql -s -N -e "use wf;
-    select name cname from coordinator where JSON_CONTAINS(triggers,'[\"$wf_name\"]')
-    " 2>/dev/null`
+    #echo -e "$ins_data" | awk -F '\t' '{print $3}'
+    ins_param=`echo -e "$ins_data" | awk -F '\t' '{tmp=$3;gsub(/"|\{|\}| /,"",tmp);gsub(/,/,", ",tmp)} END{print tmp}'`
+    mail_level=`echo -e "$ins_data" | awk -F '\t' '{tmp=$10;gsub(/"|\[|\]| /,"",tmp);
+                gsub(/W_FAILED/,"失败告警",tmp);gsub(/W_KILLED/,"杀死告警",tmp);gsub(/W_SUCCESSED/,"成功告警",tmp)} END{print tmp}'`
 
 
-    echo -e "=================================${GREEN}工作流信息${NC}====================================="
-    echo "$ins_data" | awk -F '\t' -v dcoors=$depend_coors '{
+    echo -e "=================================${CYAN}工作流实例信息${NC}====================================="
+    echo "$ins_data" | awk -F '\t' -v para="$ins_param" -v ml="$mail_level" '{
         print "实 例 ID: "$1
         print "工 作 流: "$2
         print "运行状态: "$8
         print "开始时间: "$4
         print "运行时长: "$13
         print "目    录: "$7
-        print "参    数: "$3
-        print "告警级别: "$10
+        print "参    数: "para
+        print "告警级别: "ml
         print "收件人员: "$11
         print "实例上限: "$12
-        print "前置依赖: "dcoors
         print "描    述: "$9
     }'
-    echo -e "=================================${GREEN}节点运行信息${NC}====================================="
-    local_mysql -e "use wf;
+    echo -e "=================================${CYAN}节点运行信息${NC}====================================="
+    akka_mysql -e "use $mysql_db;
     select name 节点名称,type 节点类型,case status when 1 then '运行中'
                   when 3 then '成功'
                   when 4 then '失败'
@@ -56,25 +53,26 @@ function f_base()
 }
 
 ##显示日志
-function f_log() 
+function f_log()
 {
     wfid=$1
-    echo -e "=================================${GREEN}实例日志信息${NC}====================================="
-    local_mysql -s -e "use wf;
-    select concat('[',level,'] [',stime,']',if(ctype='ACTION_NODE_INSTANCE',concat('[',name,']'),'')) 日志信息,content 内容      
-    from log_record where sid = '$wfid' 
+    echo -e "=================================${CYAN}实例日志信息${NC}====================================="
+    akka_mysql -s -e "use $mysql_db;
+    select concat('[',level,'] [',stime,']',if(ctype='ACTION_NODE_INSTANCE',concat('[',name,']'),'')) 日志信息,content 内容
+    from log_record where sid = '$wfid'
     order by stime;
     "  2>/dev/null
 }
 
 ##显示xml
-function f_xml() 
+function f_xml()
 {
     wfid=$1
-    echo -e "=================================${GREEN}实例xml信息${NC}====================================="
-    local_mysql -s -e "use wf;
+    echo -e "=================================${CYAN}实例xml信息${NC}====================================="
+    akka_mysql -s -e "use $mysql_db;
     select xml_str from workflow_instance where id='$wfid'
-    "  2>/dev/null | awk '{gsub(/\\\\n/,"@@@@",$0);print $0}' | awk '{gsub(/\\n/,"\n",$0);print $0}' |  awk '{gsub(/@@@@/,"\\\\n",$0);print $0}'
+    "  2>/dev/null | awk '{gsub(/\\\\n/,"@@@@",$0);gsub(/\\\\t/,"!!!!",$0);print $0}' \
+    | awk '{gsub(/\\n/,"\n",$0);gsub(/\\t/,"\t",$0);print $0}' |  awk '{gsub(/@@@@/,"\\n",$0);gsub(/!!!!/,"\\t",$0);print $0}'
 }
 
 
@@ -110,4 +108,4 @@ elif [ "$show_type" == "xml" ];then
 else
     f_base $wfid
 fi
-exit 1
+exit 0

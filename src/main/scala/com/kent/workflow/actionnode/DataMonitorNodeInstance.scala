@@ -38,13 +38,13 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       val minDataOpt = if(nodeInfo.minThre != null) Some(getData(nodeInfo.minThre)) else None
       
       //异常则发送邮件
-      var defaultWarnMsg:String = null
+      val defaultWarnMsg:String = 
       if(maxDataOpt.isDefined && monitorData > maxDataOpt.get){
-        defaultWarnMsg = s"工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测高于上限(${maxDataOpt.get})"
-      }
-      if(minDataOpt.isDefined && monitorData < minDataOpt.get){
-        defaultWarnMsg = s"工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测低于下限(${minDataOpt.get})"
-      }
+        s"工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测高于上限(${maxDataOpt.get})"
+      }else if(minDataOpt.isDefined && monitorData < minDataOpt.get){
+        s"工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测低于下限(${minDataOpt.get})"
+      }else null
+      
       var content:String = null
       if(defaultWarnMsg != null){
     	  content = if(nodeInfo.warnMsg == null || nodeInfo.warnMsg.trim() == "") defaultWarnMsg else nodeInfo.warnMsg
@@ -134,14 +134,15 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       val lines = content.split("\n").filter { x => x.trim() != "" }.toList
       FileUtil.writeFile(executeFilePath,lines)
       FileUtil.setExecutable(executeFilePath, true)
-     // infoLog(s"写入到文件：${executeFilePath}")
-      //执行
-     // infoLog(s"执行命令: ${executeFilePath}")
+     try {
       val rsNum: String = s"${executeFilePath}" !!
       val num = rsNum.trim().toDouble
-      val file = new File(executeFilePath)
-      FileUtil.deleteDirOrFile(file)
       num
+     }catch{
+       case e: Exception => throw e
+     }finally{
+    	 FileUtil.deleteDirOrFile(new File(executeFilePath))       
+     }
     }
     /**
      * 获取直接输入的数据

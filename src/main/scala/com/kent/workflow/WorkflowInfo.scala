@@ -16,6 +16,11 @@ import com.kent.workflow.WorkflowInfo.WStatus
 import org.json4s.JsonAST.JString
 import com.kent.pub.Directory
 import com.kent.coordinate.ParamHandler
+import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType._
+import com.kent.db.LogRecorder
+import com.kent.main.Master
+import com.kent.pub.Event._
 
 class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Daoable[WorkflowInfo] {
 	import com.kent.workflow.WorkflowInfo.WStatus._
@@ -28,7 +33,42 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   var dir: Directory = null
   var instanceLimit: Int = 1
   var xmlStr: String = _
+  //提取出来的参数列表
   var params = List[String]()
+  var coorOpt: Option[Coor] = None
+  /**
+   * 重置调度器
+   */
+  def resetCoor():Boolean = {
+	  if(this.coorOpt.isDefined){
+	    if(this.coorOpt.get.cron == null || this.coorOpt.get.cron.setNextExecuteTime()){
+      	this.coorOpt.get.depends.foreach { _.isReady = false}
+      	Master.persistManager ! Save(this.deepClone())
+      	true      
+      }else{
+      	false
+      }
+	  }else{
+	    false
+	  }
+	}
+  /**
+	 * 修改指定前置依赖工作流的状态
+	 */
+	def changeDependStatus(dependWfName: String, dependIsReady:Boolean) = {
+	  if(this.coorOpt.isDefined){
+	    this.coorOpt.get.depends.filter { _.workFlowName == dependWfName }.foreach { x =>
+	    x.isReady = dependIsReady 
+  		LogRecorder.info(WORKFLOW_MANAGER, null, this.name, s"前置依赖工作流[${dependWfName}]准备状态设置为：${dependIsReady}")
+	  }
+	  Master.persistManager ! Save(this.deepClone())
+	    
+	    
+	  }
+	  
+	  
+	}
+	
   
   def delete(implicit conn: Connection): Boolean = {
     var result = false
@@ -36,7 +76,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
       conn.setAutoCommit(false)
 	    result = executeSql(s"delete from workflow where name='${name}'")
 	    executeSql(s"delete from node where workflow_name='${name}'")
-	    executeSql(s"delete from directory_info where name = '${name}' and dtype = '1'")
+	    executeSql(s"delete from directory where name = '${name}'")
 	    conn.commit()
     }catch{
       case e: SQLException => e.printStackTrace();conn.rollback()
@@ -68,21 +108,28 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
       conn.setAutoCommit(false)
       //保存父目录
      dir.saveLeafNode(name)
+     
+     val coorEnabled = if(coorOpt.isDefined && coorOpt.get.isEnabled) "1" 
+                     else if(coorOpt.isDefined) "0" else null
+     val coorCron = if(coorOpt.isDefined) coorOpt.get.cronStr else null
+     val coorDepends = if(coorOpt.isDefined) compact(coorOpt.get.depends.map(x => ("name" -> x.workFlowName) ~ ("is_ready" -> x.isReady)).toList) else null
+     val coorParamStr = if(coorOpt.isDefined) compact(render(coorOpt.get.paramList)) else null
+     val coorSTime = if(coorOpt.isDefined) formatStandarTime(coorOpt.get.startDate) else null
+     val coorETime = if(coorOpt.isDefined) formatStandarTime(coorOpt.get.endDate) else null
+     val coorCronNextTime = if(coorOpt.isDefined && coorOpt.get.cron != null) formatStandarTime(coorOpt.get.cron.nextExecuteTime) else null
+     
   	  val insertSql = s"""
   	     insert into workflow values(${withQuate(name)},${withQuate(creator)},${withQuate(dir.dirname)},${withQuate(desc)},
   	     ${withQuate(levelStr)},${withQuate(receiversStr)},${instanceLimit},
   	     ${withQuate(paramsStr)}, ${withQuate(transformXmlStr(xmlStr))},
-  	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))})
+  	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))},
+  	     ${withQuate(coorEnabled)},${withQuate(coorParamStr)},${withQuate(coorCron)},${withQuate(coorCronNextTime)},
+  	     ${withQuate(coorDepends)},${withQuate(coorSTime)},${withQuate(coorETime)}
+  	     )
   	    """
   	  val updateSql = s"""
-  	    update workflow set description = ${withQuate(desc)}, 
-  	                        creator = ${withQuate(creator)},
-  	                        dir = ${withQuate(dir.dirname)},
-  	                        mail_level = ${withQuate(levelStr)}, 
-  	                        mail_receivers = ${withQuate(receiversStr)}, 
-  	                        params = ${withQuate(paramsStr)},
-  	                        xml_str = ${withQuate(Util.transformXmlStr(xmlStr))},
-  	                        instance_limit = ${instanceLimit},
+  	    update workflow set coor_depends = ${withQuate(coorDepends)}, 
+  	                        coor_next_cron_time = ${withQuate(coorCronNextTime)},
   	                        last_update_time = ${withQuate(formatStandarTime(nowDate))}
   	    where name = '${name}'
   	    """
@@ -100,9 +147,8 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 }
 
 object WorkflowInfo {
-  def apply(content: String): WorkflowInfo = {
-      val node = XML.loadString(content)
-      //val a = WStatus.withName("W_FAILED")
+  def apply(xmlStr: String): WorkflowInfo = {
+      val node = XML.loadString(xmlStr)
       val nameOpt = node.attribute("name")
       val creatorOpt = node.attribute("creator")
       val descOpt = node.attribute("desc")
@@ -111,28 +157,38 @@ object WorkflowInfo {
       val mailReceiversOpt = node.attribute("mail-receivers")
       val intanceLimitOpt = node.attribute("instance-limit")
       val dirOpt = node.attribute("dir")
+      val coorNodeOpt = node \ "coordinator"
       if(nameOpt == None) throw new Exception("节点<work-flow/>未配置name属性")
       val wf = new WorkflowInfo(nameOpt.get.text)
+      wf.createTime = if(createTimeOpt != None) Util.getStandarTimeWithStr(createTimeOpt.get.text) else Util.nowDate
       if(descOpt != None) wf.desc = descOpt.get.text
-    	wf.nodeList = (node \ "_").map{x => val n = NodeInfo(x); n.workflowName = nameOpt.get.text; n }.toList
-    	wf.createTime = if(createTimeOpt != None) Util.getStandarTimeWithStr(createTimeOpt.get.text) else Util.nowDate
-    	if(mailLevelOpt.isDefined){
+    	//工作流节点解析
+      wf.nodeList = (node \ "_").filter { x => x.label != "coordinator"}.map{x => val n = NodeInfo(x); n.workflowName = nameOpt.get.text; n }.toList
+    	//调度器配置
+      wf.coorOpt = if(coorNodeOpt.size == 1) Some(Coor(coorNodeOpt(0))) else None
+      
+      //邮件级别
+      if(mailLevelOpt.isDefined){
     	  val levels = mailLevelOpt.get.text.split(",")
     	  wf.mailLevel = levels.map { x => WStatus.withName(x)}.toList   //??? 这里可能后续要调整一下，不直接用枚举名称
     	}else{
     	  wf.mailLevel= List(WStatus.W_FAILED)
     	}
+      //邮件接收人
     	if(!mailReceiversOpt.isEmpty){
     	  wf.mailReceivers = mailReceiversOpt.get.text.split(",").toList
     	}
+    	//实例上限
     	if(!intanceLimitOpt.isEmpty){
     	  wf.instanceLimit = intanceLimitOpt.get.text.toInt
     	}
-    	wf.dir = if(dirOpt.isEmpty) Directory("/tmp",1) else Directory(dirOpt.get.text,1)
+    	//存放目录
+    	wf.dir = if(dirOpt.isEmpty) Directory("/tmp") else Directory(dirOpt.get.text)
+    	//创建者
     	wf.creator = if(creatorOpt.isEmpty) "Unknown" else creatorOpt.get.text
     	
-    	wf.xmlStr = content
-    	wf.params = ParamHandler.extractParams(content)
+    	wf.xmlStr = xmlStr
+    	wf.params = ParamHandler.extractParams(xmlStr)
     	wf
   }
   
@@ -148,7 +204,7 @@ object WorkflowInfo {
       status match {
         case W_PREP => "就绪"
         case W_RUNNING => "运行中"
-        case W_SUSPENDED => "成功"
+        case W_SUCCESSED => "成功"
         case W_FAILED => "失败"
         case W_KILLED => "杀死"
       }

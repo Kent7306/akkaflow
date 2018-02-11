@@ -57,7 +57,7 @@ while [ $# -gt 0 ];do
 done
 
 echo "=================================查询结果====================================="
-local_mysql -e "use wf;
+akka_mysql -e "use $mysql_db;
 select id 实例ID,name 工作流,
        case when status = '0' then '就绪'
            when status = '1' then '运行中'
@@ -68,20 +68,20 @@ select id 实例ID,name 工作流,
            else '--' end 状态,
        stime 开始时间,
        etime 结束时间,UNIX_TIMESTAMP(if(etime is null,curtime(),etime)) - UNIX_TIMESTAMP(STIME) 运行时长
-from workflow_instance 
+from workflow_instance
 where date_format(stime,'%Y-%m-%d') between '${sdate}' and '${edate}'
   and (id like '%${keyword}%' or name like '%${keyword}%')
-  and (status = '${status}' or '${status}' = '-1') 
+  and (status = '${status}' or '${status}' = '-1')
   and (creator = '${creator}' or '${creator}' = '-1')
 order by stime desc limit 500
 " 2>/dev/null
 
-len=`local_mysql -s -N -e "use wf;
+len=`akka_mysql -s -N -e "use $mysql_db;
 select count(1)
-from workflow_instance 
+from workflow_instance
 where date_format(stime,'%Y-%m-%d') between '${sdate}' and '${edate}'
   and (id like '%${keyword}%' or name like '%${keyword}%')
-  and (status = '${status}' or '${status}' = '-1') 
+  and (status = '${status}' or '${status}' = '-1')
   and (creator = '${creator}' or '${creator}' = '-1')
 order by stime desc limit 500
 " 2>/dev/null`

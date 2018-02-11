@@ -8,7 +8,7 @@ import java.sql.DriverManager
  * dirname: 目录
  * dtype: 0 -> coordinator, 1 -> workflow
  */
-class Directory(val dirname: String,val dtype: Int) extends Daoable[Directory] with DeepCloneable[Directory]{
+class Directory(val dirname: String) extends Daoable[Directory] with DeepCloneable[Directory]{
   private val dirLevels = dirname.split("/").filter { x => x.trim() != "" }.toList
   def delete(implicit conn: Connection): Boolean = {
     ???
@@ -50,8 +50,8 @@ class Directory(val dirname: String,val dtype: Int) extends Daoable[Directory] w
     import com.kent.util.Util._
     val sql = s"""
       select id 
-      from directory_info 
-      where name=${withQuate(name)} and pid=${pid} and dtype=${dtype} and is_leaf=0
+      from directory 
+      where name=${withQuate(name)} and pid=${pid} and is_leaf=0
     """
     val result = querySql[String](sql, rs => {
       if (rs.next()) rs.getString("id") else null
@@ -62,8 +62,8 @@ class Directory(val dirname: String,val dtype: Int) extends Daoable[Directory] w
     import com.kent.util.Util._
     val sql = s"""
       select id 
-      from directory_info 
-      where name=${withQuate(name)} and pid=${pid} and dtype=${dtype} and is_leaf=1
+      from directory 
+      where name=${withQuate(name)} and pid=${pid} and is_leaf=1
     """
     val result = querySql[String](sql, rs => {
       if (rs.next()) rs.getString("id") else null
@@ -72,18 +72,18 @@ class Directory(val dirname: String,val dtype: Int) extends Daoable[Directory] w
   }
   private def saveFolder(name: String, pid: Int)(implicit conn: Connection):Boolean = {
     import com.kent.util.Util._
-    val insertSql = s"insert into directory_info values(null,${pid},0,${dtype},${withQuate(name)},null)"
+    val insertSql = s"insert into directory values(null,${pid},0,${withQuate(name)},null)"
     //println(insertSql);
     executeSql(insertSql)
   }
   private def saveLeafNode(name: String, pid: Int)(implicit conn: Connection):Boolean = {
     import com.kent.util.Util._
-    val insertSql = s"insert into directory_info values(null,${pid},1,${dtype},${withQuate(name)},null)"
+    val insertSql = s"insert into directory values(null,${pid},1,${withQuate(name)},null)"
     executeSql(insertSql)
   }
   private def delLeafNode(name: String)(implicit conn: Connection):Boolean = {
     import com.kent.util.Util._
-    val delSql = s"delete from directory_info where name = ${withQuate(name)} and is_leaf = 1 and dtype = ${dtype}"
+    val delSql = s"delete from directory where name = ${withQuate(name)} and is_leaf = 1"
     executeSql(delSql)
   }
   
@@ -91,9 +91,9 @@ class Directory(val dirname: String,val dtype: Int) extends Daoable[Directory] w
 }
 
 object Directory extends App{
-  def apply(dirname: String,dtype: Int): Directory = new Directory(dirname, dtype)
-  val a = Directory("/home//2222/",0)
-  val b = Directory("/home///111/",1)
+  def apply(dirname: String): Directory = new Directory(dirname)
+  val a = Directory("/home//2222/")
+  val b = Directory("/home///111/")
   
   implicit var connection: Connection = null
   Class.forName("com.mysql.jdbc.Driver")

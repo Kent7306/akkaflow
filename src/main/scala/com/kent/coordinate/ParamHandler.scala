@@ -105,8 +105,8 @@ object ParamHandler{
     if(xmlContent == null) return null
     //这里有个问题，目前测试了解，scala正则表达式只能单行匹配，所以先把\n替换成#@@#
     val expr2 = xmlContent.replace("\n", "#@@#")
-    val pattern = "\\$\\{.*?param.*?:.*?\\}".r
-    val pattern2 = "\\$\\{.*?param.*?:(.*?)\\}".r
+    val pattern = "\\$\\{\\s*?param\\s*?:.*?\\}".r
+    val pattern2 = "\\$\\{\\s*?param\\s*?:(.*?)\\}".r
     val pSet = pattern.findAllIn(expr2).map { x => val pattern2(param) = x; param.trim() }.toSet
     pSet.toList
   }

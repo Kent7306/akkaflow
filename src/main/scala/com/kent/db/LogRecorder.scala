@@ -132,7 +132,7 @@ object LogRecorder {
   
   object LogType extends Enumeration {
     type LogType = Value
-    val COORDINATOR, WORFLOW_INSTANCE, ACTION_NODE_INSTANCE,WORKFLOW_MANAGER  = Value 
+    val WORFLOW_INSTANCE, ACTION_NODE_INSTANCE,WORKFLOW_MANAGER  = Value 
   }
   
   import com.kent.db.LogRecorder.LogType._

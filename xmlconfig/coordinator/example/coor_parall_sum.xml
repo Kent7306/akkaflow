@@ -1,9 +1,0 @@
-<coordinator name="coor_parall_sum" is-enabled="false" dir="/example" desc="每半小时启动" >    
-    <depend-list cron="*/1 * * * *"></depend-list>
-    <trigger-list>
-      	<workflow name="wf_parall_sum"></workflow>
-    </trigger-list>
-    <param-list>
-        <param name="stadate" value="${time.today|yyyy-MM-dd}"/>
-    </param-list>
-</coordinator>

@@ -3,7 +3,6 @@ package com.kent.workflow
 import akka.actor.Actor
 import akka.pattern.{ ask, pipe }
 import akka.actor.ActorLogging
-import com.kent.coordinate.Coordinator
 import akka.actor.ActorRef
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Terminated
@@ -27,6 +26,7 @@ import com.kent.ddata.HaDataStorager._
 import com.kent.pub.ActorTool
 import com.kent.pub.DaemonActor
 import com.kent.db.LogRecorder.LogType
+import com.kent.db.LogRecorder.LogType.WORKFLOW_MANAGER
 import com.kent.db.LogRecorder.LogType._
 import com.kent.db.LogRecorder
 import java.io.File
@@ -50,8 +50,6 @@ class WorkFlowManager extends DaemonActor {
    * 等待队列
    */
   val waittingWorkflowInstance = scala.collection.mutable.ListBuffer[WorkflowInstance]()
-
-  var coordinatorManager: ActorRef = _
   //调度器
   var scheduler: Cancellable = _
   
@@ -78,7 +76,7 @@ class WorkFlowManager extends DaemonActor {
   def start(): Boolean = {
     init()
     LogRecorder.info(WORKFLOW_MANAGER, null, null, s"启动扫描...")
-    this.scheduler = context.system.scheduler.schedule(200 millis, 2000 millis) {
+    this.scheduler = context.system.scheduler.schedule(2000 millis, 300 millis) {
       self ! Tick()
     }
     true
@@ -87,7 +85,9 @@ class WorkFlowManager extends DaemonActor {
    * 扫描等待队列
    */
   def tick() {
-    //从等待队列中找到满足运行的工作流实例
+    /**
+     * 从等待队列中找到满足运行的工作流实例（实例上限）
+     */
     def getSatisfiedWFIfromWaitingWFIs(): Option[WorkflowInstance] = {
       for (wfi <- waittingWorkflowInstance) {
         val runningInstanceNum = workflowActors.map { case (x, (y, z)) => y }
@@ -100,11 +100,20 @@ class WorkFlowManager extends DaemonActor {
       }
       None
     }
+    //调度触发
+    workflows.foreach { case(name,wf) => 
+      if (wf.coorOpt.isDefined && wf.coorOpt.get.isSatisfyTrigger()) {
+        this.newAndExecute(wf.name, wf.coorOpt.get.translateParam())
+        wf.resetCoor()
+      }
+    }
+    
+    //开始运行实例
     val wfiOpt = getSatisfiedWFIfromWaitingWFIs()
     if (!wfiOpt.isEmpty) {
       val wfi = wfiOpt.get
       val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
-      LogRecorder.info(WORKFLOW_MANAGER, wfi.id, wfi.workflow.name, s"开始生成并执行工作流实例：${wfi.actorName}")
+      LogRecorder.info(WORKFLOW_MANAGER, wfi.id, wfi.workflow.name, s"开始生成并执行工作流实例：${wfi.workflow.name}:${wfi.actorName}")
       workflowActors = workflowActors + (wfi.id -> (wfi, wfActorRef))
       Master.haDataStorager ! AddRWFI(wfi)
       wfActorRef ! Start()
@@ -131,7 +140,10 @@ class WorkFlowManager extends DaemonActor {
   }
   def add(wf: WorkflowInfo, isSaved: Boolean): ResponseData = {
     LogRecorder.info(WORKFLOW_MANAGER, null, wf.name, s"配置添加工作流：${wf.name}")
-    if (isSaved) Master.persistManager ! Save(wf)
+    if (isSaved) {
+      Master.persistManager ! Delete(wf)
+      Master.persistManager ! Save(wf)
+    }
     Master.haDataStorager ! AddWorkflow(wf)
 
     if (workflows.get(wf.name).isEmpty) {
@@ -214,6 +226,7 @@ class WorkFlowManager extends DaemonActor {
       ResponseData("fail", s"工作流${wfName}不存在", null)
     } else {
       val wfi = WorkflowInstance(workflows(wfName), paramMap)
+      wfi.isAutoTrigger = false
       //把工作流实例加入到等待队列中
       waittingWorkflowInstance += wfi
       Master.haDataStorager ! AddWWFI(wfi)
@@ -228,94 +241,43 @@ class WorkFlowManager extends DaemonActor {
     val (_, af) = this.workflowActors.get(wfInstance.id).get
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.id }
     Master.haDataStorager ! RemoveRWFI(wfInstance.id)
-    Thread.sleep(1000)
     LogRecorder.info(WORKFLOW_MANAGER, wfInstance.id, wfInstance.workflow.name, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.getStatus()}")
-    coordinatorManager ! WorkFlowExecuteResult(wfInstance.workflow.name, wfInstance.getStatus())
+    //设置各个工作流前置任务的状态
+    if(wfInstance.getStatus() == W_SUCCESSED && wfInstance.isAutoTrigger)
+      workflows.foreach{ case(name, wf) => if(wf.coorOpt.isDefined){
+          wf.changeDependStatus(wfInstance.workflow.name, true)
+        }
+      }
     //根据状态发送邮件告警
-    Thread.sleep(3000)
     if (wfInstance.workflow.mailLevel.contains(wfInstance.getStatus())) {
-      val result = htmlMail(wfInstance).map { x => 
-        EmailMessage(wfInstance.workflow.mailReceivers,"【Akkaflow告警】",x,List[String]())  
+    	Thread.sleep(3000)
+    	val relateWfs = getAllTriggerWfs(wfInstance.workflow.name, this.workflows, scala.collection.mutable.ArrayBuffer[WorkflowInfo]())
+    	val relateReceivers = relateWfs.flatMap { x => x.mailReceivers }.distinct
+      val result = wfInstance.htmlMail(relateWfs).map { html => 
+        EmailMessage(relateReceivers, "【Akkaflow告警】", html, List[String]())  
       }
       result pipeTo Master.emailSender
     }
     true
   }
-  def htmlMail(wfi: WorkflowInstance): Future[String] = {
-    val part1 = s"""
-<style> 
-  .table-n {text-align: center; border-collapse: collapse;border:1px solid black}
-  .table-n th{background-color: #d0d0d0}
-  
-  /*.warn {width:50px;background-color: orange;margin-right: 5px;border-radius:4px;text-align: center;float: left}
-  .error {width:50px;background-color: red;margin-right: 5px;border-radius:4px;text-align: center;float: left}
-  .info {width:50px;background-color: #349bfc;margin-right: 5px;border-radius:4px;text-align: center;float: left}*/
-  .warn {color:orange;}
-  .error {color:red;}
-  .info {color:blue;}
-  pre {margin:3px;}
-  h3 {margin-bottom: 5px}
-</style> 
-      """
-    val part2 = s"""
-<h3>实例执行基本信息</h3>
-<table>
-	<tr><td width="100">实例ID</td><td>${wfi.id}</td></tr>
-	<tr><td>工作流</td><td>${wfi.workflow.name}</td></tr>
-	<tr><td>运行状态</td><td>${WStatus.getStatusName(wfi.getStatus())}</td></tr>
-	<tr><td>开始时间</td><td>${Util.formatStandarTime(wfi.startTime)}</td></tr>
-	<tr><td>运行时长</td><td>${((wfi.endTime.getTime-wfi.startTime.getTime)/1000).toInt}</td></tr>
-	<tr><td>目录</td><td>${wfi.workflow.dir.dirname}</td></tr>
-	<tr><td>参数</td><td>${wfi.paramMap.map{case(k,v) => s"$k:$v"}.mkString(", ")}</td></tr>
-	<tr><td>告警级别</td><td>${wfi.workflow.mailLevel.mkString(",")}</td></tr>
-	<tr><td>收件人员</td><td>${wfi.workflow.mailReceivers.mkString(",")}</td></tr>
-	<tr><td>描述</td><td>${wfi.workflow.desc}</td></tr>
-</table>
-      """
-	import com.kent.workflow.node.NodeInfo.Status
-	
-	val nodesStr = wfi.nodeInstanceList.map { x => s"""
-	  <tr>
-	    <td>${x.nodeInfo.name}</td>
-	    <td>${x.nodeInfo.getType}</td>
-	    <td>${Status.getStatusName(x.status)}</td>
-	    <td>${Util.formatStandarTime(x.startTime)}</td>
-	    <td>${if(x.startTime == null || x.endTime == null) "--" 
-	      else ((x.endTime.getTime-x.startTime.getTime)/1000).toInt}</td>
-	    <td>${x.executedMsg}</td>
-	    <td>${x.nodeInfo.desc}</td>
-	  </tr>
-	  """ }.mkString("\n")
-	
-      val part3 = s"""
-<h3>节点执行信息</h3>
-<table class="table-n" border="1">
-	<tr>
-		<th>节点名称</th><th>节点类型</th><th>节点状态</th><th>开始时间</th><th>运行时长</th><th>执行信息</th><th>描述</th>
-	</tr>
-	${nodesStr}
-</table>
-        """
-	  val logListF = (Master.logRecorder ? GetLog(null,wfi.id, null)).mapTo[List[List[String]]]
-	  logListF.map { rows => 
-	     val logLines = rows.map { cols => 
-	       val aDom = cols(0).toUpperCase() match {
-    	      case "INFO" => "<a style='color:blue;margin-right:15px;font-weight:bolder'>INFO    </a>"
-    	      case "WARN" => "<a style='color:orange;margin-right:15px;font-weight:bolder'>WARN  </a>"
-    	      case "ERROR" => "<a style='color:red;margin-right:15px;font-weight:bolder'>ERROR</a>"
-    	      case other => s"<a style='color:black;margin-right:15px;font-weight:bolder'>${other}</a>"
-    	    }
-	       s"""<pre>${aDom}[${cols(1)}][${cols(2)}] ${cols(3)}</pre>"""
-	     }.mkString("\n")
-	     val part4 = s"""
-	       <h3>执行日志</h3>
-	       $logLines
-	       """
-	     val html = part1 + part2 + part3 + part4
-	     html
-	  }
+  /**
+   * 得到后置触发任务的工作流列表(递归获取)
+   */
+  def getAllTriggerWfs(wfName: String, wfs:Map[String, WorkflowInfo],nextWfs: scala.collection.mutable.ArrayBuffer[WorkflowInfo]):List[WorkflowInfo] = {
+    if(wfs.get(wfName).isDefined && !nextWfs.exists { _.name == wfName }){
+      nextWfs += wfs(wfName)
+      wfs.foreach{case (name, wf) =>
+        if(wf.coorOpt.isDefined){
+          wf.coorOpt.get.depends.foreach {
+            case dep if(dep.workFlowName == wfName) =>  getAllTriggerWfs(name, wfs, nextWfs)
+            case _ => 
+            
+          }
+        }
+      }
+    }
+    nextWfs.toList
   }
-  
   
   /**
    * kill掉指定工作流实例
@@ -443,6 +405,33 @@ class WorkFlowManager extends DaemonActor {
       }
     }
   }
+    /**
+   * （调用）重置指定调度器
+   */
+  def resetCoor(wfName: String): ResponseData = {
+    if(!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isDefined){
+      workflows(wfName).resetCoor()
+      ResponseData("success",s"成功重置工作流[${wfName}]的调度器状态", null)
+    }else if(!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isEmpty){
+      ResponseData("fail",s"工作流[${wfName}]未配置调度", null)
+    }else{
+      ResponseData("fail",s"工作流[${wfName}]不存在", null)
+    }
+  }
+    /**
+   * （调用）触发指定工作流的调度器
+   */
+  def trigger(wfName: String):ResponseData = {
+    if(!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isDefined){
+      this.newAndExecute(wfName, workflows(wfName).coorOpt.get.translateParam())
+      workflows(wfName).resetCoor()
+      ResponseData("success",s"成功触发工作流[${wfName}]执行", null)
+    }else if(!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isEmpty){
+      ResponseData("fail",s"工作流[${wfName}]未配置调度", null)
+    }else{
+      ResponseData("fail",s"工作流[${wfName}]不存在", null)
+    }
+  }
   /**
    * receive方法
    */
@@ -454,7 +443,6 @@ class WorkFlowManager extends DaemonActor {
     case CheckWorkFlowXml(xmlStr) => sender ! this.checkXml(xmlStr)
     case RemoveWorkFlow(name) => this.remove(name) pipeTo sender
     case RemoveWorkFlowInstance(id) => this.removeInstance(id) pipeTo sender
-    case NewAndExecuteWorkFlowInstance(name, params) => this.newAndExecute(name, params)
     case ManualNewAndExecuteWorkFlowInstance(name, params) => sender ! this.manualNewAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
     case KillWorkFlowInstance(id) => this.killWorkFlowInstance(id) pipeTo sender
@@ -463,14 +451,13 @@ class WorkFlowManager extends DaemonActor {
     case ReRunWorkflowInstance(wfiId: String, isFormer: Boolean) => 
       val rsF = if(isFormer == true) this.reRunFormer(wfiId) else this.reRunNewest(wfiId)
       rsF pipeTo sender
-    case GetManagers(wfm, cm) =>
-      coordinatorManager = cm
-      context.watch(coordinatorManager)
+    //调度器操作
+    case Reset(wfName) => sender ! this.resetCoor(wfName)
+    case Trigger(wfName) => sender ! this.trigger(wfName)
+    
     case GetWaittingInstances() => sender ! getWaittingNodeInfo()
     //读取文件内容
     case GetFileContent(path)   => sender ! readFiles(path)
-
-    case Terminated(arf)        => if (coordinatorManager == arf) log.warning("coordinatorManager actor挂掉了...")
     case Tick()                 => tick()
   }
 }

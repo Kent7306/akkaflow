@@ -11,25 +11,17 @@ create table if not exists workflow(
     params JSON comment '参数名称集合,例: [sdate,otype]',
     xml_str text comment 'xml的内容',
     create_time datetime,
-    last_update_time datetime
+    last_update_time datetime,
+    
+    coor_enable int(1) comment '调度器是否可用',
+    coor_param JSON comment '调度器参数列表,例：[{"name":"stadate","value":"{time.yestoday|yyyy-mm-dd}"}]',
+    coor_cron varchar(128) comment '前置触发时间',
+    coor_next_cron_time datetime comment '下次时间触发',
+    coor_depends JSON comment '前置依赖工作流集合',
+    coor_stime datetime comment '调度器起始时间',
+    coor_etime datetime comment '调度器结束时间'
 );
 
-create table if not exists coordinator (
-    name varchar(128) primary key,
-    creator varchar(128),
-    param JSON,
-    dir varchar(128),
-    cron varchar(128),
-    depends JSON comment '工作流依赖id集合，例：[{name:xxxx, status:0},{name:xxx,status:0}]',
-    triggers JSON comment '触发工作流name集合，例：[xxxx，xxxx]',
-    stime datetime,
-    etime datetime,
-    is_enabled int,
-    description varchar(1024),
-    xml_str text comment 'xml的内容', 
-    create_time datetime,
-    last_update_time datetime
-);
 create table if not exists node (
     name varchar(128) not null,
     is_action int(1) comment '是否为action节点',
@@ -55,13 +47,7 @@ create table if not exists workflow_instance(
     last_update_time datetime,
     xml_str text comment 'xml的内容'
 );
-create table if not exists coordinator_trigger_record (
-    id varchar(8) primary key comment '标识',
-    coordinator_name varchar(128),
-    workflow_name varchar(128),
-    param JSON,
-    trigger_time datetime
-);
+
 create table if not exists node_instance (
     workflow_instance_id varchar(8) not null,
     name varchar(200) not null,
@@ -86,11 +72,10 @@ create table if not exists log_record (
     content varchar(1024)
 );
 
-create table if not exists directory_info(
+create table if not exists directory(
     id int(4) AUTO_INCREMENT primary key,
     pid int(4) not null,
     is_leaf int(1) not null comment '1: 叶子节点，0: 目录',
-    dtype int(1) not null comment '0: coordinator目录, 1: workflow目录',
     name varchar(128) not null,
     description varchar(1024)
 );

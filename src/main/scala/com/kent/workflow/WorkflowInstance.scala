@@ -24,6 +24,9 @@ import com.kent.pub.Event._
 import com.kent.main.Master
 import akka.pattern.{ ask, pipe }
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import akka.util.Timeout
+import scala.concurrent.duration._
 
 
 class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[WorkflowInstance] with Daoable[WorkflowInstance] {
@@ -34,28 +37,16 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   var endTime: Date = _
   private var status: WStatus = W_PREP     
   var nodeInstanceList:List[NodeInstance] = List()
-  
+  //是否完成时，自动触发下个依赖
+  var isAutoTrigger = true
+  /**
+   * 修改工作流状态
+   */
   def changeStatus(status: WStatus) = {
     this.status = status
     if(Master.persistManager!=null) Master.persistManager ! Save(this.deepClone())
   }
   def getStatus():WStatus = this.status
-  
-  override def toString: String = {
-    var str = this.getClass().getName + "(\n"
-    str = str + s"  id = ${id},\n"
-    str = str + s"  mailLevel = ${workflow.mailLevel},\n"
-    str = str + s"  toUser = ${workflow.mailReceivers},\n"
-    str = str + s"  name = ${workflow.name},\n"
-    str = str + s"paramMap = ${paramMap},\n"
-    str = str + s"  actorName = ${actorName},\n"
-    str = str + s"  status = ${status},\n"
-    str = str + s"  startTime = ${startTime},\n"
-    str = str + s"  endTime = ${endTime},\n"
-    this.nodeInstanceList.foreach { x => str = str + x.toString() }
-    str = str + s")"
-    str
-  }
    /**
    * 得到工作流的开始节点
    */
@@ -72,7 +63,100 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     this.endTime = null
     this.nodeInstanceList.foreach {ni => ni.reset()}
   }
+  /**
+   * 拼接工作流完成后的信息邮件
+   */
+  def htmlMail(relateWfs: List[WorkflowInfo])(implicit timeout:Timeout): Future[String] = {
+    val part1 = s"""
+<style> 
+  .table-n {text-align: center; border-collapse: collapse;border:1px solid black}
+  .table-n th{background-color: #d0d0d0}
   
+  /*.warn {width:50px;background-color: orange;margin-right: 5px;border-radius:4px;text-align: center;float: left}
+  .error {width:50px;background-color: red;margin-right: 5px;border-radius:4px;text-align: center;float: left}
+  .info {width:50px;background-color: #349bfc;margin-right: 5px;border-radius:4px;text-align: center;float: left}*/
+  .warn {color:orange;}
+  .error {color:red;}
+  .info {color:blue;}
+  pre {margin:3px;}
+  h3 {margin-bottom: 5px}
+</style> 
+      """
+    val part2 = s"""
+<h3>实例执行基本信息</h3>
+<table>
+	<tr><td width="100">实例ID</td><td>${this.id}</td></tr>
+	<tr><td>工作流</td><td>${this.workflow.name}</td></tr>
+	<tr><td>运行状态</td><td>${WStatus.getStatusName(this.getStatus())}</td></tr>
+	<tr><td>开始时间</td><td>${Util.formatStandarTime(this.startTime)}</td></tr>
+	<tr><td>运行时长</td><td>${((this.endTime.getTime-this.startTime.getTime)/1000).toInt}</td></tr>
+	<tr><td>目录</td><td>${this.workflow.dir.dirname}</td></tr>
+	<tr><td>参数</td><td>${this.paramMap.map{case(k,v) => s"$k:$v"}.mkString(", ")}</td></tr>
+	<tr><td>告警级别</td><td>${this.workflow.mailLevel.mkString(",")}</td></tr>
+	<tr><td>收件人员</td><td>${this.workflow.mailReceivers.mkString(",")}</td></tr>
+	<tr><td>描述</td><td>${this.workflow.desc}</td></tr>
+</table>
+      """
+	
+	val strTmp3 = relateWfs.map { x => s"""
+	           <tr>
+	           <td>${x.name}</td><td>${x.creator}</td><td>${x.mailReceivers.mkString(",")}</td>
+	           <td>${x.dir.dirname}</td><td>${x.desc}</td>
+	           </tr>""" }.toList.mkString("\n")
+	val part5 = s"""
+	  <h3>后置触发受影响的工作流列表</h3>
+	  <table class="table-n" border="1">
+  	<tr>
+  		<th>工作流名称</th><th>创建者</th><th>收件人</th><th>目录</th><th>描述</th>
+  	</tr>
+  	${strTmp3}
+	  </table>
+	  """
+	
+	
+	
+	import com.kent.workflow.node.NodeInfo.Status
+	val nodesStr = this.nodeInstanceList.map { x => s"""
+	  <tr>
+	    <td>${x.nodeInfo.name}</td>
+	    <td>${x.nodeInfo.getType}</td>
+	    <td>${Status.getStatusName(x.status)}</td>
+	    <td>${Util.formatStandarTime(x.startTime)}</td>
+	    <td>${if(x.startTime == null || x.endTime == null) "--" 
+	      else ((x.endTime.getTime-x.startTime.getTime)/1000).toInt}</td>
+	    <td>${x.executedMsg}</td>
+	    <td>${x.nodeInfo.desc}</td>
+	  </tr>
+	  """ }.mkString("\n")
+	
+      val part3 = s"""
+<h3>节点执行信息</h3>
+<table class="table-n" border="1">
+	<tr>
+		<th>节点名称</th><th>节点类型</th><th>节点状态</th><th>开始时间</th><th>运行时长</th><th>执行信息</th><th>描述</th>
+	</tr>
+	${nodesStr}
+</table>
+        """
+	  val logListF = (Master.logRecorder ? GetLog(null,this.id, null)).mapTo[List[List[String]]]
+	  logListF.map { rows => 
+	     val logLines = rows.map { cols => 
+	       val aDom = cols(0).toUpperCase() match {
+    	      case "INFO" => "<a style='color:blue;margin-right:15px;font-weight:bolder'>INFO    </a>"
+    	      case "WARN" => "<a style='color:orange;margin-right:15px;font-weight:bolder'>WARN  </a>"
+    	      case "ERROR" => "<a style='color:red;margin-right:15px;font-weight:bolder'>ERROR</a>"
+    	      case other => s"<a style='color:black;margin-right:15px;font-weight:bolder'>${other}</a>"
+    	    }
+	       s"""<pre>${aDom}[${cols(1)}][${cols(2)}] ${cols(3)}</pre>"""
+	     }.mkString("\n")
+	     val part4 = s"""
+	       <h3>执行日志</h3>
+	       $logLines
+	       """
+	     val html = part1 + part2 + part3 + part5 + part4
+	     html
+	  }
+  }
   
   def save(implicit conn: Connection): Boolean = {
     var result = false;

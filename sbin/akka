@@ -1,12 +1,12 @@
 #!/bin/bash
 source ~/.bash_profile
 
+cmd_dir=`dirname $0`
 cmd_dir=~/akkaflow/sbin
-
 function instance_cmd
 {
     if [ $# -lt 1 ];then
-        echo -e "【使用】"
+        echo -e "【使用说明】"
         echo -e "\takka instance -info <wf_id> :查看某工作流实例信息"
         echo -e "\takka instance -del <wf_id> :删除某工作流实例"
         echo -e "\takka instance -kill <wf_id> :杀死某运行中的工作流实例"
@@ -22,13 +22,15 @@ function instance_cmd
 function workflow_cmd
 {
     if [ $# -lt 1 ];then
-        echo -e "【使用】"
-        echo -e "\takka workflow -run <wf_name> [-p <params[xx1=xxx&xx2=xxxx]>] :查看某工作流实例信息"
-        echo -e "\takka workflow -del <wf_name> :删除某工作流"
+        echo -e "【使用说明】"
         echo -e "\takka workflow -info <wf_name> :查看某运工作流信息"
+        echo -e "\takka workflow -del <wf_name> :删除某工作流"
         echo -e "\takka workflow -list :查看所有工作流列表"
         echo -e "\takka workflow -add <xml文件> :提交工作流定义xml文件"
         echo -e "\takka workflow -check <xml文件> :测试某一工作流定义xml文件是否合法"
+        echo -e "\takka workflow -reset <wf_name> :重置工作流前置任务状态"
+        echo -e "\takka workflow -trigger <wf_name> :触发执行指定工作流 (成功执行后会触发后置任务)"
+        echo -e "\takka workflow -run <wf_name> [-p <params[xx1=xxx&xx2=xxxx]>] :自定义参数执行执行工作流 (单独跑该任务，成功执行后不会触发后置任务)"
     else
         cmd="sh $cmd_dir/akka-workflow$1"
         shift
@@ -36,33 +38,13 @@ function workflow_cmd
     fi
 }
 
-function coor_cmd
-{
-    if [ $# -lt 1 ];then
-        echo -e "【使用】"
-        echo -e "\takka coor -del <wf_name> :删除某调度器"
-        echo -e "\takka coor -info <wf_name> :查看某调度器信息"
-        echo -e "\takka coor -list :查看所有调度器列表"
-        echo -e "\takka coor -trigger <wf_name> :触发运行指定调度器的后置任务"
-        echo -e "\takka coor -reset <wf_name> :重置指定调度器的前置任务状态"
-        echo -e "\takka coor -add <xml文件> :提交调度器xml文件"
-        echo -e "\takka coor -check <xml文件> :测试某一调度器定义xml文件是否合法"
-    else
-        cmd="sh $cmd_dir/akka-coor$1"
-        shift
-        $cmd $@
-    fi
-}
-
-
 
 if [ $# -lt 1 ];then
-echo -e "【使用】\n\takka [ front| instance| workflow| coor]"
+echo -e "【使用】\n\takka [ front| instance| workflow]"
 echo -e "【说明】\n\takkaflow调度系统命令入口。"
 echo -e "\t1、akka front 调度系统首页"
 echo -e "\t2、akka instance 工作流实例操作命令集，详见该命令"
 echo -e "\t3、akka workflow 工作流操作命令集，详见该命令"
-echo -e "\t4、akka coor 调度器操作命令集，详见该命令"
 echo -e "【示例】\n\takka front"
 echo -e "\takka instance -info -log 574de284 (查看某实例)"
 echo -e "\takka workflow -kill 574de284 (杀死某运行中的实例)\n"
@@ -81,10 +63,6 @@ while [ $# -gt 0 ];do
       workflow)
         shift
         workflow_cmd $@
-        shift;;
-      coor)
-        shift
-        coor_cmd $@
         shift;;
       *)
        shift

@@ -8,12 +8,10 @@ import scalendar.toDate
 import com.kent.pub.DeepCloneable
 
 class CronComponent(private var _cronStr: String, private var _sdate: Date, private var _edate: Date) extends DeepCloneable[CronComponent] {
-  var nextExecuteTime: Date = null;
+  var nextExecuteTime: Date = _;
   def cronStr = _cronStr
-  def sdate = _sdate
-  def edate = _edate
-  def sdate_=(sdate: Date) = _sdate = sdate 
-  def edate_=(edate: Date) = _edate = edate
+  var sdate:Date = _sdate
+  var edate: Date = _edate
   
   val pattern = """(?i)every""".r
   @transient val cron = if(pattern.findFirstIn(_cronStr).isEmpty){
@@ -29,7 +27,7 @@ class CronComponent(private var _cronStr: String, private var _sdate: Date, priv
   def setNextExecuteTime(): Boolean = {
     val now = new Date()
     if(now.getTime > _sdate.getTime && now.getTime < _edate.getTime){
-    	this.nextExecuteTime = cron.nextTime.date
+      this.nextExecuteTime = cron.nextTime.date
     	true
     }else{
       false

@@ -10,7 +10,7 @@ function show_info
     date_arr[$i]=`date +"%F" -d "${stadate} -$i day"`
     done
     echo -e "=================================${GREEN}近七天实例执行统计${NC}====================================="
-    local_mysql -e "use wf;
+    akka_mysql -e "use $mysql_db;
     select status,
            sum(if(stadate='${date_arr[0]}',cnt,0)) '${date_arr[0]}',
            sum(if(stadate='${date_arr[1]}',cnt,0)) '${date_arr[1]}',
@@ -51,7 +51,7 @@ function show_info
 
 
     echo -e "=================================${GREEN}运行中工作流实例${NC}====================================="
-    local_mysql -e "use wf;
+    akka_mysql -e "use $mysql_db;
     select id 实例ID,name 工作流名称,creator 创建者,stime 开始时间,
            UNIX_TIMESTAMP(if(etime is null,curtime(),etime)) - UNIX_TIMESTAMP(STIME) 运行时长
     from workflow_instance where status = 1
@@ -59,7 +59,7 @@ function show_info
     " 2>/dev/null
     echo ""
     echo -e "=================================${GREEN}运行结束工作流实例${NC}====================================="
-    local_mysql -e "use wf;
+    akka_mysql -e "use $mysql_db;
     select id 实例ID,name 工作流名称,creator 创建者,
            case status when 1 then '运行中'
                   when 3 then '成功'

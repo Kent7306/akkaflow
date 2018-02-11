@@ -25,9 +25,7 @@ object Event {
   case class CheckCoorXml(xmlStr: String)
   case class RemoveCoor(name: String)
   case class UpdateCoor(content: String)
-  case class ResetCoor(name: String)
-  case class TriggerPostWorkflow(name: String)
-  case class GetManagers(workflowManager: ActorRef, coorManager: ActorRef)
+  
   //log-recorder
   case class Info(stime: Date,ctype: LogType, sid: String,name: String, content: String)
   case class Warn(stime: Date,ctype: LogType, sid: String,name: String, content: String)
@@ -42,7 +40,8 @@ object Event {
   //email-sender
   case class EmailMessage(toUsers: List[String],subject: String,htmlText: String, attachFiles: List[String])
   //wfm
-  case class NewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
+  case class Trigger(name: String)
+  case class Reset(wfName: String)
   case class ManualNewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
   case class KillWorkFlow(wfName: String)
   case class KllAllWorkFlow()
