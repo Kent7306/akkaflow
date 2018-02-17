@@ -59,8 +59,6 @@ object ActionNode {
         actionNode = SqlNode(nameOpt.get.text, childNode) 
       case <transfer>{content @ _*}</transfer> => 
         actionNode = TransferNode(nameOpt.get.text, childNode) 
-      case <sub-workflow>{content @ _*}</sub-workflow> => 
-        ???
       case _ => 
         throw new Exception(s"该[action:${nameOpt.get}]的类型不存在")
     }

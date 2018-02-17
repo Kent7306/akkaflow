@@ -47,9 +47,11 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       
       var content:String = null
       if(defaultWarnMsg != null){
-    	  content = if(nodeInfo.warnMsg == null || nodeInfo.warnMsg.trim() == "") defaultWarnMsg else nodeInfo.warnMsg
-			  val titleMark = if(nodeInfo.isExceedError) "Error" else "Warn"
-			  actionActor.sendMailMsg(null, s"【${titleMark}】data-monitor数据异常", content)
+    	  content = if(nodeInfo.warnMsg == null || nodeInfo.warnMsg.trim() == "") 
+    	    s"<p>${defaultWarnMsg}</p>" 
+    	  else s"<p>${defaultWarnMsg}</p>" + s"<p>${nodeInfo.warnMsg}</p>"
+			  val titleMark = if(nodeInfo.isExceedError) "失败" else "警告"
+			  actionActor.sendMailMsg(null, s"【Akkaflow】data-monitor节点执行${titleMark}", content)
 			  result = if(nodeInfo.isExceedError == true){
 			    errorLog(content)
 			    false 
@@ -69,7 +71,10 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       result
     }catch{
       case e:Exception => 
-        e.printStackTrace();
+        val content = s"""<p>工作实例【${this.id}】中节点【${nodeInfo.name}】监控执行出错,内容如下</p>
+            <p>${e.getMessage}</p>
+          """
+        actionActor.sendMailMsg(null, s"【Akkaflow】data-monitor节点执行失败", content)
         errorLog(e.getMessage)
         false
     }

@@ -254,7 +254,7 @@ class WorkFlowManager extends DaemonActor {
     	val relateWfs = getAllTriggerWfs(wfInstance.workflow.name, this.workflows, scala.collection.mutable.ArrayBuffer[WorkflowInfo]())
     	val relateReceivers = relateWfs.flatMap { x => x.mailReceivers }.distinct
       val result = wfInstance.htmlMail(relateWfs).map { html => 
-        EmailMessage(relateReceivers, "【Akkaflow告警】", html, List[String]())  
+        EmailMessage(relateReceivers, s"【Akkaflow】任务执行${WStatus.getStatusName(wfInstance.getStatus())}", html, List[String]())  
       }
       result pipeTo Master.emailSender
     }

@@ -206,7 +206,7 @@ object WorkflowInfo {
         case W_RUNNING => "运行中"
         case W_SUCCESSED => "成功"
         case W_FAILED => "失败"
-        case W_KILLED => "杀死"
+        case W_KILLED => "被杀死"
       }
     }
   }
