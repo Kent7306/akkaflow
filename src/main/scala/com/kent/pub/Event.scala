@@ -40,13 +40,15 @@ object Event {
   //email-sender
   case class EmailMessage(toUsers: List[String],subject: String,htmlText: String, attachFiles: List[String])
   //wfm
+  case class DBLink(name: String, jdbcUrl: String, username: String, password: String)
+  case class AddDBLinks(list: List[DBLink])
   case class Trigger(name: String)
   case class Reset(wfName: String)
   case class ManualNewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
   case class KillWorkFlow(wfName: String)
   case class KllAllWorkFlow()
   case class KillWorkFlowInstance(id: String)
-  case class AddWorkFlow(content: String)
+  case class AddWorkFlow(xmlStr: String, filePath: String)
   case class CheckWorkFlowXml(xmlStr: String)
   case class RemoveWorkFlow(wfName: String)
   case class RemoveWorkFlowInstance(id: String)

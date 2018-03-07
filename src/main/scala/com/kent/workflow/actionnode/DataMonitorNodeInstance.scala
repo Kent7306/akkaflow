@@ -31,35 +31,55 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
   override def execute(): Boolean = {
     //是否执行成功
     var result = true
-    
     try {
       val monitorData = getData(nodeInfo.source)
       val maxDataOpt = if(nodeInfo.maxThre != null) Some(getData(nodeInfo.maxThre)) else None
       val minDataOpt = if(nodeInfo.minThre != null) Some(getData(nodeInfo.minThre)) else None
+
+      if(maxDataOpt.isDefined && monitorData > maxDataOpt.get){
+      }else if(minDataOpt.isDefined && monitorData < minDataOpt.get){
+      }else{
+        return true
+      }
       
       //异常则发送邮件
-      val defaultWarnMsg:String = 
-      if(maxDataOpt.isDefined && monitorData > maxDataOpt.get){
-        s"工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测高于上限(${maxDataOpt.get})"
-      }else if(minDataOpt.isDefined && monitorData < minDataOpt.get){
-        s"工作实例【${this.id}】中节点【${nodeInfo.name}】监控的数据值${monitorData}检测低于下限(${minDataOpt.get})"
-      }else null
-      
-      var content:String = null
-      if(defaultWarnMsg != null){
-    	  content = if(nodeInfo.warnMsg == null || nodeInfo.warnMsg.trim() == "") 
-    	    s"<p>${defaultWarnMsg}</p>" 
-    	  else s"<p>${defaultWarnMsg}</p>" + s"<p>${nodeInfo.warnMsg}</p>"
-			  val titleMark = if(nodeInfo.isExceedError) "失败" else "警告"
-			  actionActor.sendMailMsg(null, s"【Akkaflow】data-monitor节点执行${titleMark}", content)
-			  result = if(nodeInfo.isExceedError == true){
-			    errorLog(content)
-			    false 
-			  }else {
-			    warnLog(content)
-			    result
-			  }
-      }
+  	  val max = if(maxDataOpt.isDefined) maxDataOpt.get else "未定义"
+  	  val min = if(minDataOpt.isDefined) minDataOpt.get else "未定义"
+  	    
+  	  if(nodeInfo.warnMsg == null || nodeInfo.warnMsg.trim() == ""){
+  	    nodeInfo.warnMsg = "检测值未在范围内"
+  	  }
+  	  
+  	  val content = s"""
+        <style> 
+        .table-n {text-align: center; border-collapse: collapse;border:1px solid black}
+        h3 {margin-bottom: 5px}
+        a {color:red;font-weight:bold}
+        </style> 
+        <h3>实例<data-monitor/>节点执行失败,内容如下</h3>
+        
+          <table class="table-n" border="1">
+            <tr><td>实例ID</td><td>${this.id}</td></tr>
+            <tr><td>节点名称</td><td>${nodeInfo.name}</td></tr>
+            <tr><td>告警信息</td><td><a>${nodeInfo.warnMsg}</a></td></tr>
+            <tr><td>上限</td><td><a>${max}</a></td></tr>
+            <tr><td>检测值</td><td><a>${monitorData}</a></td></tr>
+            <tr><td>下限</td><td><a>${min}</a></td></tr>
+            <tr><td>总重试次数</td><td>${nodeInfo.retryTimes}</td></tr>
+            <tr><td>当前重试次数</td><td>${this.hasRetryTimes}</td></tr>
+            <tr><td>重试间隔</td><td>${nodeInfo.interval}秒</td></tr>
+          </table>
+          <a>&nbsp;<a>
+        """
+		  val titleMark = if(nodeInfo.isExceedError) "失败" else "警告"
+		  actionActor.sendMailMsg(null, s"【Akkaflow】data-monitor节点执行${titleMark}", content)
+		  result = if(nodeInfo.isExceedError == true){
+		    errorLog(nodeInfo.warnMsg)
+		    false 
+		  }else {
+		    warnLog(nodeInfo.warnMsg)
+		    result
+		  }
       
       //保存数据
       if(nodeInfo.isSaved){
@@ -71,11 +91,27 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       result
     }catch{
       case e:Exception => 
-        val content = s"""<p>工作实例【${this.id}】中节点【${nodeInfo.name}】监控执行出错,内容如下</p>
-            <p>${e.getMessage}</p>
+        val content = s"""
+          <style> 
+          .table-n {text-align: center; border-collapse: collapse;border:1px solid black}
+          h3 {margin-bottom: 5px}
+          </style> 
+          <h3>实例<data-monitor/>节点执行失败,内容如下</h3>
+          
+            <table class="table-n" border="1">
+              <tr><td>实例ID</td><td>${this.id}</td></tr>
+              <tr><td>节点名称</td><td>${nodeInfo.name}</td></tr>
+              <tr><td>告警信息</td><td><a style="color:red;font-weight:bold">${nodeInfo.warnMsg}</a></td></tr>
+              <tr><td>出错信息</td><td>${e.getMessage}</td></tr>
+              <tr><td>总重试次数</td><td>${nodeInfo.retryTimes}</td></tr>
+              <tr><td>当前重试次数</td><td>${this.hasRetryTimes}</td></tr>
+              <tr><td>重试间隔</td><td>${nodeInfo.interval}秒</td></tr>
+            </table>
+            <a>&nbsp;<a>
           """
         actionActor.sendMailMsg(null, s"【Akkaflow】data-monitor节点执行失败", content)
         errorLog(e.getMessage)
+        this.executedMsg = s"(${e.getMessage})${nodeInfo.warnMsg}"
         false
     }
   }
@@ -96,7 +132,7 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
     }else if(stype == HIVE){
       getRmdbData("org.apache.hive.jdbc.HiveDriver", content, jdbcUrl, username, pwd)
     }else if(stype == COMMAND) {  //COMMAND
-      var filePath = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
+      var filePath = s"${this.executeDir}/run_data"
       getCommandData(filePath, content)
     }else if(stype == NUM){
       getInputData(content)

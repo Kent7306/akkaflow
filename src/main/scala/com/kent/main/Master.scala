@@ -43,6 +43,8 @@ import com.kent.pub.ActorTool
 import com.kent.pub.ClusterRole
 import akka.actor.PoisonPill
 import jnr.ffi.annotations.Synchronized
+import com.kent.pub.CustomException._
+import java.sql.SQLException
 
 
 
@@ -60,8 +62,9 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
    * 监控策略  
    */
   import akka.actor.OneForOneStrategy
-  override def supervisorStrategy = OneForOneStrategy(){
-    case _:Exception => akka.actor.SupervisorStrategy.Escalate
+  override def supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 1, withinTimeRange = 30 second){
+    case _:SQLException => akka.actor.SupervisorStrategy.Restart
+    case _:Exception => akka.actor.SupervisorStrategy.Restart
   }
   //创建集群高可用数据分布式数据寄存器
   Master.haDataStorager = context.actorOf(Props[HaDataStorager],"ha-data")
@@ -91,8 +94,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       val kwaFl = this.workers.map { worker => (worker ? KillAllActionActor()).mapTo[Boolean] }.toList
 		  val kwalF = Future.sequence(kwaFl)
 		  kwalF pipeTo sender
-    case AddWorkFlow(wfStr) => workflowManager ! AddWorkFlow(wfStr)
-    case RemoveWorkFlow(wfId) => workflowManager ! RemoveWorkFlow(wfId)
     case AskWorker(host: String) => sender ! allocateWorker(host: String)
     case ShutdownCluster() =>  shutdownCluster(sender)
     case CollectClusterActorInfo() => 
@@ -245,8 +246,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         //需要同步
         if(Master.persistManager == null){
         	Master.persistManager = context.actorOf(Props(PersistManager(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"pm")
-        	val rsF = (Master.persistManager ? Start()).mapTo[Boolean]
-        	val rs = Await.result(rsF, 20 seconds)
         }
         //创建邮件发送器
         if(Master.emailSender == null){

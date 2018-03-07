@@ -22,13 +22,22 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
   implicit var connection: Connection = null
   
   def indivivalReceive = print2Console
-  if(isEnabled){
-	  //注册Driver
-	  Class.forName("com.mysql.jdbc.Driver")
-	  //得到连接
-	  connection = DriverManager.getConnection(url, username, pwd)
-    context.become(print2DB orElse commonReceice)
+  
+  override def preStart(){
+    if(isEnabled){
+  	  //注册Driver
+  	  Class.forName("com.mysql.jdbc.Driver")
+  	  //得到连接
+  	  connection = DriverManager.getConnection(url, username, pwd)
+      context.become(print2DB orElse commonReceice)
+    }
   }
+  
+  override def postRestart(reason: Throwable){
+    log.info(s"${reason.getMessage},log-recorder即将重启...")
+    super.postRestart(reason)
+  }
+  
   /**
    * 开启打印到数据库
    */
@@ -107,17 +116,9 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     if(listOpt.isEmpty) null else listOpt.get
   }
   
-  def delete(implicit conn: Connection): Boolean = {
-    ???
-  }
-
-  def getEntity(implicit conn: Connection): Option[Any] = {
-    ???
-  }
-
-  def save(implicit conn: Connection): Boolean = {
-    ???
-  }
+  def delete(implicit conn: Connection): Boolean = ???
+  def getEntity(implicit conn: Connection): Option[Any] = ???
+  def save(implicit conn: Connection): Boolean = ???
   
 }
 

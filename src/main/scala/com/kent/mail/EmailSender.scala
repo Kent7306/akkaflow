@@ -26,7 +26,7 @@ class EmailSender(hostName: String, portOpt: Option[Int], auth:Boolean, account:
    * 开启
    */
   def active: Actor.Receive = {
-    case x:EmailMessage => sendMailNew(x)
+    case x:EmailMessage => if(auth) sendEmailSync(x) else sendMailNew(x)
   }
   /**
    * 取消

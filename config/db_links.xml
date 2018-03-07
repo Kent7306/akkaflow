@@ -1,0 +1,5 @@
+<db-links>
+	<link name="local_mysql" jdbc-url="jdbc:mysql://localhost:3306/wf" username="root" root="root"/>
+	<link name="local_orcl" jdbc-url="jdbc:mysql://localhost:3306/wf" username="root" root="root"/>
+	<link name="local_hive" jdbc-url="jdbc:mysql://localhost:3306/wf" username="root" root="root"/>
+</db-links>

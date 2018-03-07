@@ -16,8 +16,12 @@ is_asoluted=`echo $file | grep -E "^\s*\/" | wc -l`
 if [ $is_asoluted -eq 0 ];then
     file=$user_dir/$file
 fi
-con=`iconv -f ${local_lang} -t utf8 $file |sh ./url-encode|awk '{str=str"%0a"$0} END{print str}'`
-result=`curl -s -XPOST -d "xml=$con" "http://$host:$port/akkaflow/workflow?action=add"`
+dir=`get_fullpath "$file"`
+filename=`basename $1`
+file=$dir"/"$filename
+xml_str=`iconv -f ${local_lang} -t utf8 $file |sh ./url-encode|awk '{str=str"%0a"$0} END{print str}'`
+file_str=`echo $file | iconv -f ${local_lang} -t utf8 | sh ./url-encode`
+result=`curl -s -XPOST -d "xml=$xml_str" "http://$host:$port/akkaflow/workflow?action=add&path=$file_str"`
 
 echo $result | iconv -f utf8 -t $local_lang
 echo ""

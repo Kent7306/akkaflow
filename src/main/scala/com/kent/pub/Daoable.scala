@@ -3,6 +3,7 @@ package com.kent.pub
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Statement
+import scala.util.Try
 
 /**
  * 数据操作特质
@@ -19,8 +20,8 @@ trait Daoable[A] {
     	val obj = f(rs)
     	if(obj != null) Some(obj) else None
     }catch{
-      case e:Exception => e.printStackTrace()
-      None
+      case e:Exception => e.printStackTrace();throw e
+      
     }finally{
       if(stat != null) stat.close()
     }

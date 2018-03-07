@@ -57,9 +57,9 @@ class WorkFlowManager extends DaemonActor {
    * 初始化(从数据库中读取工作流xml，同步阻塞方法)
    */
   def init(){
-     val rsF = (Master.persistManager ? Query("select xml_str from workflow")).mapTo[List[List[String]]]
+     val rsF = (Master.persistManager ? Query("select xml_str,file_path from workflow")).mapTo[List[List[String]]]
      val listF = rsF.map{ list =>
-       list.filter { _.size > 0 }.map { l => this.add(l(0), true) }.toList
+       list.filter { _.size > 0 }.map { l => this.add(l(0), l(1), true) }.toList
      }
      val list = Await.result(listF, 20 second)
      list.map { 
@@ -127,10 +127,11 @@ class WorkFlowManager extends DaemonActor {
   /**
    * 增
    */
-  def add(xmlStr: String, isSaved: Boolean): ResponseData = {
+  def add(xmlStr: String, path: String, isSaved: Boolean): ResponseData = {
     var wf: WorkflowInfo = null
     try {
       wf = WorkflowInfo(xmlStr)
+      wf.filePath = path
     } catch {
       case e: Exception =>
         e.printStackTrace()
@@ -138,13 +139,14 @@ class WorkFlowManager extends DaemonActor {
     }
     add(wf, isSaved)
   }
-  def add(wf: WorkflowInfo, isSaved: Boolean): ResponseData = {
+  private def add(wf: WorkflowInfo, isSaved: Boolean): ResponseData = {
     LogRecorder.info(WORKFLOW_MANAGER, null, wf.name, s"配置添加工作流：${wf.name}")
     if (isSaved) {
-      Master.persistManager ! Delete(wf)
-      Master.persistManager ! Save(wf)
+      (Master.persistManager ? Delete(wf.deepClone())).mapTo[Boolean].map { x => 
+        Master.persistManager ! Save(wf.deepClone())        
+      }
     }
-    Master.haDataStorager ! AddWorkflow(wf)
+    Master.haDataStorager ! AddWorkflow(wf.deepClone())
 
     if (workflows.get(wf.name).isEmpty) {
       workflows = workflows + (wf.name -> wf)
@@ -173,7 +175,7 @@ class WorkFlowManager extends DaemonActor {
    */
   def remove(name: String): Future[ResponseData] = {
     if (!workflows.get(name).isEmpty) {
-      val rsF = (Master.persistManager ? Delete(workflows(name))).mapTo[Boolean]
+      val rsF = (Master.persistManager ? Delete(workflows(name).deepClone())).mapTo[Boolean]
       rsF.map { 
         case x if x == true =>
           LogRecorder.info(WORKFLOW_MANAGER, null, name, s"删除工作流：${name}")
@@ -325,7 +327,7 @@ class WorkFlowManager extends DaemonActor {
   def reRunFormer(wfiId: String): Future[ResponseData] = {
     val wfi = WorkflowInstance(wfiId)
     
-    val wfiF = (Master.persistManager ? Get(wfi)).mapTo[Option[WorkflowInstance]]
+    val wfiF = (Master.persistManager ? Get(wfi.deepClone())).mapTo[Option[WorkflowInstance]]
     wfiF.map { wfiOpt =>
       if (wfiOpt.isEmpty) {
         ResponseData("fail", s"工作流实例[${wfiId}]不存在", null)
@@ -353,7 +355,7 @@ class WorkFlowManager extends DaemonActor {
    */
   def reRunNewest(wfiId: String): Future[ResponseData] = {
     val wfi = WorkflowInstance(wfiId)
-    val wfiOptF = (Master.persistManager ? Get(wfi)).mapTo[Option[WorkflowInstance]]
+    val wfiOptF = (Master.persistManager ? Get(wfi.deepClone())).mapTo[Option[WorkflowInstance]]
     wfiOptF.map{ wfiOpt =>
       if (wfiOpt.isEmpty) {
         ResponseData("fail", s"工作流实例[${wfiId}]不存在", null)
@@ -370,7 +372,7 @@ class WorkFlowManager extends DaemonActor {
           ResponseData("fail", s"工作流实例[${wfiId}]已经存在等待队列中", null)
         }else{
           waittingWorkflowInstance += wfi2
-          Master.haDataStorager ! AddWWFI(wfi)
+          Master.haDataStorager ! AddWWFI(wfi.deepClone())
           ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)
         }
       }
@@ -380,30 +382,9 @@ class WorkFlowManager extends DaemonActor {
   /**
    * 获取等待队列信息
    */
-  def getWaittingNodeInfo(): ResponseData = {
+  def getWaittingInstances(): ResponseData = {
     val wns = this.waittingWorkflowInstance.map { x => Map("wfid" -> x.id, "name" -> x.workflow.name) }.toList
     ResponseData("success", "成功获取等待队列信息", wns)
-  }
-
-  def readFiles(path: String): FileContent = {
-    val f = new File(path)
-    //
-    val config = context.system.settings.config
-    val maxSize = config.getString("akka.remote.netty.tcp.maximum-frame-size").toLong
-    if (!f.exists()) {
-      FileContent(false, s"文件${path}不存在", path, null)
-    } else if (f.length() > maxSize) {
-      FileContent(false, s"文件${path}大小为${f.length()},超过消息大小上限${maxSize}", path, null)
-    } else {
-      try {
-        val byts = FileUtil.readFile(f)
-        FileContent(true, s"文件读取成功", path, byts)
-      } catch {
-        case e: Exception =>
-          e.printStackTrace()
-          FileContent(false, s"读取文件失败：${e.getMessage}", path, null)
-      }
-    }
   }
     /**
    * （调用）重置指定调度器
@@ -439,7 +420,7 @@ class WorkFlowManager extends DaemonActor {
     case Start() => this.start()
     case Stop() =>
       sender ! this.stop(); context.stop(self)
-    case AddWorkFlow(content) => sender ! this.add(content, true)
+    case AddWorkFlow(xmlStr, path) => sender ! this.add(xmlStr, path, true)
     case CheckWorkFlowXml(xmlStr) => sender ! this.checkXml(xmlStr)
     case RemoveWorkFlow(name) => this.remove(name) pipeTo sender
     case RemoveWorkFlowInstance(id) => this.removeInstance(id) pipeTo sender
@@ -451,13 +432,10 @@ class WorkFlowManager extends DaemonActor {
     case ReRunWorkflowInstance(wfiId: String, isFormer: Boolean) => 
       val rsF = if(isFormer == true) this.reRunFormer(wfiId) else this.reRunNewest(wfiId)
       rsF pipeTo sender
+    case GetWaittingInstances() => sender ! getWaittingInstances()
     //调度器操作
     case Reset(wfName) => sender ! this.resetCoor(wfName)
     case Trigger(wfName) => sender ! this.trigger(wfName)
-    
-    case GetWaittingInstances() => sender ! getWaittingNodeInfo()
-    //读取文件内容
-    case GetFileContent(path)   => sender ! readFiles(path)
     case Tick()                 => tick()
   }
 }

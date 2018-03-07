@@ -1,5 +1,11 @@
 #!/bin/bash
-#source ~/.bash_profile
+#得到文件的绝对目录，$1=当前目录，$2=指定文件
+function get_fullpath()
+{
+    local ddir=`dirname $1`
+    cd $ddir
+    pwd
+}
 
 info=`cat ../config/application.conf | grep -e "http-servers" | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+"`
 if [ -a "$info" ];then
@@ -14,7 +20,7 @@ mysql_pwd=`cat ../config/application.conf | grep password | awk 'NR==1' | grep -
 mysql_db=`cat ../config/application.conf | grep jdbc-url | grep mysql | awk 'NR==1' | grep -Eo ":[0-9]+/\w+" | grep -Eo "/\w+" | grep -Eo "\w+"`
 mysql_host=`cat ../config/application.conf | grep jdbc-url | grep mysql | awk 'NR==1' | grep -Eo ":/.?*:" | grep -Eo "[^:|^/]+"`
 alias akka_mysql="mysql -h$mysql_host -u$mysql_user -p$mysql_pwd"
-#alias akka_mysql="/home/gzstat/mysql/bin/mysql -h$mysql_host -u$mysql_user --socket /home/gzstat/mysql/mysql.sock -p$mysql_pwd"
+alias akka_mysql="/home/gzstat/mysql/bin/mysql -h$mysql_host -u$mysql_user --socket /home/gzstat/mysql/mysql.sock -p$mysql_pwd"
 #host="127.0.0.1"
 #port="8090"
 

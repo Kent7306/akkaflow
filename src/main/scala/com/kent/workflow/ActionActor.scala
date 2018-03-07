@@ -17,6 +17,8 @@ import com.kent.workflow.node.ActionNodeInstance
 import com.kent.db.LogRecorder.LogType
 import com.kent.db.LogRecorder.LogType._
 import com.kent.db.LogRecorder
+import java.io.File
+import com.kent.util.FileUtil
 
 class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   var workflowActorRef: ActorRef = _
@@ -33,15 +35,31 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
     workflowActorRef = sender
     //异步执行
     def asynExcute(){
-      val result = actionNodeInstance.execute()
+      //创建临时目录
+      val dir = new File(actionNodeInstance.executeDir)
+      dir.deleteOnExit()
+      dir.mkdirs()
+      var result = false
+      try{
+        result = actionNodeInstance.execute()
+      }catch{
+        case e: Exception =>
+          actionNodeInstance.errorLog(e.getMessage)
+          result = false
+      }
       val executedStatus = if(result) SUCCESSED else FAILED
+      //删除临时目录
+      FileUtil.deleteDirOrFile(dir)
       //这里，如果主动kill掉的话，不会杀死进程，所以还是会返回结果，所以是主动杀死的话，看status
       if(actionNodeInstance.getStatus() == KILLED){
         return
       }
       
       actionNodeInstance.changeStatus(executedStatus)
-  		actionNodeInstance.executedMsg = if(executedStatus == FAILED) "节点执行失败" else "节点执行成功"
+  		actionNodeInstance.executedMsg = if(executedStatus == SUCCESSED) "节点执行成功" 
+  		  else if (executedStatus == FAILED && actionNodeInstance.executedMsg == null) "节点执行失败" 
+  		  else actionNodeInstance.executedMsg 
+  		  
       if(context != null){
         self ! Termination()
       }

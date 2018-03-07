@@ -1,20 +1,29 @@
-<work-flow name="test" creator="Kent" mail-receivers="15018735011@163.com"
+<work-flow name="test" creator="Kent" mail-receivers="15018735011@163.com" mail-level="失败"
     dir="/TMP" desc="测试a">
   <!-- 调度配置 -->
-  <coordinator is-enabled="true">
+  <coordinator is-enabled="false">
       <depend-list cron="*/1 * * * *"></depend-list>
       <param-list>
           <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
       </param-list>
   </coordinator>
   <!-- 节点列表 -->
-  <start name="start" to="data_monitor" />
+  <start name="start" to="file_monitor" /> 
 
-  <action name="data_monitor" retry-times="5" interval="1" desc = "监测源数据">
+  <action name="file_monitor" retry-times="1" interval="10" desc = "监测源数据">
+      <file-monitor>8
+	    <file num-threshold="1" size-threshold="20GB">/Users/kent/Documents/工作区/*</file>
+	    <warn-msg>请填写文件检测异常告警信息</warn-msg>
+	</file-monitor>
+      <ok to="data_monitor"/>
+  </action>
+
+
+  <action name="data_monitor" retry-times="1" interval="10" desc = "监测源数据">
       <data-monitor>
-          <source type="COMMAND">echo -e "111\n22\n3" | wc -l</source>
+          <source type="COMMAND">echo -e "111\n22\n3" | wc -l </source>
           <min-threshold type="NUM">2</min-threshold>
-          <warn-msg>填写检测异常信息</warn-msg>
+         <!--  <warn-msg>智造京东日志数据缺失，路径为/xx/xxx/xx/xx/data，麻烦辉哥及时补上数据。</warn-msg> -->
       </data-monitor>
       <ok to="script"/>
   </action>
@@ -22,11 +31,11 @@
   <action name="script" desc = "执行脚本">
       <script>
           <code><![CDATA[
-            for i in `seq 0 20`;do
-                sleep 1
-                echo -e "$i****${param:stadate}***";
-            done
+           wc -l ./akka.2017-07-17.log
           ]]></code>
+	      <attach-list>
+	      	<file>/Users/kent/unbackup/github_repository/akkaflow/logs/akka.2017-07-17.log</file>
+	      </attach-list>
       </script>
       <ok to="end"></ok>
   </action>

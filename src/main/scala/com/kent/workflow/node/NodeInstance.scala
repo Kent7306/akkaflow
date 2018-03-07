@@ -46,6 +46,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
   /**
    * 节点执行动作
    */
+  @throws(classOf[Exception])
   def execute(): Boolean
   /**
    * 节点实例执行结束（若有下一个节点则加入到节点等待队列，若无则结束）

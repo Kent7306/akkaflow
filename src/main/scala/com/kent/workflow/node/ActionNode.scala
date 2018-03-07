@@ -49,8 +49,8 @@ object ActionNode {
         actionNode = ShellNode(nameOpt.get.text, childNode)
       case <script>{content @ _*}</script> => 
         actionNode = ScriptNode(nameOpt.get.text, childNode)
-      case <file-watcher>{content @ _*}</file-watcher> => 
-        actionNode = FileWatcherNode(nameOpt.get.text, childNode)
+      case <file-monitor>{content @ _*}</file-monitor> => 
+        actionNode = FileMonitorNode(nameOpt.get.text, childNode)
       case <file-executor>{content @ _*}</file-executor> => 
         actionNode = FileExecutorNode(nameOpt.get.text, childNode)
       case <data-monitor>{content @ _*}</data-monitor> => 

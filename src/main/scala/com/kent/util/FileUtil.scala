@@ -44,7 +44,16 @@ object FileUtil {
   	def getFileName(path: String): String = {
       val f = new File(path)
       f.getName
-    }
+    } 
+  	/**
+  	 * 从指定路径中解析目录与文件名
+  	 */
+  	def getDirAndBaseName(path: String):Tuple2[String, String] = {
+  	  val idx = path.lastIndexOf("/")
+  	  (path.substring(0, idx), path.substring(idx+1))
+  	}
+  	
+  	
 	 def main(args: Array[String]): Unit = {
 	   val files = listFilesWithExtensions(new File("/Users/kent/Documents/github_repository/akkaflow"), List("xml"))
 	   files.foreach { x => println(x.getName) }

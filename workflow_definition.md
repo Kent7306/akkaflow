@@ -43,7 +43,7 @@
 #### * 属性
 * `name`：必填，工作流名称，用来标识唯一的工作流
 * `creator`：可选，默认为Unknown，当前工作流创建者
-* `mail-level`： 可选，默认无。工作流邮件级别，当工作流实例执行完毕后，根据执行后状态来决定是否发送邮件，目前工作流实例执行完毕后有三种状态（杀死，失败，成功），对应值为`W_SUCCESSED`, `W_FAILED`, `W_KILLED`。
+* `mail-level`： 可选，默认为失败。工作流邮件级别，当工作流实例执行完毕后，根据执行后状态来决定是否发送邮件，目前工作流实例执行完毕后有三种状态（杀死，失败，成功），对应值为`杀死`, `失败`, `成功`。
 * `mail-receivers`： 可选，默认无。工作流邮件接受者，指定哪些邮箱可接收该工作流执行情况反馈
 * `dir`：可选，该工作流的存放目录，默认为/tmp。
 * `instance-limit`: 可选，该工作流同时运行的实例上限，默认不设上限
@@ -54,7 +54,7 @@
 #### * 示例
 ```xml
 <!-- example all paramter -->
-<workflow name="wf_join_1"  mail-level = "W_SUCCESSED,W_FAILED,W_KILLED" mail-receivers="15018735011@163.com,492005267@qq.com" desc="这是一个测试工作流" dir="/tmp">
+<workflow name="wf_join_1"  mail-level = "成功,失败,杀死" mail-receivers="15018735011@163.com,492005267@qq.com" desc="这是一个测试工作流" dir="/tmp">
     ...
 </workflow>
 
@@ -144,7 +144,7 @@
 ```
 
 #### &lt;kill/&gt;
-kill节点，用来杀死当前工作流实例，而被杀死的工作流实例状态为`W_KILLED`。
+kill节点，用来杀死当前工作流实例，而被杀死的工作流实例状态为`杀死`。
 ##### * 属性
 * `name`：必填，该节点名称，唯一标识
 
@@ -196,7 +196,7 @@ kill节点，用来杀死当前工作流实例，而被杀死的工作流实例�
 ##### * 子标签: 
 * `<ok/>`，子标签，属性`to`，节点执行成功指向下一节点
 * `<error/>`，子标签，属性`to`，节点重试后仍然失败时，指向下一节点
-* 可以指定不同类型的动作子标签，目前有 `<script/>`, `<file-watcher/>`，`<sql/>`,`<shell/>`,`<transfer/>`,`<data-monitor/>`,`<file-executor/>`, 动作节点标签类型说明详见下文
+* 可以指定不同类型的动作子标签，目前有 `<script/>`, `<file-monitor/>`，`<sql/>`,`<shell/>`,`<transfer/>`,`<data-monitor/>`,`<file-executor/>`, 动作节点标签类型说明详见下文
 
 
 ##### * 示例
@@ -238,7 +238,7 @@ shell命令执行节点，远程shell命令执行，可以执行指定所部署�
 脚本执行节点，在指定host配置的目录下，生成该脚本文件并执行，脚本执行当前命令为该目录；并且会把相关配置的附件文件也拷贝到该目录中。
 ##### * 子标签
 * `<code>`：子标签,该标签内容存放执行的脚本代码
-* `<attach-file>`：子标签，可选，附件列表，需要吧本机的某个文件拷贝到某个worker节点上。
+* `<attach-list>`：子标签，可选，附件列表，需要吧本机的某个文件拷贝到某个worker节点上。
 
 ##### * 示例
 ```xml
@@ -321,31 +321,25 @@ shell命令执行节点，远程shell命令执行，可以执行指定所部署�
 
 
 
-#### &lt;file-watcher/&gt;
+#### &lt;file-monitor/&gt;
 文件监控节点，监控某个文件系统中的某目录下的特定文件是否符合要求，包括文件数量与文件大小，若超出阈值，则可邮件告警，并且节点执行失败。
 ##### * 子标签
-* `<file>`：必填，该子标签的属性`dir`，必填，监控目录，文件系统类型可为`本地文件系统`，`hdfs`，`ftp`，当前只支持本地文件系统，属性`num-threshold`，可选，文件个数阈值，默认为1，要高于阈值才通过
-* `<size-warn-message>`：可选，检测监控的文件大小是否高于指定阈值，若低于，则邮件告警。该子标签属性`enable`，可选，是否会产生告警邮件，默认为false；属性`size-threshold`，必填，文件大小阈值，可用1GB，2.3M，1.1kb直观的写法，若存在文件大小低于阈值，则告警处理，`标签内容`可选，告警邮件内容，若无配置（留空），则告警邮件内容由系统生成（更为详细）
+* `<file>`：必填，文件系统类型可为`本地文件系统`，`hdfs`，`ftp`，当前只支持本地文件系统，属性`num-threshold`，可选，文件个数阈值，默认为1，要高于阈值才通过;属性`size-threshold`，必填，文件大小阈值，可用1GB，2.3M，1.1kb直观的写法，若存在文件大小低于阈值，则告警处理
+* `<warn-msg>`：`标签内容`可选，告警邮件补充内容。
 
 ##### * 示例
 ```xml
 <!-- example 1 监控本地文件-->
-<file-watcher>
-    <file dir="/Users/kent/Documents/tmp" num-threshold="1">*.sh</file>
-    <size-warn-message enable="true" size-threshold="1532MB">
-    <![CDATA[文件容量小于1532M，请联系xxx进行确认]]>
-    </size-warn-message>
-    <ok to="next_ok_node"/>
-	<error to="next_error_node"/>
-</file-watcher>
+<file-monitor>
+    <file num-threshold="1" size-thresold="2MB">/home/you/app/dir/*.sh</file>
+    <warn-msg>请填写异常告警信息</warn-msg>
+</file-monitor>
 
 <!-- example 2 监控hdfs-->
-<file-watcher>
-    <file dir="hdfs:///user/kent/log/${time.yestoday|yyyy/MM/dd}" num-threshold="1">*.sh</file>
-    <size-warn-message enable="true" size-threshold="2MB"/>
-    <ok to="next_ok_node"/>
-	<error to="next_error_node"/>
-</file-watcher>
+<file-monitor>
+    <file num-threshold="10" size-thresold="2G">hdfs:///home/you/app/dir/*.sh</file>
+    <warn-msg>请填写异常告警信息</warn-msg>
+</file-monitor>
 ```
 #### &lt;file-executor/&gt;
 脚本文件分发执行节点，把当前活动的master机器上执行的脚本文件以及其他附件分发到Worker上执行。

@@ -9,13 +9,13 @@ import com.kent.main.Worker
 import com.kent.pub.Event._
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
-import com.kent.workflow.actionnode.FileWatcherNodeInstance.DirNotExistException
+import com.kent.workflow.actionnode.FileMonitorNodeInstance.DirNotExistException
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import java.net.URI
 import org.apache.hadoop.fs.Path
 
-class FileWatcherNodeInstance(override val nodeInfo: FileWatcherNode)  extends ActionNodeInstance(nodeInfo)  {
+class FileMonitorNodeInstance(override val nodeInfo: FileMonitorNode)  extends ActionNodeInstance(nodeInfo)  {
 
   def execute(): Boolean = {
     detectFiles()
@@ -30,7 +30,7 @@ class FileWatcherNodeInstance(override val nodeInfo: FileWatcherNode)  extends A
     		val status = fs.listStatus(new Path(vDir))
     		status.map { x => (vDir+"/"+x.getPath.getName, x.getLen) }.toMap
     	}else{
-    	  throw new DirNotExistException()
+    	  throw new DirNotExistException(s"${vDir}目录不存在")
     	}
     	
   }
@@ -58,13 +58,17 @@ class FileWatcherNodeInstance(override val nodeInfo: FileWatcherNode)  extends A
       val files = dirFile.listFiles().filter { x => !regx.findFirstIn(x.getName).isEmpty}.toList
       files.map { x => (x.getAbsolutePath, x.length()) }.toMap
     }else{
-      throw new DirNotExistException()
+      throw new DirNotExistException(s"${vDir}目录不存在")
     }
   }
   /**
    * 检测文件
    */
   private def detectFiles():Boolean = {
+    var warnContent = ""
+  	var errorInfo = ""
+  	var flag = true
+    
     try{
     	val files = if(nodeInfo.dir.toLowerCase().matches("hdfs:")){
           getHdfsFiles(nodeInfo.filename, nodeInfo.dir)
@@ -76,47 +80,70 @@ class FileWatcherNodeInstance(override val nodeInfo: FileWatcherNode)  extends A
           getLocalFiles(nodeInfo.filename, nodeInfo.dir)
         }
     	
-    	
     	//检测的文件个数要符合规定个数
       if(files.size >= nodeInfo.numThreshold){
-        //存在文件大小低于阈值 并且 设置启动告警
         val smallFiles = files.filter{case (vFn, vSize) => vSize < Util.convertHumen2Byte(nodeInfo.sizeThreshold)}
         //存在文件大小低于阈值 并且 设置启动告警
-        if(smallFiles.size > 0 && nodeInfo.isWarnMsgEnable){
-          var fileCondStr = ""
+        if(smallFiles.size > 0){
+          var fileCondStr = "<p>异常文件列表</p>"
           val fileLines = smallFiles.map { case (vFn, vSize) => s"文件：${vFn} -- 大小：${Util.convertByte2Humen(vSize)}" }
           fileLines.foreach(y => fileCondStr = "<p>"+fileCondStr+"</p>"+ y)
+          
+          warnContent = s"目录（${nodeInfo.dir}）下存在文件大小低于阈值${nodeInfo.sizeThreshold}" + s"(${nodeInfo.warnMessage})"
+          errorInfo = fileCondStr
           //日志记录
-          warnLog(s"工作实例【${this.id}】中节点【${nodeInfo.name}】数据检测低于阈值(${nodeInfo.sizeThreshold})")
-          warnLog(s"异常文件以下：")
-          fileLines.foreach { x => warnLog(x)}
-          //默认系统的告警信息更为详细
-          val content = if(nodeInfo.warnMessage == null || nodeInfo.warnMessage.trim() == ""){
-                          s"""<p>工作实例【${this.id}】中节点【${nodeInfo.name}】数据检测低于阈值(${nodeInfo.sizeThreshold})</p>
-                                <p>异常文件以下：</p>
-                              ${fileCondStr}"""
-                        } else {
-                          nodeInfo.warnMessage
-                        }
-          actionActor.sendMailMsg(null, "【WARN】FileWatcher数据异常", content)
-          true
-        }else{
-          true 
+          errorLog(warnContent)
+          fileLines.foreach { errorLog(_)}
+          flag = false
         }
       }else{
-        errorLog(s"检测到目录（${nodeInfo.dir}）符合命名要求的文件（${nodeInfo.filename}）个数为${files.size},少于阈值${nodeInfo.numThreshold}, 当前：${files.size}")
-        false
+        val tmp1 = s"""检测到目录（${nodeInfo.dir}）符合命名要求的文件（${nodeInfo.filename}）个数为${files.size},少于阈值${nodeInfo.numThreshold}"""
+        if(nodeInfo.warnMessage != null && nodeInfo.warnMessage.trim() != ""){
+          warnContent = nodeInfo.warnMessage
+          errorInfo = tmp1
+        }else{
+          warnContent = tmp1
+        }
+        errorLog(warnContent)
+        errorLog(errorInfo)
+        flag = false
       }
     } catch{
-      case e: DirNotExistException => 
-        errorLog(s"扫描的目录（${nodeInfo.dir}）不存在")
-        false
       case e: Exception =>
         e.printStackTrace()
+        errorLog(nodeInfo.warnMessage)
         errorLog(e.getMessage)
-        false
+        warnContent = nodeInfo.warnMessage
+        errorInfo = e.getMessage
+        flag = false
     }
+    if(!flag) sendErrorMail(warnContent, errorInfo)
+    flag
   }
+  
+  private def sendErrorMail(warnContent: String, errorInfo: String) = {
+    val content = s"""
+        <style> 
+        .table-n {text-align: center; border-collapse: collapse;border:1px solid black}
+        h3 {margin-bottom: 5px}
+        a {color:red;font-weight:bold}
+        </style> 
+        <h3>实例<data-monitor/>节点执行失败,内容如下</h3>
+        
+          <table class="table-n" border="1">
+            <tr><td>实例ID</td><td>${this.id}</td></tr>
+            <tr><td>节点名称</td><td>${nodeInfo.name}</td></tr>
+            <tr><td>告警信息</td><td><a>${warnContent}</a></td></tr>
+            <tr><td>出错信息</td><td><a>${errorInfo}</a></td></tr>
+            <tr><td>总重试次数</td><td>${nodeInfo.retryTimes}</td></tr>
+            <tr><td>当前重试次数</td><td>${this.hasRetryTimes}</td></tr>
+            <tr><td>重试间隔</td><td>${nodeInfo.interval}秒</td></tr>
+          </table>
+          <a>&nbsp;<a>
+        """
+       actionActor.sendMailMsg(null, "【Akkaflow】file-monitor节点执行失败", content)
+  }
+  
   /**
    * 模糊匹配处理
    */
@@ -133,6 +160,6 @@ class FileWatcherNodeInstance(override val nodeInfo: FileWatcherNode)  extends A
   }
 }
 
-object FileWatcherNodeInstance {
-  class DirNotExistException() extends Exception
+object FileMonitorNodeInstance {
+  class DirNotExistException(msg: String) extends Exception(msg)
 }

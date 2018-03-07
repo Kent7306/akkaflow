@@ -81,8 +81,8 @@ object TestMail extends App{
       "test2", "你好，这是测试文件", 
       "utf8", List())
       
-  def f2() = sendMail("smtp.sohu.com",Some(465),true , "kent7306@sohu.com", "WoCaoNiMa1", 
-      "kent7306@sohu.com",List("kent7306@sohu.com"),
+  def f2() = sendMail("smtp.163.com",Some(465),true , "15018735011@163.com", "WoCaoNiMa1", 
+      "15018735011@163.com",List("15018735011@163.com"),
       "test1", "你好，这是测试文件222", "utf8",List())
       
    

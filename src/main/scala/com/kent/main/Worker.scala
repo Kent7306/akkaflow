@@ -26,6 +26,9 @@ import scala.concurrent.duration._
 import scala.util.Success
 import com.kent.pub.ActorTool
 import com.kent.pub.ClusterRole
+import akka.actor.OneForOneStrategy
+import java.sql.SQLException
+
 /**
  * worker工作节点
  */
@@ -34,6 +37,11 @@ class Worker extends ClusterRole {
 	//运行中的action节点  【actioninstance_name,ar】
   var runningActionActors = Map[String,ActorRef]()
   init()
+  
+  override def supervisorStrategy = OneForOneStrategy(maxNrOfRetries = 1, withinTimeRange = 30 second){
+    case _:SQLException => akka.actor.SupervisorStrategy.Restart
+    case _:Exception => akka.actor.SupervisorStrategy.Restart
+  }
   
   def indivivalReceive: Actor.Receive = {
     case CreateAction(ani) => sender ! createActionActor(ani)

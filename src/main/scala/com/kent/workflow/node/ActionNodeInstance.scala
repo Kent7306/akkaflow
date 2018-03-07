@@ -12,11 +12,14 @@ import com.kent.workflow.ActionActor
 import com.kent.db.LogRecorder
 import com.kent.db.LogRecorder.LogType
 import com.kent.db.LogRecorder.LogType._
+import com.kent.main.Worker
 
 abstract class ActionNodeInstance(override val nodeInfo: ActionNode) extends NodeInstance(nodeInfo) {
   var hasRetryTimes: Int = 0
   var allocateHost: String = _
   var actionActor: ActionActor = _
+  //执行目录
+  def executeDir = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
   
   //进行日志截断
   private val logLimiteNum: Int = 1000
@@ -77,16 +80,4 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNode) extends Nod
    * WARN日志级别
    */
   def warnLog(line: String) = LogRecorder.warn(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line) 
-  
-  override def toString(): String = {
-	    var str = "  "+this.getClass.getName + "(\n"
-	    str = str + s"    id = ${id},\n"
-	    str = str + s"    name = ${nodeInfo.name},\n"
-	    str = str + s"    status = ${this.getStatus()},\n"
-	    str = str + s"    startTime = ${startTime},\n"
-	    str = str + s"    endTime = ${endTime})\n"
-	    str = str + s"    executedMsg = ${executedMsg}\n"
-	    str = str + s"    hasRetryTimes = ${hasRetryTimes}\n"
-	    str
-	  }
 }

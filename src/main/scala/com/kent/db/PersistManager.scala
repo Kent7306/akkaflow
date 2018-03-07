@@ -18,21 +18,52 @@ import com.kent.pub.DaemonActor
 import java.net.ConnectException
 import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException
 import java.sql.Statement
+import com.kent.pub.CustomException._
+import java.sql.SQLException
 
 class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends DaemonActor{
   implicit var connection: Connection = null
+  //只需要第一次启动时初始化建表sql
+  var isInitSqlNeeded = true 
+  
   def indivivalReceive = passive
+
+  override def preStart(){
+    init()
+  }
+  override def postRestart(reason: Throwable){
+    this.isInitSqlNeeded = false
+    log.info(s"${reason.getMessage},pm管理器即将重启...")
+    super.postRestart(reason)
+  }
+  
   /**
-   * init
+   * 初始化
    */
-  def start(): Boolean = {
-    var stat:Statement = null
+  def init() = {
     if(isEnabled){
+      context.become(active orElse commonReceice)
       try {
         //注册Driver
   	    Class.forName("com.mysql.jdbc.Driver")
   	    //得到连接
   	    connection = DriverManager.getConnection(url, username, pwd)
+      } catch {
+        case e: Exception => 
+          log.error("连接数据库失败，请检查数据库配置")
+          //context.become(passive orElse commonReceice)
+      } 
+    }else{
+      log.warning("数据库功能未开启...")
+    }
+    if(isInitSqlNeeded) initSql()
+  }
+  
+  @throws(classOf[SQLException])
+  def initSql() = {
+    var stat:Statement = null
+    if(connection != null){
+      try {
   	    //启动清理
         var content = ""
         Source.fromFile(this.getClass.getResource("/").getPath + "../config/create_table.sql").foreach { content += _ }
@@ -42,24 +73,16 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
         val results = sqls.map { stat.execute(_) }.toList
         connection.commit()
       } catch {
-        case e: CommunicationsException => 
-          log.error("连接数据库失败，数据库功能将不开启...")
-          return false
         case e: Exception =>
           e.printStackTrace()
           connection.rollback()
-          log.error("执行初始化建表sql失败,数据库功能将不开启...")
-          return false
+          log.error("执行初始化建表sql失败")
+          throw e
       } finally{
         if(stat != null) stat.close()
         connection.setAutoCommit(true)
       }
-      context.become(active orElse commonReceice)
-      log.info("检查数据库成功...")
-      true
-    }else{
-      log.warning("数据库功能未开启...")
-      false
+      log.info("成功初始化数据库")
     }
   }
   /**
@@ -70,14 +93,15 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     case Save(obj) => obj.save
     case Delete(obj) => sender ! obj.delete
     case Get(obj) => sender ! obj.getEntity
+    //case Get(obj) => f(sender, obj)
     case ExecuteSql(sql) => sender ! executeSql(sql)
     case Query(str) => sender ! queryList(str)
   }
+  
   /**
    * 取消持久化
    */
   def passive: Actor.Receive = {
-    case Start() => sender ! this.start()
     case Get(obj) => sender ! None
     case Save(obj) => 
     case ExecuteSql(sql) => sender ! true

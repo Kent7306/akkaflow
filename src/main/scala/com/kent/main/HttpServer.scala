@@ -67,7 +67,7 @@ class HttpServer extends ClusterRole {
                               HttpServer.shutdwon()
     case event@CollectClusterActorInfo() => getResponseFromMaster(sender,event)
     case event@RemoveWorkFlow(_) =>  getResponseFromWorkflowManager(sender, event)
-    case event@AddWorkFlow(_) => getResponseFromWorkflowManager(sender, event)
+    case event@AddWorkFlow(_, _) => getResponseFromWorkflowManager(sender, event)
     case event@CheckWorkFlowXml(_) => getResponseFromWorkflowManager(sender, event)
     case event@ReRunWorkflowInstance(_,_) => getResponseFromWorkflowManager(sender, event)
     case event@KillWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
@@ -138,7 +138,9 @@ object HttpServer extends App{
         formField('xml){ content =>
           parameter('action){ action => {
             	if(action == "add" && content != null && content.trim() != ""){
-            	  handleRequestWithActor(AddWorkFlow(content))  
+            	  parameter('path){ path =>
+            		  handleRequestWithActor(AddWorkFlow(content, path))              	    
+            	  }
             	}else if(action == "check" && content != null && content.trim() != ""){
             	  handleRequestWithActor(CheckWorkFlowXml(content))  
             	}else{

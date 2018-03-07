@@ -205,6 +205,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   def getEntity(implicit conn: Connection): Option[WorkflowInstance] = {
     getEntityWithNodeInstance(true)
   }
+  @throws(classOf[Exception])
   def getEntityWithNodeInstance(isWithNodeInstance: Boolean)(implicit conn: Connection): Option[WorkflowInstance] = {
     import com.kent.util.Util._
     

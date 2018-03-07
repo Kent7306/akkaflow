@@ -21,6 +21,7 @@ import com.kent.db.LogRecorder.LogType._
 import com.kent.db.LogRecorder
 import com.kent.main.Master
 import com.kent.pub.Event._
+import scala.util.Try
 
 class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Daoable[WorkflowInfo] {
 	import com.kent.workflow.WorkflowInfo.WStatus._
@@ -33,6 +34,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   var dir: Directory = null
   var instanceLimit: Int = 1
   var xmlStr: String = _
+  var filePath: String = _
   //提取出来的参数列表
   var params = List[String]()
   var coorOpt: Option[Coor] = None
@@ -88,7 +90,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   /**
    * 查询得到工作流和相关的节点信息
    */
-  def getEntity(implicit conn: Connection): Option[WorkflowInfo] = {
+  override def getEntity(implicit conn: Connection): Option[WorkflowInfo] = {
     import com.kent.util.Util._
     //工作流实例查询sql
     val queryStr = s"""select xml_str from workflow where name=${withQuate(name)}"""
@@ -122,7 +124,7 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
   	     insert into workflow values(${withQuate(name)},${withQuate(creator)},${withQuate(dir.dirname)},${withQuate(desc)},
   	     ${withQuate(levelStr)},${withQuate(receiversStr)},${instanceLimit},
   	     ${withQuate(paramsStr)}, ${withQuate(transformXmlStr(xmlStr))},
-  	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))},
+  	     ${withQuate(formatStandarTime(createTime))},${withQuate(formatStandarTime(nowDate))},${withQuate(filePath)},
   	     ${withQuate(coorEnabled)},${withQuate(coorParamStr)},${withQuate(coorCron)},${withQuate(coorCronNextTime)},
   	     ${withQuate(coorDepends)},${withQuate(coorSTime)},${withQuate(coorETime)}
   	     )
@@ -170,7 +172,7 @@ object WorkflowInfo {
       //邮件级别
       if(mailLevelOpt.isDefined){
     	  val levels = mailLevelOpt.get.text.split(",")
-    	  wf.mailLevel = levels.map { x => WStatus.withName(x)}.toList   //??? 这里可能后续要调整一下，不直接用枚举名称
+    	  wf.mailLevel = levels.map { x => WStatus.getStatus(x)}.toList   //??? 这里可能后续要调整一下，不直接用枚举名称
     	}else{
     	  wf.mailLevel= List(WStatus.W_FAILED)
     	}
@@ -206,7 +208,17 @@ object WorkflowInfo {
         case W_RUNNING => "运行中"
         case W_SUCCESSED => "成功"
         case W_FAILED => "失败"
-        case W_KILLED => "被杀死"
+        case W_KILLED => "杀死"
+      }
+    }
+    def getStatus(staStr: String): WStatus = {
+      staStr.toUpperCase() match {
+        case x if(x == "W_PREP" || x == "就绪") => W_PREP
+        case x if(x == "W_RUNNING" || x == "运行中") => W_RUNNING
+        case x if(x == "W_SUCCESSED" || x == "成功") => W_SUCCESSED
+        case x if(x == "W_FAILED" || x == "失败") => W_FAILED
+        case x if(x == "W_KILLED" || x == "杀死") => W_KILLED
+        case x => throw new Exception(s"$x 不能转换为工作流状态，请检查")
       }
     }
   }

@@ -25,15 +25,11 @@ import com.kent.util.FileUtil
 class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeInstance(nodeInfo)  {
   private var executeResult: Process = _
   implicit val timeout = Timeout(60 seconds)
-  var dir:File = null
   
   override def execute(): Boolean = {
-    try {
-      val wfmPath = this.actionActor.workflowActorRef.path.parent
-      val wfmRef = this.actionActor.context.actorSelection(wfmPath)
       //获取附件
       val attachFileFl = this.nodeInfo.attachFiles.map { fp => 
-        (wfmRef ? GetFileContent(fp)).mapTo[FileContent]
+        (this.actionActor.workflowActorRef ? GetFileContent(fp)).mapTo[FileContent]
       }.toList 
       val attachFileF = Future.sequence(attachFileFl)
       val attachFileContents = Await.result(attachFileF, 120 seconds)
@@ -43,13 +39,9 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
         false
       }else{
         //创建执行目录
-        var location = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
-        val executeFilePath = s"${location}/akkaflow_script"
-        dir = new File(location)
-        dir.deleteOnExit()
-        dir.mkdirs()
+        val executeFilePath = s"${this.executeDir}/akkaflow_script"
         //写入执行入口文件
-        val runFilePath = s"${location}/akkaflow_run"
+        val runFilePath = s"${this.executeDir}/akkaflow_run"
         val paramLine = if(nodeInfo.paramLine == null) "" else nodeInfo.paramLine
         val run_code = """
           source /etc/profile
@@ -63,34 +55,23 @@ class ScriptNodeInstance(override val nodeInfo: ScriptNode) extends ActionNodeIn
         val lines = nodeInfo.code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
         FileUtil.writeFile(executeFilePath,lines)
         FileUtil.setExecutable(executeFilePath, true)
-        //infoLog(s"写入到文件：${executeFilePath}")
         //写入附件文件
         attachFileContents.foreach { x => 
           val afn = FileUtil.getFileName(x.path)
-          FileUtil.writeFile(s"${location}/${afn}", x.content)
-          infoLog(s"拷贝到文件：${location}/${afn}")
+          FileUtil.writeFile(s"${this.executeDir}/${afn}", x.content)
+          infoLog(s"拷贝到文件：${this.executeDir}/${afn}")
         }
-        //执行
-        //infoLog(s"执行命令: ${executeFilePath} ${paramLine}")
+        //执行脚本
         val pLogger = ProcessLogger(line => infoLog(line), line => errorLog(line))
         executeResult = Process(s"${runFilePath}").run(pLogger)
         if(executeResult.exitValue() == 0) true else false
       }
-    }catch{
-      case e:Exception => 
-        e.printStackTrace();
-        errorLog(e.getMessage)
-        false
-    }finally {
-      FileUtil.deleteDirOrFile(dir)
-    }
   }
 
   def kill(): Boolean = {
     if(executeResult != null){
       executeResult.destroy()
     }
-    FileUtil.deleteDirOrFile(dir)
     true
   }
 }
