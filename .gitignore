@@ -24,3 +24,5 @@ src/main/resources/application.conf
 
 .cache-main
 .cache-tests
+
+src/main/resources/application.conf

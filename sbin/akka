@@ -2,7 +2,6 @@
 source ~/.bash_profile
 
 cmd_dir=`dirname $0`
-cmd_dir=~/akkaflow/sbin
 function instance_cmd
 {
     if [ $# -lt 1 ];then

@@ -20,9 +20,7 @@ mysql_pwd=`cat ../config/application.conf | grep password | awk 'NR==1' | grep -
 mysql_db=`cat ../config/application.conf | grep jdbc-url | grep mysql | awk 'NR==1' | grep -Eo ":[0-9]+/\w+" | grep -Eo "/\w+" | grep -Eo "\w+"`
 mysql_host=`cat ../config/application.conf | grep jdbc-url | grep mysql | awk 'NR==1' | grep -Eo ":/.?*:" | grep -Eo "[^:|^/]+"`
 alias akka_mysql="mysql -h$mysql_host -u$mysql_user -p$mysql_pwd"
-alias akka_mysql="/home/gzstat/mysql/bin/mysql -h$mysql_host -u$mysql_user --socket /home/gzstat/mysql/mysql.sock -p$mysql_pwd"
-#host="127.0.0.1"
-#port="8090"
+#alias akka_mysql="/home/gzstat/mysql/bin/mysql -h$mysql_host -u$mysql_user --socket /home/gzstat/mysql/mysql.sock -p$mysql_pwd"
 
 local_lang=`echo ${LANG##*.}`
 

@@ -9,5 +9,5 @@ sleep 3
 sleep 2
 tail -1000f ../logs/run.log &
 sleep 10
-ps -ef | grep tail | grep "/logs/run.log" | awk '{print $2}' | xargs kill -9
+ps -ef | grep tail | grep "/logs/run.log" | awk '{print $2}' | xargs kill -9 1>/dev/null 2>&1
 exit 0

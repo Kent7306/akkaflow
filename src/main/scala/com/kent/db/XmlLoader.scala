@@ -83,7 +83,7 @@ class XmlLoader(wfXmlPath: String, interval: Int) extends DaemonActor{
   /**
    * 读取数据库连接配置的xml文件
    */
-/*  def loadDBLinkXmlFile(path: String, fileExtensions: List[String]):Boolean = {
+  def loadDBLinkXmlFile(path: String, fileExtensions: List[String]):Boolean = {
     //获取文件内容
     def getNewFileContents():Option[String] = {
     		val files = FileUtil.listFilesWithExtensions(new File(path), fileExtensions)
@@ -100,11 +100,9 @@ class XmlLoader(wfXmlPath: String, interval: Int) extends DaemonActor{
     val dbLinkStrOpt = getNewFileContents()
     val dbLinksOpt = dbLinkStrOpt.map { getDBLinks _ }
     val wfm = context.actorSelection("../wfm")
-    val resultListXmlF = dbLinksOpt.map{ dbLinks => 
-      dbLinks.
-      (wfm ? ).mapTo[ResponseData]
-    }.toList
-  }*/
+    
+    ???
+  }
   
   def getDBLinks(xmlStr: String): List[DBLink] = {
     val node = XML.loadString(xmlStr)
