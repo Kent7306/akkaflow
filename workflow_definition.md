@@ -16,7 +16,9 @@
 
   <action name="data_monitor" retry-times="5" interval="1" desc = "监测源数据">
       <data-monitor>
-          <source type="COMMAND">ORACLE -e "select count(1) from dual"</source>
+          <source type="SQL" db-link="local_oracle">
+              select count(1) from dual
+          </source>
           <min-threshold type="NUM">1</min-threshold>
           <warn-msg>填写检测异常信息</warn-msg>
       </data-monitor>
@@ -202,7 +204,7 @@ kill节点，用来杀死当前工作流实例，而被杀死的工作流实例�
 ##### * 示例
 ```xml
 <!-- example 1 -->
-<action name="node_1" host="127.0.0.1" retry-times=10 interval=300 timeout=6000 desc="action example desc">
+<action name="node_1" host="127.0.0.1" retry-times="10" interval="300" timeout="6000" desc="action example desc">
 	...
 	<ok to="next_ok_node"/>
 	<error to="next_error_node"/>
@@ -218,22 +220,6 @@ kill节点，用来杀死当前工作流实例，而被杀死的工作流实例�
 
 ###行动节点标签类型
 具有不同行为的行动节点
-#### &lt;shell/&gt;
-shell命令执行节点，远程shell命令执行，可以执行指定所部署机器的脚本文件，也可以执行某些脚本命令
-##### * 子标签
-* `<command>`： 子标签，填写执行命令
-
-##### * 示例
-```xml
-<!--example 1 -->
-<shell>
-   <command>cd /home/xxx; hdfs dfs -rm -r /xxx/xxx/xxxx</command>
-</shell>
-<!-- example 2 -->
-<shell>
-   <command>/home/tmp/run_data.sh ${time.yestoday|yyyy-MM-dd}</command>
-</shell>
-```
 #### &lt;script/&gt;
 脚本执行节点，在指定host配置的目录下，生成该脚本文件并执行，脚本执行当前命令为该目录；并且会把相关配置的附件文件也拷贝到该目录中。
 ##### * 子标签
@@ -276,7 +262,85 @@ shell命令执行节点，远程shell命令执行，可以执行指定所部署�
     ]]></code>
 </script>
 ```
-#### &lt;transfer/&gt;
+#### &lt;sql/&gt;
+sql执行节点，支持多种数据库sql执行，目前支持的数据库有，Hive，Mysql，Oracle，Impala，基于jdbc来执行sql，sql执行出错就会执行失败。
+##### * 属性
+* `db-link`，属性，必填，数据库连接串，需要提前配置，文件文件放于`config/db_links.xml`。
+
+##### * 子标签
+* 无，直接写sql，多个sql用分号；来分割。
+
+##### * 示例
+```xml
+<!-- example 1-->
+<sql db-link="local_orcl">
+ 	delete from test_aa where 2 > 3
+</sql>
+<!-- example 2-->
+<sql db-link="local_mysql">
+   create table aaa (col varchar(10));
+ 	insert into aaa values ('111');
+ 	delete from aaa where 1 = 1;
+ 	drop table aaa; 
+</sql>
+```
+
+#### &lt;file-monitor/&gt;
+文件监控节点，监控某个文件系统中的某目录下的特定文件是否符合要求，包括文件数量与文件大小，若超出阈值，则可邮件告警，并且节点执行失败。
+##### * 子标签
+* `<file>`：必填，文件系统类型可为`本地文件系统`，`hdfs`，`ftp`，当前只支持本地文件系统，属性`num-threshold`，可选，文件个数阈值，默认为1，要高于阈值才通过;属性`size-threshold`，必填，文件大小阈值，可用1GB，2.3M，1.1kb直观的写法，若存在文件大小低于阈值，则告警处理
+* `<warn-msg>`：`标签内容`可选，告警邮件补充内容。
+
+##### * 示例
+```xml
+<!-- example 1 监控本地文件-->
+<file-monitor>
+    <file num-threshold="1" size-thresold="2MB">/home/you/app/dir/*.sh</file>
+    <warn-msg>请填写异常告警信息</warn-msg>
+</file-monitor>
+
+<!-- example 2 监控hdfs-->
+<file-monitor>
+    <file num-threshold="10" size-thresold="2G">hdfs:///home/you/app/dir/*.sh</file>
+    <warn-msg>请填写异常告警信息</warn-msg>
+</file-monitor>
+```
+
+#### &lt;data-monitor/&gt;
+数据监控节点，可以监控数据库的记录，文件行数，文件大小等不同数据类型的指标，并设置该数据点的上下限。
+##### * 属性
+* `category`，属性，必填，数据源分类，任意有意义字符串即可
+* `source-name`，属性，必填，数据源名称，任意有意义字符串即可
+* `time-mark`，属性，必填，时间标志点，可填入 YYYY-MM-DD或YYYY-MM-DD hh: mm: ss等格式的时间点
+* `is-saved`，属性，可选，默认为false，是否对监控数据进行保存，当为true时，要设置`category`，`source-name`与`time-mark`属性。
+* ` is-exceed-error`，属性，可选，默认为false，是否超过阈值就设置为执行失败，若为true，则会执行成功。
+
+##### * 子标签
+* `<source>`，子标签，必填，监控数据源，`type`属性，指定数据源类型，当前可选项为`SQL`,`COMMAND`,`NUM`,其中，当选择为SQL数据源时，要补充填写`db-link`属性配置；当选择`COMMAND`与`NUM`时，则不需要；标签内容，当选择SQL时，标签内容填写SQL，查询结果只有单值；当选择`COMMAND`时，则可填写shell命令，返回也只能是单数据值；当选择`NUM`	时，可直接填写单数据值。
+*  `<min-threshold>`：子标签，可选，最小阈值配置，配置项与上面`source`一样
+*  `<max-threshold>`：子标签，可选，最大阈值配置，配置项与上面`source`一样
+
+##### * 示例
+```xml
+<!-- example 1 监测数据库记录-->
+<data-monitor>
+     <source type="COMMAND">ORACLE -e "select count(1) from dual"</source>
+     <min-threshold type="NUM">1</min-threshold>
+     <warn-msg>填写检测异常信息</warn-msg>
+</data-monitor>
+
+<!-- example 2 监测日志文件-->
+<data-monitor>
+   <source type="SQL" db-link="local_mysql">
+       select count(1) from example_item where ds = '${param:stime}'
+   </source>
+   <min-threshold type="NUM">2</min-threshold>
+   <max-threshold type="SQL" db-link="local_mysql">
+       select count(1)+10 from example_item where ds = '${param:stime}'
+   </max-threshold>
+</data-monitor>
+```
+#### &lt;transfer/&gt;(废弃)
 数据传输节点，支持通用jdbc连接的数据库,本地文件系统，HDFS之间的数据记录互传，因个人精力有限，hive相关的数据传输采用sqoop，但是并没有进一步封装（后续有时间调整），所以只是提供了写脚本命令的方式（需要指定到有按照sqoop的机器上执行）
 ##### * 子标签
 * `<source>`：可选，导入的数据源配置，与下面的`<script/>`标签二选一，数据来源支持jdbc（包括hive，impala）与本地文件。属性`type` ,可选值有MYSQL,ORACLE,HIVE,LFS,其中LFS是本地文件。在LFS类型下，属性`path`与`delimited`分别是本地文件路径与文件分隔符；在jdbc情况下，需填进属性`jdbc-url`,`username`,`password`。
@@ -317,30 +381,6 @@ shell命令执行节点，远程shell命令执行，可以执行指定所部署�
 	</script> 
 </transfer>
 ```
-
-
-
-
-#### &lt;file-monitor/&gt;
-文件监控节点，监控某个文件系统中的某目录下的特定文件是否符合要求，包括文件数量与文件大小，若超出阈值，则可邮件告警，并且节点执行失败。
-##### * 子标签
-* `<file>`：必填，文件系统类型可为`本地文件系统`，`hdfs`，`ftp`，当前只支持本地文件系统，属性`num-threshold`，可选，文件个数阈值，默认为1，要高于阈值才通过;属性`size-threshold`，必填，文件大小阈值，可用1GB，2.3M，1.1kb直观的写法，若存在文件大小低于阈值，则告警处理
-* `<warn-msg>`：`标签内容`可选，告警邮件补充内容。
-
-##### * 示例
-```xml
-<!-- example 1 监控本地文件-->
-<file-monitor>
-    <file num-threshold="1" size-thresold="2MB">/home/you/app/dir/*.sh</file>
-    <warn-msg>请填写异常告警信息</warn-msg>
-</file-monitor>
-
-<!-- example 2 监控hdfs-->
-<file-monitor>
-    <file num-threshold="10" size-thresold="2G">hdfs:///home/you/app/dir/*.sh</file>
-    <warn-msg>请填写异常告警信息</warn-msg>
-</file-monitor>
-```
 #### &lt;file-executor/&gt;
 脚本文件分发执行节点，把当前活动的master机器上执行的脚本文件以及其他附件分发到Worker上执行。
 ##### * 子标签
@@ -363,42 +403,4 @@ shell命令执行节点，远程shell命令执行，可以执行指定所部署�
    <command>perl /xx/xx/import_item/clean_import.pl "${param:stime}"</command>
 </file-executor>
 ```
-
-#### &lt;data-monitor/&gt;
-数据监控节点，可以监控数据库的记录，文件行数，文件大小等不同数据类型的指标，并设置该数据点的上下限。
-##### * 属性
-* `category`，属性，必填，数据源分类，任意有意义字符串即可
-* `source-name`，属性，必填，数据源名称，任意有意义字符串即可
-* `time-mark`，属性，必填，时间标志点，可填入 YYYY-MM-DD或YYYY-MM-DD hh: mm: ss等格式的时间点
-* `is-saved`，属性，可选，默认为false，是否对监控数据进行保存，当为true时，要设置`category`，`source-name`与`time-mark`属性。
-* ` is-exceed-error`，属性，可选，默认为false，是否超过阈值就设置为执行失败，若为true，则会执行成功。
-
-##### * 子标签
-* `<source>`，子标签，必填，监控数据源，`type`属性，指定数据源类型，当前可选项为`MYSQL`,`ORACLE`,`HIVE`,`COMMAND`,`NUM`,其中，当选择为RMDB数据源时，要补充填写`jdbc-url`,`username`,`password`属性配置；当选择`COMMAND`与`NUM`时，则不需要；标签内容，当选择RMDB时，标签内容填写SQL，只有单值；当选择`COMMAND`时，则可填写shell命令，返回也只能是单数据值；当选择`NUM`	时，可直接填写单数据值。
-*  `<min-threshold>`：子标签，可选，最小阈值配置，配置项与上面`source`一样
-*  `<max-threshold>`：子标签，可选，最大阈值配置，配置项与上面`source`一样
-
-##### * 示例
-```xml
-<!-- example 1 监测数据库记录-->
-<data-monitor>
-     <source type="COMMAND">ORACLE -e "select count(1) from dual"</source>
-     <min-threshold type="NUM">1</min-threshold>
-     <warn-msg>填写检测异常信息</warn-msg>
-</data-monitor>
-
-<!-- example 2 监测日志文件-->
-<data-monitor category="mysql" source-name="example_item" is-saved="true" is-exceed-error="true" time-mark="${param:stime}">
-   <source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf" username="root" password="root">
-       select count(1) from example_item where ds = '${param:stime}'
-   </source>
-   <min-threshold type="NUM">2</min-threshold>
-   <max-threshold type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf" username="root" password="root">
-       select count(1)+10 from example_item where ds = '${param:stime}'
-   </max-threshold>
-</data-monitor>
-
-
-```
-
 

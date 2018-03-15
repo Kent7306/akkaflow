@@ -9,6 +9,7 @@ import com.kent.workflow.WorkflowInfo.WStatus._
 import com.kent.workflow.node.NodeInfo.Status._
 import com.kent.pub.ActorTool.ActorInfo
 import java.util.Date
+import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType._
 
 object Event {
   //pub
@@ -31,6 +32,12 @@ object Event {
   case class Warn(stime: Date,ctype: LogType, sid: String,name: String, content: String)
   case class Error(stime: Date,ctype: LogType, sid: String,name: String, content: String)
   case class GetLog(ctype: LogType, sid: String,name: String)
+  //xml-loader
+  case class AddDBLink(dbl: DBLink)
+  case class GetDBLink(name: String)
+  import com.kent.workflow.actionnode.DataMonitorNode.SourceType._
+  case class DBLink(dbType: DatabaseType, name: String, jdbcUrl: String, username: String, password: String)
+  
   //persist-manager
   case class Save[A](obj: Daoable[A])
   case class Delete[A](obj: Daoable[A])
@@ -40,10 +47,9 @@ object Event {
   //email-sender
   case class EmailMessage(toUsers: List[String],subject: String,htmlText: String, attachFiles: List[String])
   //wfm
-  case class DBLink(name: String, jdbcUrl: String, username: String, password: String)
-  case class AddDBLinks(list: List[DBLink])
   case class Trigger(name: String)
   case class Reset(wfName: String)
+  case class ResetAllWorkflow()
   case class ManualNewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
   case class KillWorkFlow(wfName: String)
   case class KllAllWorkFlow()

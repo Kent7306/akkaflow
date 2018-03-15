@@ -1,7 +1,7 @@
 #!/bin/bash
 
 user_dir=`pwd`
-bin_dir=`dirname $user_dir/$0`
+bin_dir=`dirname $0`
 cd $bin_dir
 source ./head.sh
 

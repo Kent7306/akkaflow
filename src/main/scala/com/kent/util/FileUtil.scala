@@ -5,6 +5,7 @@ import java.io.FileInputStream
 import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import java.io.PrintWriter
+import java.io.FileWriter
 
 object FileUtil {
   /**
@@ -52,12 +53,6 @@ object FileUtil {
   	  val idx = path.lastIndexOf("/")
   	  (path.substring(0, idx), path.substring(idx+1))
   	}
-  	
-  	
-	 def main(args: Array[String]): Unit = {
-	   val files = listFilesWithExtensions(new File("/Users/kent/Documents/github_repository/akkaflow"), List("xml"))
-	   files.foreach { x => println(x.getName) }
-	 }
 	/**
 	 * 读取文件
 	 */
@@ -78,23 +73,29 @@ object FileUtil {
     return os.toByteArray()
   }
   /**
-   * 写入文件(字节流)
+   * 覆盖写入文件(字节流)
    */
   def writeFile(path: String, content:Array[Byte]) = {
+     val f = new File(path)
+     f.delete()
      val fos = new FileOutputStream(path)
      fos.write(content)
      fos.flush()
      fos.close()
   }
-  def writeFile(path: String,content:List[String]) = {
-    val f = new File(path)
-    f.deleteOnExit()
-    val writer = new PrintWriter(f)
-    //删除前置空格
-    content.foreach { x => writer.write(x+"\n") }
+  /**
+   * 写入文件（文本）,默认为覆盖
+   */
+  def writeFile(path: String,lines:List[String])(isAppend:Boolean) = {
+		val fw = new FileWriter(new File(path), isAppend);
+    val writer = new PrintWriter(fw)
+    lines.foreach { x => writer.write(x+"\n") }
     writer.flush()
+    fw.flush()
     writer.close()
+    fw.close()
   }
+  
   /**
    * 设置文件执行状态
    */

@@ -7,4 +7,4 @@ cd $script_dir/..
 mkdir -p logs
 echo -e "开始启动Master节点..."
 echo -e "启动日志请查看[根目录]/logs/run.log"
-nohup bin/master-startup 1>logs/run.log 2>&1 &
+nohup bin/master 1>logs/run.log 2>&1 &

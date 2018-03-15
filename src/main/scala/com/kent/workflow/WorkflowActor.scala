@@ -240,6 +240,9 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
       }
     //读取文件内容
     case GetFileContent(path)   => sender ! readFiles(path)
+    case GetDBLink(name) => 
+      val xmlLoader = context.actorSelection("../../xml-loader")
+      xmlLoader.forward(GetDBLink(name))
     case Tick() => tick()
   }
   /**

@@ -109,7 +109,7 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance
                       where name = ${withQuate(nodeInfo.name)} and workflow_instance_id = ${withQuate(id)}
       """
     val isExistsql = s"select name from node_instance where name = ${withQuate(nodeInfo.name)} and workflow_instance_id = ${withQuate(id)}"
-    querySql[Boolean](isExistsql, (rs) => {
+    querySql(isExistsql, (rs) => {
       if(rs.next()) executeSql(updateStr) else executeSql(insertStr)
     }).get
   }

@@ -64,7 +64,7 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     		insert into log_record values(null,${withQuate(x.level)},${withQuate(x.time)},${withQuate(x.ctype)},${withQuate(x.sid)},${withQuate(x.name)},${withQuate(x.content)})
       """ }.toList
       lastCommitTimeStamp = nowDate.getTime
-    	executeSql(sqls)
+    	executeSqls(sqls)
     }else {
       true
     }

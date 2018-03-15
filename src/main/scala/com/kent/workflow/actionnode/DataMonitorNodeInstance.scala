@@ -47,7 +47,7 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
   	  val min = if(minDataOpt.isDefined) minDataOpt.get else "未定义"
   	    
   	  if(nodeInfo.warnMsg == null || nodeInfo.warnMsg.trim() == ""){
-  	    nodeInfo.warnMsg = "检测值未在范围内"
+  	    nodeInfo.warnMsg = s"检测值未在范围内，检测值:${monitorData}，下限:${min}，上限:${max}"
   	  }
   	  
   	  val content = s"""
@@ -119,71 +119,42 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
    * 获取数据
    */
   def getData(obj: Any):Double = {
-    val (stype, content, jdbcUrl,username,pwd) = obj match {
-      case Source(typ,cont,info) => (typ,cont,info._1, info._2, info._3)
-      case MaxThreshold(typ,cont,info) => (typ,cont,info._1, info._2, info._3)
-      case MinThreshold(typ,cont,info) => (typ,cont,info._1, info._2, info._3)
+    
+    
+    val (stype, content, dbLinkeNameOpt) = obj match {
+      case Source(typ,cont,dbOpt) => (typ,cont, dbOpt)
+      case MaxThreshold(typ,cont,dbOpt) => (typ,cont, dbOpt)
+      case MinThreshold(typ,cont,dbOpt) => (typ,cont, dbOpt)
       case _ => throw new Exception("未找到匹配的类型")
     }
-    if(stype == MYSQL){
-      getRmdbData("com.mysql.jdbc.Driver", content, jdbcUrl, username, pwd)
-    }else if(stype == ORACLE){
-      getRmdbData("oracle.jdbc.driver.OracleDriver", content, jdbcUrl, username, pwd)
-    }else if(stype == HIVE){
-      getRmdbData("org.apache.hive.jdbc.HiveDriver", content, jdbcUrl, username, pwd)
+    if(stype == SQL){
+      val dbLinkOptF = this.actionActor.getDBLink(dbLinkeNameOpt.get)
+      val dbLinkOpt = Await.result(dbLinkOptF, 60 seconds)
+      if(dbLinkOpt.isDefined) getRmdbData(content, dbLinkOpt.get) else throw new Exception
     }else if(stype == COMMAND) {  //COMMAND
-      var filePath = s"${this.executeDir}/run_data"
-      getCommandData(filePath, content)
+      getCommandData(content)
     }else if(stype == NUM){
       getInputData(content)
     }else {
        throw new Exception("未找到适合的数据源类型")
     }
   }
-
+  
     /**
      * 获取rmdb数据
      */
-    private def getRmdbData(driverName: String, sql: String, jdbcUrl: String, username: String, pwd: String):Double = {
-      var conn:Connection = null
-      var stat:Statement = null
-      try{
-    	  Class.forName(driverName)
-    	  //得到连接
-    	  conn = DriverManager.getConnection(jdbcUrl, username, pwd)
-    	  stat = conn.createStatement()
-      	val rs = stat.executeQuery(sql)
-      	val num = if(rs.next()){
-        	  rs.getString(1).trim().toDouble
-        	}else{
-        	  throw new Exception("无查询结果")
-        	}
-       num
-      }catch{
-        case e:Exception => throw e
-      }finally{
-        if(stat != null) stat.close()
-        if(conn != null) conn.close()
-      }
+    private def getRmdbData(sql: String, dbLink: DBLink):Double = {
+      querySql(sql,dbLink,rs => {
+    	  if(rs.next()) rs.getString(1).trim().toDouble else throw new Exception("无查询结果")        
+      }).get
     }
     
     /**
      * 获取命令数据
      */
-    private def getCommandData(executeFilePath: String, content: String): Double = {
+    private def getCommandData(content: String): Double = {
       //写入执行文件
-      val lines = content.split("\n").filter { x => x.trim() != "" }.toList
-      FileUtil.writeFile(executeFilePath,lines)
-      FileUtil.setExecutable(executeFilePath, true)
-     try {
-      val rsNum: String = s"${executeFilePath}" !!
-      val num = rsNum.trim().toDouble
-      num
-     }catch{
-       case e: Exception => throw e
-     }finally{
-    	 FileUtil.deleteDirOrFile(new File(executeFilePath))       
-     }
+      this.executeScript(content).trim().toDouble
     }
     /**
      * 获取直接输入的数据

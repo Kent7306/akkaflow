@@ -53,7 +53,7 @@ class Directory(val dirname: String) extends Daoable[Directory] with DeepCloneab
       from directory 
       where name=${withQuate(name)} and pid=${pid} and is_leaf=0
     """
-    val result = querySql[String](sql, rs => {
+    val result = querySql(sql, rs => {
       if (rs.next()) rs.getString("id") else null
     })
     if(result.isEmpty) None else Some(result.get.toInt)
@@ -65,7 +65,7 @@ class Directory(val dirname: String) extends Daoable[Directory] with DeepCloneab
       from directory 
       where name=${withQuate(name)} and pid=${pid} and is_leaf=1
     """
-    val result = querySql[String](sql, rs => {
+    val result = querySql(sql, rs => {
       if (rs.next()) rs.getString("id") else null
     })
     if(result.isEmpty) None else Some(result.get.toInt)

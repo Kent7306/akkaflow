@@ -18,7 +18,7 @@
 
 ### 部署
 #### 1、打包
-* 可以直接在[这里](https://pan.baidu.com/s/1fwzsVQ09jxiOhC-QCznC2g)下载`akkaflow-x.x.zip`，，这是已经打包好的程序包
+* 可以直接在[这里](https://pan.baidu.com/s/1txmQF_dyiitiBsIf5jtS9w)下载`akkaflow-x.x.zip`，，这是已经打包好的程序包
 * 可以把工程check out下来，用sbt-native-packager进行编译打包(直接运行`sbt dist`)
 
 #### 2、安装
@@ -66,6 +66,16 @@
 }
 ```
 * 其中，因为akkaflow支持分布式部署，当前伪分布部署，可以把master、master-standby、worker、http-servers在同一台机器的不同端口启动，设置jdbc连接，告警邮件设置
+* 修改数据库配置文件`conf/db_links.xml`
+
+  ```xml
+  <db-links>
+	    <link name="local_mysql" type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf" username="root" password="root"/>
+	    <link name="local_orcl" type="ORACLE" jdbc-url="xxxxx" username="xxxxx" password="xxxxx"/>
+	    <link name="local_hive" type="HIVE" jdbc-url="jdbc:hive://localhost:3306/xxx" username="root" password="root"/>
+</db-links>
+  ```
+  
 * 启动角色（独立部署模式）  
   执行: `./standalone-startup`
 * 查看启动日志
@@ -76,8 +86,7 @@
 ```
 2338 HttpServer
 2278 Worker
-2198 MasterStandbyStartup
-2124 MasterStartup
+2124 Master
 ```
 
 **注意**：akkaflow工作流定义可以存放于xmlconfig下，akkaflow启动时，会自动不断扫描xmlconfig下面的文件，生成对应的worflow提交给Master，所以新建的工作流文件，可以放到该目录中，安装包下的xmlconfig/example下有工作流定义示例。  

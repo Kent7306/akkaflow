@@ -26,7 +26,7 @@ class ShellNodeInstance(override val nodeInfo: ShellNode) extends ActionNodeInst
       cd `dirname $0`
        """ + this.nodeInfo.command
     val runLines = run_code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
-    FileUtil.writeFile(runFilePath,runLines)
+    FileUtil.writeFile(runFilePath,runLines)(false)
     FileUtil.setExecutable(runFilePath, true)  
     
     val pLogger = ProcessLogger(line =>infoLog(line), line => errorLog(line))

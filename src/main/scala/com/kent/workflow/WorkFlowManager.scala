@@ -414,12 +414,18 @@ class WorkFlowManager extends DaemonActor {
     }
   }
   /**
+   * 重置所有工作流状态
+   */
+  def resetAllWorkflow():ResponseData = {
+    this.workflows.foreach{case (name, wf) => wf.resetCoor()}
+    ResponseData("success",s"成功重置所有工作流状态", null)
+  }
+  /**
    * receive方法
    */
   def indivivalReceive: Actor.Receive = {
     case Start() => this.start()
-    case Stop() =>
-      sender ! this.stop(); context.stop(self)
+    case Stop() => sender ! this.stop(); context.stop(self)
     case AddWorkFlow(xmlStr, path) => sender ! this.add(xmlStr, path, true)
     case CheckWorkFlowXml(xmlStr) => sender ! this.checkXml(xmlStr)
     case RemoveWorkFlow(name) => this.remove(name) pipeTo sender
@@ -436,7 +442,8 @@ class WorkFlowManager extends DaemonActor {
     //调度器操作
     case Reset(wfName) => sender ! this.resetCoor(wfName)
     case Trigger(wfName) => sender ! this.trigger(wfName)
-    case Tick()                 => tick()
+    case ResetAllWorkflow() => sender ! this.resetAllWorkflow()
+    case Tick() => tick()
   }
 }
 

@@ -17,6 +17,7 @@ project/plugins/project/
 .settings
 tmp/
 src/main/resources/application.conf
+src/main/scala/com/kent/test/
 
 # Scala-IDE specific
 .scala_dependencies

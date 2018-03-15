@@ -19,20 +19,30 @@ import com.kent.ddata.HaDataStorager.AddXmlFile
 import com.kent.pub.ActorTool
 import com.kent.pub.DaemonActor
 import scala.xml.XML
+import com.kent.workflow.actionnode.DataMonitorNode.SourceType._
+import com.kent.workflow.actionnode.DataMonitorNode.SourceType
+import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType
 
 class XmlLoader(wfXmlPath: String, interval: Int) extends DaemonActor{
   //工作流（文件名称，上次修改时间）
   var workflowFileMap: Map[String,Long] = Map()
   //数据库连接配置（上次修改时间）
   var dbLinkFileLastModTime:  Long = 0
+  var dbLinks: Map[String,DBLink] = Map()
   var scheduler:Cancellable = _;
+  
   
   def indivivalReceive: Actor.Receive = {
     case Start() => start()
     case Stop() => 
       sender ! stop()
       context.stop(self)
-    case Tick() => this.loadWorkflowXmlFiles(wfXmlPath, List("xml","wf"))
+    case Tick() => 
+      this.loadWorkflowXmlFiles(wfXmlPath, List("xml","wf"))
+      this.loadDBLinkXmlFile("config/db_links.xml", List("xml"))
+    case AddDBLink(dbl) => dbLinks += (dbl.name -> dbl)
+    case GetDBLink(name) => sender ! dbLinks.get(name)
+    
   }
   def start():Boolean = {
     this.scheduler = context.system.scheduler.schedule(0 millis, interval seconds){
@@ -98,17 +108,23 @@ class XmlLoader(wfXmlPath: String, interval: Int) extends DaemonActor{
     		}
     }
     val dbLinkStrOpt = getNewFileContents()
-    val dbLinksOpt = dbLinkStrOpt.map { getDBLinks _ }
-    val wfm = context.actorSelection("../wfm")
-    
-    ???
+    if(dbLinkStrOpt.isDefined){
+    	dbLinkStrOpt.map { x => 
+    	getDBLinks(x).foreach { dbl => self ! AddDBLink(dbl) } 
+    	}
+    	log.info(s"[success]解析conf/db-links.xml) ")
+    	true
+    }else{
+      false
+    }
   }
   
   def getDBLinks(xmlStr: String): List[DBLink] = {
     val node = XML.loadString(xmlStr)
     val linkNodes = node \ "link"
     linkNodes.map { n => 
-      DBLink(n.attribute("name").get.text,n.attribute("jdbcUrl").get.text, n.attribute("username").get.text, n.attribute("password").get.text) 
+      val dbType = DatabaseType.withName(n.attribute("type").get.text)
+      DBLink(dbType, n.attribute("name").get.text,n.attribute("jdbc-url").get.text, n.attribute("username").get.text, n.attribute("password").get.text) 
     }.toList
   }
   

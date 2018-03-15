@@ -146,9 +146,10 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     val stat = conn.createStatement()
     var result:Boolean = true
     try{
-    	result = stat.execute(sql)      
+      stat.execute(sql) 
     }catch{
       case e:Exception => e.printStackTrace()
+      result = false
     }finally{
       if(stat != null) stat.close()
       result

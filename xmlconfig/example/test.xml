@@ -8,11 +8,19 @@
       </param-list>
   </coordinator>
   <!-- 节点列表 -->
-  <start name="start" to="file_monitor" /> 
+  <start name="start" to="sql" /> 
+
+  <action name="sql" retry-times="1" interval="10" desc = "执行sql">
+      <sql db-link="local_mysql">
+        select sleep(1);
+      	delete from workflow where 2 > 3;
+      </sql>
+      <ok to="file_monitor"/>
+  </action>
 
   <action name="file_monitor" retry-times="1" interval="10" desc = "监测源数据">
-      <file-monitor>8
-	    <file num-threshold="1" size-threshold="20GB">/Users/kent/Documents/工作区/*</file>
+      <file-monitor>
+	    <file num-threshold="1" size-threshold="1B">/Users/kent/Documents/工作区/*.sh</file>
 	    <warn-msg>请填写文件检测异常告警信息</warn-msg>
 	</file-monitor>
       <ok to="data_monitor"/>
@@ -21,8 +29,9 @@
 
   <action name="data_monitor" retry-times="1" interval="10" desc = "监测源数据">
       <data-monitor>
-          <source type="COMMAND">echo -e "111\n22\n3" | wc -l </source>
-          <min-threshold type="NUM">2</min-threshold>
+          <source type="COMMAND">echo -e "111\n22\n3" | wc -l | wc -l </source>
+          <min-threshold type="NUM">1</min-threshold> 
+          <max-threshold type="SQL" db-link="local_orcl">select count(1) from ODS_3C_INV_YX_LEFT</max-threshold>
          <!--  <warn-msg>智造京东日志数据缺失，路径为/xx/xxx/xx/xx/data，麻烦辉哥及时补上数据。</warn-msg> -->
       </data-monitor>
       <ok to="script"/>
@@ -31,10 +40,14 @@
   <action name="script" desc = "执行脚本">
       <script>
           <code><![CDATA[
-           wc -l ./akka.2017-07-17.log
+          #!/usr/bin/perl
+          $stime="2018-03-15 03:43";
+          $file="./order.log";
+          $result="/tmp/order.result";  
           ]]></code>
 	      <attach-list>
 	      	<file>/Users/kent/unbackup/github_repository/akkaflow/logs/akka.2017-07-17.log</file>
+	      	<file>/Users/kent/unbackup/github_repository/akkaflow/logs/akka.2017-07-18.log</file>
 	      </attach-list>
       </script>
       <ok to="end"></ok>

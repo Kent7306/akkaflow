@@ -54,7 +54,7 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
         //创建执行目录
         var location = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
         dir = new File(location)
-        dir.deleteOnExit()
+        dir.delete()
         dir.mkdirs()
         //写入执行文件
         val efn = FileUtil.getFileName(executeFileContent.path)
@@ -78,7 +78,7 @@ class FileExecutorNodeInstance(nodeInfo: FileExecutorNode) extends ActionNodeIns
           cd `dirname $0`
           """ + newCommand
         val runLines = run_code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
-        FileUtil.writeFile(runFilePath,runLines)
+        FileUtil.writeFile(runFilePath,runLines)(false)
         FileUtil.setExecutable(runFilePath, true)
         
     		//执行

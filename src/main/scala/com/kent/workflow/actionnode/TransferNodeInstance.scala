@@ -24,13 +24,13 @@ class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNo
   implicit val timeout = Timeout(3600 seconds)
   var sourceRef: ActorRef = _
   var targetRef: ActorRef = _
-  private var executeResult: Process = _
+  private var executeProcess: Process = _
   
   def execute(): Boolean = {
     if(nodeInfo.script.isEmpty){
       executeActorTransfer()
     }else{
-      executeScript(nodeInfo.script.get)
+      executeScript(nodeInfo.script.get, None){x => this.executeProcess = x}
     }
   }
   /**
@@ -48,42 +48,10 @@ class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNo
     }
   }
   
-  /**
-   * 直接执行脚本
-   */
-  def executeScript(code: String): Boolean = {
-    //创建执行目录
-    var location = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
-    val executeFilePath = s"${location}/akkaflow_script"
-    val dir = new File(location)
-    dir.deleteOnExit()
-    dir.mkdirs()
-    //写入执行入口文件
-    val runFilePath = s"${location}/akkaflow_run"
-    val run_code = """
-      source /etc/profile
-      cd `dirname $0`
-      ./akkaflow_script """
-    val runLines = run_code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
-    FileUtil.writeFile(runFilePath,runLines)
-    FileUtil.setExecutable(runFilePath, true)
-    
-    //写入执行文件  
-    val lines = code.split("\n").filter { x => x.trim() != "" }.map { _.trim() }.toList
-    FileUtil.writeFile(executeFilePath,lines)
-    FileUtil.setExecutable(executeFilePath, true)
-    infoLog(s"写入到文件：${executeFilePath}")
-    //执行
-    val pLogger = ProcessLogger(line => infoLog(line), line => errorLog(line)) 
-    executeResult = Process(s"${runFilePath}").run(pLogger)
-    if(executeResult.exitValue() == 0) true else false
-    
-  }
-  
   def kill(): Boolean = {
     if(sourceRef != null) sourceRef ! PoisonPill
     if(targetRef != null) targetRef ! PoisonPill
-    if(executeResult != null) executeResult.destroy()
+    if(executeProcess != null) executeProcess.destroy()
     true
   }
 }

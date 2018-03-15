@@ -5,6 +5,7 @@ import akka.actor.Actor
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.kent.workflow.node.NodeInfo.Status._
+import akka.pattern.{ ask, pipe }
 import akka.actor.Cancellable
 import akka.actor.ActorRef
 import com.kent.workflow.node.ActionNodeInstance
@@ -19,6 +20,7 @@ import com.kent.db.LogRecorder.LogType._
 import com.kent.db.LogRecorder
 import java.io.File
 import com.kent.util.FileUtil
+import akka.util.Timeout
 
 class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   var workflowActorRef: ActorRef = _
@@ -37,7 +39,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
     def asynExcute(){
       //创建临时目录
       val dir = new File(actionNodeInstance.executeDir)
-      dir.deleteOnExit()
+      dir.delete()
       dir.mkdirs()
       var result = false
       try{
@@ -55,7 +57,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
         return
       }
       
-      actionNodeInstance.changeStatus(executedStatus)
+      actionNodeInstance.status = executedStatus
   		actionNodeInstance.executedMsg = if(executedStatus == SUCCESSED) "节点执行成功" 
   		  else if (executedStatus == FAILED && actionNodeInstance.executedMsg == null) "节点执行失败" 
   		  else actionNodeInstance.executedMsg 
@@ -73,7 +75,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
     thread.start()
   }
   def kill(sdr:ActorRef){
-    actionNodeInstance.changeStatus(KILLED)
+    actionNodeInstance.status = KILLED
     actionNodeInstance.executedMsg = "手工杀死节点"
     actionNodeInstance.kill();
     terminate(sdr)
@@ -83,6 +85,14 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
    */
   def sendMailMsg(toUsers: List[String],subject: String,htmlText: String){
     workflowActorRef ! EmailMessage(toUsers, subject, htmlText, List())
+  }
+  /**
+   * 获取指定名称的DBLink
+   */
+  def getDBLink(name: String): Future[Option[DBLink]] = (workflowActorRef ? GetDBLink(name)).mapTo[Option[DBLink]]
+  
+  def getFileContent(fp: String)(implicit timeout: Timeout): Future[FileContent] = {
+    (workflowActorRef ? GetFileContent(fp)).mapTo[FileContent]
   }
   /**
    * 结束

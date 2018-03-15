@@ -69,6 +69,7 @@ class HttpServer extends ClusterRole {
     case event@RemoveWorkFlow(_) =>  getResponseFromWorkflowManager(sender, event)
     case event@AddWorkFlow(_, _) => getResponseFromWorkflowManager(sender, event)
     case event@CheckWorkFlowXml(_) => getResponseFromWorkflowManager(sender, event)
+    case event@ResetAllWorkflow() => getResponseFromWorkflowManager(sender, event)
     case event@ReRunWorkflowInstance(_,_) => getResponseFromWorkflowManager(sender, event)
     case event@KillWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
     case event@RemoveWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
@@ -150,6 +151,13 @@ object HttpServer extends App{
           }  
         }
       }
+    } ~ path("akkaflow" / "workflows"){
+      parameter('action){
+          action => {
+            if(action == "reset") handleRequestWithActor(ResetAllWorkflow())
+            else handleRequestWithResponseData("fail","action参数有误",null)
+          }
+        }
     }
     //workflow instance
     val wfiRoute = path("akkaflow" / "workflow" / "instance" / Segment){            

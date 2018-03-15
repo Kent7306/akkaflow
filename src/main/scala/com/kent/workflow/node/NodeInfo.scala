@@ -69,7 +69,7 @@ abstract class NodeInfo(var name: String) extends Daoable[NodeInfo] with DeepClo
       """
       
     val isExistSql = s"select name from node where name = ${withQuate(name)} and workflow_name = ${withQuate(workflowName)}"
-    val isExist = querySql[Boolean](isExistSql, rs =>
+    val isExist = querySql(isExistSql, rs =>
       if(rs.next()) true else false
     )
     if(!isExist.get) executeSql(insertSql) else executeSql(updateSql)

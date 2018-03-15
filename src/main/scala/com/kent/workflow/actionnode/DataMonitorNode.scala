@@ -10,6 +10,7 @@ import com.kent.workflow.actionnode.DataMonitorNode._
 import java.sql.DriverManager
 import java.sql.Connection
 import java.sql.Statement
+import com.kent.pub.Event.DBLink
 
 class DataMonitorNode(name: String) extends ActionNode(name) {
   //数据源分类
@@ -43,9 +44,6 @@ class DataMonitorNode(name: String) extends ActionNode(name) {
 	      "warn-msg":${transJsonStr(warnMsg)},
 	      "source":{
 	        "type":${transJsonStr(source.stype.toString())},
-	        "jdbc-url":${transJsonStr(source.dbInfo._1)},
-	        "username":${transJsonStr(source.dbInfo._2)},
-	        "password":${transJsonStr(source.dbInfo._3)},
 	        "content":${transJsonStr(source.content)}
 	      }
 	    }"""
@@ -53,9 +51,6 @@ class DataMonitorNode(name: String) extends ActionNode(name) {
 	    assembleStr += s"""
 	      ,"min-thredshold":{
 	        "type":${transJsonStr(minThre.stype.toString())},
-	        "jdbc-url":${transJsonStr(minThre.dbInfo._1)},
-	        "username":${transJsonStr(minThre.dbInfo._2)},
-	        "password":${transJsonStr(minThre.dbInfo._3)},
 	        "content":${transJsonStr(minThre.content)}
 	      }
 	    """
@@ -64,9 +59,6 @@ class DataMonitorNode(name: String) extends ActionNode(name) {
 	    assembleStr += s"""
 	      ,"max-thredshold":{
 	        "type":${transJsonStr(maxThre.stype.toString())},
-	        "jdbc-url":${transJsonStr(maxThre.dbInfo._1)},
-	        "username":${transJsonStr(maxThre.dbInfo._2)},
-	        "password":${transJsonStr(maxThre.dbInfo._3)},
 	        "content":${transJsonStr(maxThre.content)}
 	      },
 	    """
@@ -76,14 +68,19 @@ class DataMonitorNode(name: String) extends ActionNode(name) {
 }
 
 object DataMonitorNode {
+  object DatabaseType extends Enumeration {
+    type DatabaseType = Value
+    val HIVE, ORACLE, MYSQL = Value
+  }
   object SourceType extends Enumeration {
     type SourceType = Value
-    val HIVE, ORACLE, MYSQL, COMMAND, NUM = Value
+    val SQL, COMMAND, NUM = Value
   }
+  
   import com.kent.workflow.actionnode.DataMonitorNode.SourceType._
-  case class MaxThreshold(stype: SourceType,content: String, dbInfo:Tuple3[String, String, String])
-  case class MinThreshold(stype: SourceType,content: String, dbInfo:Tuple3[String, String, String])
-  case class Source(stype: SourceType,content: String, dbInfo:Tuple3[String, String, String])
+  case class MinThreshold(stype: SourceType, content: String, dbLinkName: Option[String])
+  case class Source(stype: SourceType, content: String, dbLinkName: Option[String])
+  case class MaxThreshold(stype: SourceType, content: String, dbLinkName: Option[String])
   
   
   
@@ -122,30 +119,33 @@ object DataMonitorNode {
 	    throw new Exception(s"节点[data-monitor: ${name}] 未配置<source>子标签")	    
 	  }
 	  val sType = SourceType.withName(sourceSeq(0).attribute("type").get.text)
-		val sUrl = if(sourceSeq(0).attribute("jdbc-url").isDefined) sourceSeq(0).attribute("jdbc-url").get.text else null
-		val sUsername = if(sourceSeq(0).attribute("username").isDefined) sourceSeq(0).attribute("username").get.text else null
-		val sPwd = if(sourceSeq(0).attribute("password").isDefined) sourceSeq(0).attribute("password").get.text else null
+		val sDBLinkNameOpt = if(sourceSeq(0).attribute("db-link").isDefined) Some(sourceSeq(0).attribute("db-link").get.text) else None
+		if(sType == SQL && sDBLinkNameOpt.isEmpty){
+		  throw new Exception(s"节点[data-monitor: ${name}] source的type为SQL时，须配置<db-link>子标签")	 
+		}
 	  val sContent = sourceSeq(0).text
-	  node.source = new Source(sType, sContent, (sUrl, sUsername, sPwd))
+	  node.source = new Source(sType, sContent, sDBLinkNameOpt)
 	  //max-threshold
 	  val maxThrSeq = (xmlNode \ "max-threshold")
 	  if(maxThrSeq.size > 0){
 	    val tt = SourceType.withName(maxThrSeq(0).attribute("type").get.text)
-	    val sUrl = if(sourceSeq(0).attribute("jdbc-url").isDefined) sourceSeq(0).attribute("jdbc-url").get.text else null
-  		val sUsername = if(sourceSeq(0).attribute("username").isDefined) sourceSeq(0).attribute("username").get.text else null
-  		val sPwd = if(sourceSeq(0).attribute("password").isDefined) sourceSeq(0).attribute("password").get.text else null
+	    val maxDBLinkNameOpt = if(maxThrSeq(0).attribute("db-link").isDefined) Some(maxThrSeq(0).attribute("db-link").get.text) else None
+  		if(tt == SQL && maxDBLinkNameOpt.isEmpty){
+  		  throw new Exception(s"节点[data-monitor: ${name}] max-threshold的type为SQL时，须配置<db-link>子标签")	 
+  		}
 	    val ct = maxThrSeq(0).text
-	    node.maxThre = new MaxThreshold(tt, ct, (sUrl, sUsername, sPwd))
+	    node.maxThre = new MaxThreshold(tt, ct, maxDBLinkNameOpt)
 	  }
 	  //min-threshold
 	  val minThrSeq = (xmlNode \ "min-threshold")
 	  if(minThrSeq.size > 0){
 	    val tt = SourceType.withName(minThrSeq(0).attribute("type").get.text)
-	    val sUrl = if(sourceSeq(0).attribute("jdbc-url").isDefined) sourceSeq(0).attribute("jdbc-url").get.text else null
-  		val sUsername = if(sourceSeq(0).attribute("username").isDefined) sourceSeq(0).attribute("username").get.text else null
-  		val sPwd = if(sourceSeq(0).attribute("password").isDefined) sourceSeq(0).attribute("password").get.text else null
+	    val minDBLinkNameOpt = if(minThrSeq(0).attribute("db-link").isDefined) Some(minThrSeq(0).attribute("db-link").get.text) else None
+  		if(tt == SQL && minDBLinkNameOpt.isEmpty){
+  		  throw new Exception(s"节点[data-monitor: ${name}] min-threshold的type为SQL时，须配置<db-link>子标签")	 
+  		}
 	    val ct = minThrSeq(0).text
-	    node.minThre = new MinThreshold(tt, ct, (sUrl, sUsername, sPwd))
+	    node.minThre = new MinThreshold(tt, ct, minDBLinkNameOpt)
 	  }
 	  //warn-msg
 	  val warnMsgSeq = (xmlNode \ "warn-msg")

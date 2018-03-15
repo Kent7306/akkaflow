@@ -8,7 +8,7 @@ import com.kent.pub.Event._
 /**
  * 作为备份主节点启动
  */
-object MasterStandbyStartup extends App{
+object MasterStandby extends App{
   def props = Props[Master]
   var curSystem:ActorSystem = _
   var persistManager:ActorRef = _
