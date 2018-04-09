@@ -165,6 +165,7 @@ object WorkflowInfo {
       wf.createTime = if(createTimeOpt != None) Util.getStandarTimeWithStr(createTimeOpt.get.text) else Util.nowDate
       if(descOpt != None) wf.desc = descOpt.get.text
     	//工作流节点解析
+      if((node \ "start").size != 1) throw new Exception("节点<start/>配置出错，请检查")
       wf.nodeList = (node \ "_").filter { x => x.label != "coordinator"}.map{x => val n = NodeInfo(x); n.workflowName = nameOpt.get.text; n }.toList
     	//调度器配置
       wf.coorOpt = if(coorNodeOpt.size == 1) Some(Coor(coorNodeOpt(0))) else None

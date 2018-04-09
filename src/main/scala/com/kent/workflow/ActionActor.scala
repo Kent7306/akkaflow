@@ -46,7 +46,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
         result = actionNodeInstance.execute()
       }catch{
         case e: Exception =>
-          actionNodeInstance.errorLog(e.getMessage)
+          actionNodeInstance.errorLog("节点执行出错："+e.getMessage)
           result = false
       }
       val executedStatus = if(result) SUCCESSED else FAILED

@@ -1,0 +1,7 @@
+#!/bin/bash
+cd `dirname $0`
+source ./head.sh
+
+result=`curl -s -XGET "http://$host:$port/akkaflow/workflows?action=reset"`
+echo $result | iconv -f utf8 -t $local_lang
+echo ""

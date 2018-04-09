@@ -7,7 +7,7 @@ function show_info
     stadate=`date +'%F'`
     date_arr=()
     for i in `seq 0 13`;do
-    date_arr[$i]=`date +"%F" -d "${stadate} -$i day"`
+      date_arr[$i]=`getdate $stadate -$i`
     done
     echo -e "=================================${GREEN}近七天实例执行统计${NC}====================================="
     akka_mysql -e "use $mysql_db;

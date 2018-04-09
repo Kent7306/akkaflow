@@ -1,11 +1,11 @@
 ## akkaflow
-演示系统: [点击这里](http://47.93.186.236:8080/akkaflow-ui/home/login)  用户/密码：admin/admin  
+演示系统: [点击这里](http://47.93.186.236:8080/akkaflow-ui/home/login)  用户/密码：admin/admin   
 ### 简介
 `akkaflow`是一个基于`akka`架构上构建的分布式高可用ETL调度工具，可以把一个job中子任务按照拓扑关系在集群中不同的节点上并行执行，高效利用集群资源；提供多个工具节点，可监控文件数据情况，对数据及任务进行监控告警，异常处理等。其中工作流定义相对简洁轻量级，可作为构建数据仓库、或大数据平台上的调度工具。  
 整个`akkaflow`架构目前包含有四个节点角色：Master-Active、Master-Standby、Worker、Http-Server，每个角色可以独立部署于不同机器上，支持高可用性（HA），节点中包含以下模块：调度模块，执行模块，告警模块，日志模块，持久化模块。工作流定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)。  
 **节点角色关系图**
 
-* `Master-Active` 活动主节点，调度触发工作流实例，分发子任务
+* `Master` 活动主节点，调度触发工作流实例，分发子任务
 * `Master-Standby` 热备份主节点，当主节点宕机，立刻切换为活动主节点
 * `Worker` 任务节点，可部署在多个机器上，运行主节点分发过来的任务，并反馈运行结果。
 * `Http-Server` http服务节点，提供http API查看操作当前akkaflow系统。  
@@ -23,6 +23,7 @@
 
 #### 2、安装
 * 安装环境：Linux系统、jdk1.8或以上、MySQL5.7或以上
+* 设置好`JAVA_HOME`环境变量
 
 #### 3、目录说明
 * `bin` 存放基本命令（一般不会直接使用）
@@ -36,7 +37,7 @@
 
 #### 4、安装步骤 (伪分布式部署)：
 * 解压到`/your/app/dir`
-* mysql数据库准备一个数据库，（如wf，用户密码分别为root）
+* mysql数据库准备一个数据库，（如数据库名称为wf，用户密码分别为root）
 * 准备一个邮箱，支持smtp方式发送邮件。
 * 修改配置文件 `config/application.conf`中以下部分（基本修改数据库以及邮件配置项就可以了）
 
@@ -48,7 +49,7 @@
   	is-enabled = true
   }
   log-mysql {   //把输出日志保持在mysql中
-    user = "root"
+   user = "root"
   	password = "root"
   	jdbc-url = "jdbc:mysql://localhost:3306/wf?useSSL=false"
   	is-enabled = true

@@ -14,6 +14,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import java.net.URI
 import org.apache.hadoop.fs.Path
+import com.kent.util.FileUtil
 
 class FileMonitorNodeInstance(override val nodeInfo: FileMonitorNode)  extends ActionNodeInstance(nodeInfo)  {
 
@@ -50,7 +51,7 @@ class FileMonitorNodeInstance(override val nodeInfo: FileMonitorNode)  extends A
    * 检测本地文件情况
    */
   private def getLocalFiles(vFn: String,vDir: String): Map[String, Long] = {
-    val regx = fileNameFuzzyMatch(vFn).r
+    val regx = FileUtil.fileNameFuzzyMatch(vFn)
     val filesize = Util.convertHumen2Byte(nodeInfo.sizeThreshold)
     val dirFile = new File(vDir)
     //目录必须存在
@@ -70,11 +71,11 @@ class FileMonitorNodeInstance(override val nodeInfo: FileMonitorNode)  extends A
   	var flag = true
     
     try{
-    	val files = if(nodeInfo.dir.toLowerCase().matches("hdfs:")){
+    	val files = if(nodeInfo.dir.toLowerCase().contains("hdfs:")){
           getHdfsFiles(nodeInfo.filename, nodeInfo.dir)
-        }else if(nodeInfo.dir.toLowerCase().matches("sftp:")){
+        }else if(nodeInfo.dir.toLowerCase().contains("sftp:")){
           getSftpFiles(nodeInfo.filename, nodeInfo.dir)
-        }else if(nodeInfo.dir.toLowerCase().matches("ftp:")){
+        }else if(nodeInfo.dir.toLowerCase().contains("ftp:")){
           getFtpFiles(nodeInfo.filename, nodeInfo.dir)
         }else {
           getLocalFiles(nodeInfo.filename, nodeInfo.dir)
@@ -142,15 +143,6 @@ class FileMonitorNodeInstance(override val nodeInfo: FileMonitorNode)  extends A
           <a>&nbsp;<a>
         """
        actionActor.sendMailMsg(null, "【Akkaflow】file-monitor节点执行失败", content)
-  }
-  
-  /**
-   * 模糊匹配处理
-   */
-  private def fileNameFuzzyMatch(fileName: String): String = {
-    var name = fileName.replaceAll("\\.", "\\\\.")
-    name = name.replaceAll("\\*", "(.\\*?)")
-    "^"+name+"$"
   }
   /**
    * 该节点被kill执行的方法

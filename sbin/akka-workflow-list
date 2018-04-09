@@ -21,11 +21,11 @@ function f_node
     local level=$2
     ((level=level+1))
     akka_mysql -s -N -e "use $mysql_db;
-select id,is_leaf,a.name,creator,description
+select id,is_leaf,a.name,creator,coor_enable,description
 from (
   select id,is_leaf,name from directory where pid = '$id'
 ) a left outer join (
-  select name,creator,if(length(description) > 60,concat(substring(description,1,60),'...'),description) description
+  select name,creator,coor_enable,if(length(description) > 60,concat(substring(description,1,60),'...'),description) description
   from workflow
 ) b on a.name = b.name
     " 2>/dev/null | while read line;do
@@ -33,11 +33,14 @@ from (
         local name=`echo $line |cut -d ' ' -f 3`
         local is_leaf=`echo $line |cut -d ' ' -f 2`
         local creator=`echo $line |cut -d ' ' -f 4`
-        local description=`echo $line |cut -d ' ' -f 5-`
-        if [ $is_leaf -eq 1 ];then
+        local coor_enable=`echo $line |cut -d ' ' -f 5`
+        local description=`echo $line |cut -d ' ' -f 6-`
+        if [ $is_leaf -eq 0 ];then
+            name=${BLUE}$name${NC}
+        elif [ $coor_enable -eq 1 ];then
             name="${GREEN}$name${NC}   【$creator】【$description】"
         else
-            name=${BLUE}$name${NC}
+            name="${RED}$name${NC}   【$creator】【$description】"
         fi
         tmp=`get_hf $level`
         echo -e "${tmp//#/ }$name"

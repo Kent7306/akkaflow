@@ -1,4 +1,4 @@
-<work-flow name="test" creator="Kent" mail-receivers="15018735011@163.com" mail-level="成功,失败"
+<work-flow name="test" creator="Kent" mail-receivers="15018735011@163.com" mail-level="失败"
     dir="/TMP" desc="测试a">
   <!-- 调度配置 -->
   <coordinator is-enabled="false">
@@ -8,8 +8,19 @@
       </param-list>
   </coordinator>
   <!-- 节点列表 -->
-  <start name="start" to="sql" /> 
-
+  <start name="start" to="transfer" />
+  
+  <action name="transfer" retry-times="0" interval="10" desc = "执行sql">
+      <transfer> 
+	    <source type="FILE" delimited=",">hdfs://quickstart.cloudera:8022/tmp/1111.txt</source>
+	    <target type="FILE" path="/tmp/2222.txt">
+	    	<pre>echo "begin"</pre>
+	    	<after>echo "end"</after>
+	    </target>
+	</transfer>
+      <ok to="sql"/>
+  </action>
+   
   <action name="sql" retry-times="1" interval="10" desc = "执行sql">
       <sql db-link="local_mysql">
         select sleep(1);
@@ -31,7 +42,7 @@
       <data-monitor>
           <source type="COMMAND">echo -e "111\n22\n3" | wc -l | wc -l </source>
           <min-threshold type="NUM">1</min-threshold> 
-          <max-threshold type="SQL" db-link="local_orcl">select count(1) from ODS_3C_INV_YX_LEFT</max-threshold>
+          <max-threshold type="SQL" db-link="local_mysql">select count(1) from workflow</max-threshold>
          <!--  <warn-msg>智造京东日志数据缺失，路径为/xx/xxx/xx/xx/data，麻烦辉哥及时补上数据。</warn-msg> -->
       </data-monitor>
       <ok to="script"/>

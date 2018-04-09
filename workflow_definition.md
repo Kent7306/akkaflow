@@ -341,38 +341,38 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
 </data-monitor>
 ```
 #### &lt;transfer/&gt;(废弃)
-数据传输节点，支持通用jdbc连接的数据库,本地文件系统，HDFS之间的数据记录互传，因个人精力有限，hive相关的数据传输采用sqoop，但是并没有进一步封装（后续有时间调整），所以只是提供了写脚本命令的方式（需要指定到有按照sqoop的机器上执行）
+数据传输节点，支持通用jdbc连接的数据库,本地文件系统，HDFS之间的数据记录互传，hive相关的数据传输采用sqoop，但是并没有进一步封装（后续有时间调整），所以只是提供了写脚本命令的方式（需要指定到有按照sqoop的机器上执行）
 ##### * 子标签
-* `<source>`：可选，导入的数据源配置，与下面的`<script/>`标签二选一，数据来源支持jdbc（包括hive，impala）与本地文件。属性`type` ,可选值有MYSQL,ORACLE,HIVE,LFS,其中LFS是本地文件。在LFS类型下，属性`path`与`delimited`分别是本地文件路径与文件分隔符；在jdbc情况下，需填进属性`jdbc-url`,`username`,`password`。
-* `<target>`: 可选，导出的目标源配置，与source标签一起使用，属性`type`，可选值有MYSQL,ORACLE,LFS。在LFS类型下，属性`path`与`delimited`默认是本地文件路径与文件分隔符,属性`is-pre-del`,可选，是否在导入数据前删除文件，默认为false；在jdbc情况下，需填进属性`jdbc-url`,`username`,`password`，属性`is-pre-truncate`,可选，是否在导入数据前清空表，默认为false,标签`<pre-sql>`与`<after-sql>`，前置执行的sql与后置执行的sql，若无，可不添加。
+* `<source>`：可选，导入的数据源配置，与下面的`<script/>`标签二选一，数据来源支持jdbc数据源与各类型文件。属性`type` ,可选值有`DB`,`FILE`,其中FILE是各类型文件。在FILE类型下，属性`delimited`是文件分隔符,标签内容填写文件路径；在DB情况下，需填进属性`db-link`,标签内容填写表名或查询sql。
+* `<target>`: 可选，导出的目标源配置，与source标签一起使用，属性`type`，可选值有`DB`,`FILE`。在FILE类型下，属性`path`与`delimited`默认是本地文件路径与文件分隔符,属性`is-pre-del`,可选，是否在导入数据前删除文件，默认为false；在DB情况下，需填进属性`db-link`，属性`is-pre-del`,可选，是否在导入数据前清空表，默认为false,标签`<pre>`与`<after>`，前置执行的sql与后置执行的sql，若无，可不添加。
 * `<script>`: 由于sqoop还没封装，所以提供以脚本命令的方式来进行数据传输。
 
 #### * 示例
 ```xml
 <!-- source jdbc 方式-->
-<source type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf?useSSL=false" username="root" password="root">
-	select name,xml_str from workflow
-</source>
+<source type="DB" db-link="local_mysql">order_item</source>
 <!-- source 读取本地文件 其中delimited 默认是以tab来作为分隔符 -->
-<source type="LFS" path="/tmp/2222" delimited=","></source>
+<source type="FILE" delimited="\t">/home/kent/info.txt</source>
 <!-- target 目标jdbc数据源 -->
-<target type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/test?useSSL=false" username="root" password="root" is-pre-truncate="true" table="bbb">
-	<pre-sql>truncate table bbb</pre-sql>
-	<after-sql>insert into bbb values('111','222')</after-sql>
+<target type="DB" db-link="local_mysql" table="bbb">
+    	<pre>create table if not exists bbb like log_record</pre>
 </target>
 <!-- target 目标写入本地文件 -->
-<target type="LFS" path="/tmp/2222" delimited="####" is-pre-del="true"></target>
-<!-- 用脚本方式使用sqoop导入导出-->
+<target type="FILE" delimited="\t" is-pre-del="false" path="/home/kent/info.txt">
+    	<pre>rm -f xxx</pre>
+    	<after>xxxx</after>
+ </target>
+ <!-- 用脚本方式使用sqoop导入导出-->
 <script>sqoop import xx xxx xx</script>
 
 <!-- 完整示例1 -->
-<transfer>
-	<source type="LFS" path="/tmp/2222" delimited=","></source>
-	<target type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/test?useSSL=false" username="root" password="root" is-pre-truncate="true" table="bbb">
-    <pre-sql>truncate table bbb</pre-sql>
-    <after-sql>insert into bbb values('111','222')</after-sql>
-</target>
-</transfer>
+<transfer> 
+	    <source type="FILE" delimited=",">hdfs://quickstart.cloudera:8022/tmp/1111.txt</source>
+	    <target type="FILE" path="/tmp/2222.txt">
+	    	  <pre>echo "begin"</pre>
+	    	  <after>echo "end"</after>
+	    </target>
+	</transfer>
 
 <!-- 完整示例2 -->
 <transfer>

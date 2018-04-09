@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import java.io.PrintWriter
 import java.io.FileWriter
+import scala.util.matching.Regex
 
 object FileUtil {
   /**
@@ -39,6 +40,15 @@ object FileUtil {
 		 }
 		 return false;
 	 }
+	/**
+   * 模糊匹配处理
+   */
+  def fileNameFuzzyMatch(fileName: String): Regex = {
+    var name = fileName.replaceAll("\\.", "\\\\.")
+    name = name.replaceAll("\\*", "(.\\*?)")
+    ("^"+name+"$").r
+  }
+	 
   	/**
   	 * 从指定路径中解析出文件名 
   	 */

@@ -37,13 +37,26 @@ function workflow_cmd
     fi
 }
 
+function util_cmd
+{
+    if [ $# -lt 1 ];then
+        echo -e "【使用说明】"
+        echo -e "\takka util -reset-all :重置所有工作流调度器前置任务状态"
+    else
+        cmd="sh $cmd_dir/akka-util$1"
+        shift
+        $cmd $@
+    fi
+}
+
 
 if [ $# -lt 1 ];then
-echo -e "【使用】\n\takka [ front| instance| workflow]"
+echo -e "【使用】\n\takka [ front| instance| workflow| util]"
 echo -e "【说明】\n\takkaflow调度系统命令入口。"
 echo -e "\t1、akka front 调度系统首页"
 echo -e "\t2、akka instance 工作流实例操作命令集，详见该命令"
 echo -e "\t3、akka workflow 工作流操作命令集，详见该命令"
+echo -e "\t4、akka util 辅助操作命令集，详见该命令"
 echo -e "【示例】\n\takka front"
 echo -e "\takka instance -info -log 574de284 (查看某实例)"
 echo -e "\takka workflow -kill 574de284 (杀死某运行中的实例)\n"
@@ -62,6 +75,10 @@ while [ $# -gt 0 ];do
       workflow)
         shift
         workflow_cmd $@
+        shift;;
+      util)
+        shift
+        util_cmd $@
         shift;;
       *)
        shift

@@ -20,14 +20,16 @@ trait Daoable[A] {
    */
   def querySql[A](sql: String, f:(ResultSet) => A)(implicit conn: Connection): Option[A] = {
     var stat:Statement = null
+    var rs:ResultSet = null
     try{
     	stat = conn.createStatement()
-    	val rs = stat.executeQuery(sql)
+    	rs = stat.executeQuery(sql)
     	val obj = f(rs)
     	if(obj != null) Some(obj) else None
     }catch{
       case e:Exception => throw e
     }finally{
+    	if(rs != null) rs.close()
       if(stat != null) stat.close()
     }
   }
@@ -53,8 +55,7 @@ trait Daoable[A] {
       case e: Exception => 
         if(!isTransation) {
           throw e
-        }
-        else{
+        }else{
           conn.rollback()
           false
         }
@@ -85,8 +86,7 @@ trait Daoable[A] {
       case e: Exception =>
         if(!isTransation) {
           throw e
-        }
-        else{
+        }else{
           conn.rollback()
           false
         }
@@ -99,28 +99,25 @@ trait Daoable[A] {
   /**
    * 根据db-link获取Connection
    */
-  def getConnection(dbLink: DBLink): Option[Connection] = {
+  def getConnection(dbLink: DBLink): Connection = {
     val driverClsOpt = dbLink.dbType match {
         case MYSQL => Some("com.mysql.jdbc.Driver")
         case ORACLE => Some("oracle.jdbc.driver.OracleDriver")
         case HIVE => Some("org.apache.hive.jdbc.HiveDriver")
         case _ => None
       }
-    if(driverClsOpt.isEmpty) None
+    if(driverClsOpt.isEmpty) throw new Exception("不存在数据类型："+dbLink.dbType)
     else{
     	Class.forName(driverClsOpt.get)
     	//得到连接
-    	val conn = DriverManager.getConnection(dbLink.jdbcUrl, dbLink.username, dbLink.password) 
-    	Some(conn)
+    	DriverManager.getConnection(dbLink.jdbcUrl, dbLink.username, dbLink.password) 
     }
   }
   /**
    * 查询sql(特供actionnode使用)
    */
   def querySql[A](sql: String, dbLink: DBLink, f:(ResultSet) => A): Option[A] = {
-    val connOpt = this.getConnection(dbLink)
-    if(connOpt.isEmpty) throw new Exception("无法获取Connection") 
-    implicit val conn = connOpt.get
+    implicit val conn = this.getConnection(dbLink)
     try {
       this.querySql(sql, f)
     } catch{
@@ -140,9 +137,7 @@ trait Daoable[A] {
     var conn: Connection = null
     var stat: Statement = null 
     try{
-  	  val connOpt = this.getConnection(dbLink)
-      if(connOpt.isEmpty) throw new Exception("无法获取Connection")
-      conn = connOpt.get
+      conn = this.getConnection(dbLink)
       conn.setAutoCommit(false)
   	  stat = conn.createStatement()
   	  callBack(conn,stat)
