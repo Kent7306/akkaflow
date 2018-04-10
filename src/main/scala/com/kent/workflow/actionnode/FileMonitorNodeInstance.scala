@@ -15,6 +15,9 @@ import org.apache.hadoop.fs.FileSystem
 import java.net.URI
 import org.apache.hadoop.fs.Path
 import com.kent.util.FileUtil
+import scala.concurrent.Await
+import akka.util.Timeout
+import scala.concurrent.duration._
 
 class FileMonitorNodeInstance(override val nodeInfo: FileMonitorNode)  extends ActionNodeInstance(nodeInfo)  {
 
@@ -123,6 +126,9 @@ class FileMonitorNodeInstance(override val nodeInfo: FileMonitorNode)  extends A
   }
   
   private def sendErrorMail(warnContent: String, errorInfo: String) = {
+    val instanceInfoF = actionActor.getInstanceShortInfo()
+    val instanceInfo = Await.result(instanceInfoF, 20 second)
+    
     val content = s"""
         <style> 
         .table-n {text-align: center; border-collapse: collapse;border:1px solid black}
@@ -132,7 +138,8 @@ class FileMonitorNodeInstance(override val nodeInfo: FileMonitorNode)  extends A
         <h3>实例<data-monitor/>节点执行失败,内容如下</h3>
         
           <table class="table-n" border="1">
-            <tr><td>实例ID</td><td>${this.id}</td></tr>
+            <tr><td>实例ID(工作流名称)</td><td>${this.id}(${instanceInfo.name})</td></tr>
+            <tr><td>工作流描述</td><td>${instanceInfo.desc}</td></tr>
             <tr><td>节点名称</td><td>${nodeInfo.name}</td></tr>
             <tr><td>告警信息</td><td><a>${warnContent}</a></td></tr>
             <tr><td>出错信息</td><td><a>${errorInfo}</a></td></tr>

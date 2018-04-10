@@ -31,6 +31,7 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
   override def execute(): Boolean = {
     //是否执行成功
     var result = true
+    var instanceInfo: InstanceShortInfo = null
     try {
       val monitorData = getData(nodeInfo.source)
       val maxDataOpt = if(nodeInfo.maxThre != null) Some(getData(nodeInfo.maxThre)) else None
@@ -43,6 +44,8 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       }
       
       //异常则发送邮件
+      val instanceInfoF = actionActor.getInstanceShortInfo()
+      instanceInfo = Await.result(instanceInfoF, 20 second)
   	  val max = if(maxDataOpt.isDefined) maxDataOpt.get else "未定义"
   	  val min = if(minDataOpt.isDefined) minDataOpt.get else "未定义"
   	    
@@ -59,7 +62,8 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
         <h3>实例<data-monitor/>节点执行失败,内容如下</h3>
         
           <table class="table-n" border="1">
-            <tr><td>实例ID</td><td>${this.id}</td></tr>
+            <tr><td>实例ID(工作流名称)</td><td>${this.id}(${instanceInfo.name})</td></tr>
+            <tr><td>工作流描述</td><td>${instanceInfo.desc}</td></tr>
             <tr><td>节点名称</td><td>${nodeInfo.name}</td></tr>
             <tr><td>告警信息</td><td><a>${nodeInfo.warnMsg}</a></td></tr>
             <tr><td>上限</td><td><a>${max}</a></td></tr>
@@ -99,8 +103,8 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
           <h3>实例<data-monitor/>节点执行失败,内容如下</h3>
           
             <table class="table-n" border="1">
-              <tr><td>实例ID</td><td>${this.id}</td></tr>
-              <tr><td>节点名称</td><td>${nodeInfo.name}</td></tr>
+              tr><td>实例ID(工作流名称)</td><td>${this.id}(${instanceInfo.name})</td></tr>
+              <tr><td>工作流描述</td><td>${instanceInfo.desc}</td></tr>
               <tr><td>告警信息</td><td><a style="color:red;font-weight:bold">${nodeInfo.warnMsg}</a></td></tr>
               <tr><td>出错信息</td><td>${e.getMessage}</td></tr>
               <tr><td>总重试次数</td><td>${nodeInfo.retryTimes}</td></tr>

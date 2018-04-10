@@ -243,6 +243,9 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     case GetDBLink(name) => 
       val xmlLoader = context.actorSelection("../../xml-loader")
       xmlLoader.forward(GetDBLink(name))
+    case GetInstanceShortInfo() =>
+      sender ! InstanceShortInfo(this.workflowInstance.id, this.workflowInstance.workflow.name,  
+          this.workflowInstance.workflow.desc, this.workflowInstance.workflow.dir.dirname)
     case Tick() => tick()
   }
   /**

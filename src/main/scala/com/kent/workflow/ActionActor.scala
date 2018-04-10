@@ -90,7 +90,13 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
    * 获取指定名称的DBLink
    */
   def getDBLink(name: String): Future[Option[DBLink]] = (workflowActorRef ? GetDBLink(name)).mapTo[Option[DBLink]]
-  
+  /**
+   * 获取工作流实例的简单信息（一般用来发邮件）
+   */
+  def getInstanceShortInfo(): Future[InstanceShortInfo] = (workflowActorRef ? GetInstanceShortInfo()).mapTo[InstanceShortInfo]
+  /**
+   * 获取指定文件内容
+   */
   def getFileContent(fp: String)(implicit timeout: Timeout): Future[FileContent] = {
     (workflowActorRef ? GetFileContent(fp)).mapTo[FileContent]
   }

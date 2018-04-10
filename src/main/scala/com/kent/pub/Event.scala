@@ -76,6 +76,8 @@ object Event {
   //action actor
   case class ActionExecuteResult(status: Status, msg: String) extends Serializable
   case class Termination()
+  case class GetInstanceShortInfo()
+  case class InstanceShortInfo(id: String, name: String, desc: String, dir: String)
   
   //http-server
   case class ResponseData(result:String, msg: String, data: Any)
