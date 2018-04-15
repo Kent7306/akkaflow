@@ -163,6 +163,8 @@ class WorkFlowManager extends DaemonActor {
     var wf: WorkflowInfo = null
     try {
       wf = WorkflowInfo(xmlStr)
+      val (chkRs, unExistWfNames) = wf.checkIfAllDependExists(workflows.map(_._2).toList)
+      if(!chkRs) throw new Exception(s"""不存在前置工作流: ${unExistWfNames.mkString(",")}""")
     } catch {
       case e: Exception =>
         e.printStackTrace()
@@ -174,19 +176,24 @@ class WorkFlowManager extends DaemonActor {
    * 删
    */
   def remove(name: String): Future[ResponseData] = {
-    if (!workflows.get(name).isEmpty) {
-      val rsF = (Master.persistManager ? Delete(workflows(name).deepClone())).mapTo[Boolean]
-      rsF.map { 
-        case x if x == true =>
-          LogRecorder.info(WORKFLOW_MANAGER, null, name, s"删除工作流：${name}")
-          Master.haDataStorager ! RemoveWorkflow(name)
-          workflows = workflows.filterNot { x => x._1 == name }.toMap
-          ResponseData("success", s"成功删除工作流${name}", null)
-        case _ => 
-          ResponseData("fail", s"删除工作流${name}出错(数据库删除失败)", null)
-      }
+    if (workflows.get(name).isEmpty) {
+    	Future{ResponseData("fail", s"工作流${name}不存在", null)}
     } else {
-      Future{ResponseData("fail", s"工作流${name}不存在", null)}
+      val (chkRs, wfNames) = workflows(name).checkIfBeDependedExists(workflows.map(_._2).toList)
+      if(chkRs){
+        Future{ResponseData("fail", s"该工作流被其他工作流所依赖: ${wfNames.mkString(",")}", null)}
+      }else{
+    	  val rsF = (Master.persistManager ? Delete(workflows(name).deepClone())).mapTo[Boolean]
+    			  rsF.map { 
+    			  case x if x == true =>
+    			  LogRecorder.info(WORKFLOW_MANAGER, null, name, s"删除工作流：${name}")
+    			  Master.haDataStorager ! RemoveWorkflow(name)
+    			  workflows = workflows.filterNot { x => x._1 == name }.toMap
+    			  ResponseData("success", s"成功删除工作流${name}", null)
+    			  case _ => 
+    			  ResponseData("fail", s"删除工作流${name}出错(数据库删除失败)", null)
+    	  }
+      }
     }
   }
   def removeInstance(id: String): Future[ResponseData] = {
@@ -243,7 +250,7 @@ class WorkFlowManager extends DaemonActor {
     val (_, af) = this.workflowActors.get(wfInstance.id).get
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.id }
     Master.haDataStorager ! RemoveRWFI(wfInstance.id)
-    LogRecorder.info(WORKFLOW_MANAGER, wfInstance.id, wfInstance.workflow.name, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${wfInstance.getStatus()}")
+    LogRecorder.info(WORKFLOW_MANAGER, wfInstance.id, wfInstance.workflow.name, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${WStatus.getStatusName(wfInstance.getStatus())}")
     //设置各个工作流前置任务的状态
     if(wfInstance.getStatus() == W_SUCCESSED && wfInstance.isAutoTrigger)
       workflows.foreach{ case(name, wf) => if(wf.coorOpt.isDefined){
@@ -255,6 +262,7 @@ class WorkFlowManager extends DaemonActor {
     	Thread.sleep(3000)
     	val relateWfs = getAllTriggerWfs(wfInstance.workflow.name, this.workflows, scala.collection.mutable.ArrayBuffer[WorkflowInfo]())
     	val relateReceivers = relateWfs.flatMap { x => x.mailReceivers }.distinct
+    	wfInstance.getStatus()
       val result = wfInstance.htmlMail(relateWfs).map { html => 
         EmailMessage(relateReceivers, s"【Akkaflow】任务执行${WStatus.getStatusName(wfInstance.getStatus())}", html, List[String]())  
       }

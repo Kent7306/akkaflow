@@ -7,4 +7,5 @@ object XmlTest extends App{
   val x = XML.loadString(content);
   val a = x \ "a"
   a.map { x => println(x) }
+  println(x.label)
 }

@@ -28,103 +28,40 @@ import com.kent.workflow.actionnode.DataMonitorNode._
 class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends ActionNodeInstance(nodeInfo)  {
   implicit val timeout = Timeout(60 seconds)
   
+  
   override def execute(): Boolean = {
+    this.executedMsg = "自定义消息："+nodeInfo.warnMsg
+    var detectMsg = ""
     //是否执行成功
-    var result = true
-    var instanceInfo: InstanceShortInfo = null
-    try {
-      val monitorData = getData(nodeInfo.source)
-      val maxDataOpt = if(nodeInfo.maxThre != null) Some(getData(nodeInfo.maxThre)) else None
-      val minDataOpt = if(nodeInfo.minThre != null) Some(getData(nodeInfo.minThre)) else None
-
-      if(maxDataOpt.isDefined && monitorData > maxDataOpt.get){
-      }else if(minDataOpt.isDefined && monitorData < minDataOpt.get){
-      }else{
-        return true
-      }
-      
-      //异常则发送邮件
-      val instanceInfoF = actionActor.getInstanceShortInfo()
-      instanceInfo = Await.result(instanceInfoF, 20 second)
-  	  val max = if(maxDataOpt.isDefined) maxDataOpt.get else "未定义"
-  	  val min = if(minDataOpt.isDefined) minDataOpt.get else "未定义"
-  	    
-  	  if(nodeInfo.warnMsg == null || nodeInfo.warnMsg.trim() == ""){
-  	    nodeInfo.warnMsg = s"检测值未在范围内，检测值:${monitorData}，下限:${min}，上限:${max}"
-  	  }
-  	  
-  	  val content = s"""
-        <style> 
-        .table-n {text-align: center; border-collapse: collapse;border:1px solid black}
-        h3 {margin-bottom: 5px}
-        a {color:red;font-weight:bold}
-        </style> 
-        <h3>实例<data-monitor/>节点执行失败,内容如下</h3>
-        
-          <table class="table-n" border="1">
-            <tr><td>实例ID(工作流名称)</td><td>${this.id}(${instanceInfo.name})</td></tr>
-            <tr><td>工作流描述</td><td>${instanceInfo.desc}</td></tr>
-            <tr><td>节点名称</td><td>${nodeInfo.name}</td></tr>
-            <tr><td>告警信息</td><td><a>${nodeInfo.warnMsg}</a></td></tr>
-            <tr><td>上限</td><td><a>${max}</a></td></tr>
-            <tr><td>检测值</td><td><a>${monitorData}</a></td></tr>
-            <tr><td>下限</td><td><a>${min}</a></td></tr>
-            <tr><td>总重试次数</td><td>${nodeInfo.retryTimes}</td></tr>
-            <tr><td>当前重试次数</td><td>${this.hasRetryTimes}</td></tr>
-            <tr><td>重试间隔</td><td>${nodeInfo.interval}秒</td></tr>
-          </table>
-          <a>&nbsp;<a>
-        """
-		  val titleMark = if(nodeInfo.isExceedError) "失败" else "警告"
-		  actionActor.sendMailMsg(null, s"【Akkaflow】data-monitor节点执行${titleMark}", content)
-		  result = if(nodeInfo.isExceedError == true){
-		    errorLog(nodeInfo.warnMsg)
-		    false 
-		  }else {
-		    warnLog(nodeInfo.warnMsg)
-		    result
-		  }
-      
-      //保存数据
-      if(nodeInfo.isSaved){
-        val dmr = DataMonitorRecord(nodeInfo.timeMark, nodeInfo.category, nodeInfo.sourceName, monitorData, minDataOpt,maxDataOpt, content, this.id)
-        val persistManagerPath = this.actionActor.workflowActorRef.path / ".." / ".." / "pm"
-        val persistManager = this.actionActor.context.actorSelection(persistManagerPath)
-        persistManager ! Save(dmr)
-      }
-      result
-    }catch{
-      case e:Exception => 
-        val content = s"""
-          <style> 
-          .table-n {text-align: center; border-collapse: collapse;border:1px solid black}
-          h3 {margin-bottom: 5px}
-          </style> 
-          <h3>实例<data-monitor/>节点执行失败,内容如下</h3>
-          
-            <table class="table-n" border="1">
-              tr><td>实例ID(工作流名称)</td><td>${this.id}(${instanceInfo.name})</td></tr>
-              <tr><td>工作流描述</td><td>${instanceInfo.desc}</td></tr>
-              <tr><td>告警信息</td><td><a style="color:red;font-weight:bold">${nodeInfo.warnMsg}</a></td></tr>
-              <tr><td>出错信息</td><td>${e.getMessage}</td></tr>
-              <tr><td>总重试次数</td><td>${nodeInfo.retryTimes}</td></tr>
-              <tr><td>当前重试次数</td><td>${this.hasRetryTimes}</td></tr>
-              <tr><td>重试间隔</td><td>${nodeInfo.interval}秒</td></tr>
-            </table>
-            <a>&nbsp;<a>
-          """
-        actionActor.sendMailMsg(null, s"【Akkaflow】data-monitor节点执行失败", content)
-        errorLog(e.getMessage)
-        this.executedMsg = s"(${e.getMessage})${nodeInfo.warnMsg}"
-        false
+    val monitorData = getData(nodeInfo.source)
+    val maxDataOpt = if(nodeInfo.maxThre != null) Some(getData(nodeInfo.maxThre)) else None
+    val minDataOpt = if(nodeInfo.minThre != null) Some(getData(nodeInfo.minThre)) else None
+    val result = 
+      if((maxDataOpt.isDefined && monitorData > maxDataOpt.get) 
+        || (minDataOpt.isDefined && monitorData < minDataOpt.get)){
+      val max = if(maxDataOpt.isDefined) maxDataOpt.get else "未定义"
+	    val min = if(minDataOpt.isDefined) minDataOpt.get else "未定义"
+      detectMsg = s"检测值未在范围内，检测值:${monitorData}，下限:${min}，上限:${max}\n"
+      detectMsg += "自定义信息："+ nodeInfo.warnMsg
+  	  this.executedMsg = detectMsg
+  	  false
+    }else{
+      true
     }
+    
+    //保存数据
+    if(nodeInfo.isSaved){
+      val dmr = DataMonitorRecord(nodeInfo.timeMark, nodeInfo.category, nodeInfo.sourceName, monitorData, minDataOpt,maxDataOpt, detectMsg, this.id)
+      val persistManagerPath = this.actionActor.workflowActorRef.path / ".." / ".." / "pm"
+      val persistManager = this.actionActor.context.actorSelection(persistManagerPath)
+      persistManager ! Save(dmr)
+    }
+    result
   }
   /**
    * 获取数据
    */
   def getData(obj: Any):Double = {
-    
-    
     val (stype, content, dbLinkeNameOpt) = obj match {
       case Source(typ,cont,dbOpt) => (typ,cont, dbOpt)
       case MaxThreshold(typ,cont,dbOpt) => (typ,cont, dbOpt)

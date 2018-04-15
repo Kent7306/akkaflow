@@ -201,10 +201,8 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
   def terminateWith(sdr:ActorRef, status: WStatus, msg: String){
     val resultF = status match {
       case W_SUCCESSED => 
-        infoLog(msg)
         Future{true}
       case _ => 
-        errorLog(msg)
         killAllRunningAction().map { l => if(l.filter { case ActionExecuteResult(sta,msg) => sta == FAILED}.size > 0) false else true }
     }
     resultF.map { x => 

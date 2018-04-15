@@ -14,10 +14,7 @@ import scala.util.Success
 
 class Producer(source: Source, actionName: String, wfiId: String) extends ActorTool {
   var bufferRowsTry:Try[List[List[String]]] = null
-  
-  override def preStart(){
-    source.init()
-  }
+  var isInited = false
   
   def indivivalReceive: Actor.Receive = {
     case GetColNum() => sender ! Try(source.getColNum)
@@ -26,6 +23,11 @@ class Producer(source: Source, actionName: String, wfiId: String) extends ActorT
   }
   
   def handleGetRows(sdr: ActorRef) = {
+    if(!isInited) {
+      val initTry = Try{ source.init(); List[List[String]]()}
+      if(initTry.isFailure) sdr ! Rows(initTry)
+    }
+    
     if(bufferRowsTry == null && source.isEnd == false){  //最开始的时候
       val dataTry = Try(source.fillRowBuffer())
       sdr ! Rows(dataTry)

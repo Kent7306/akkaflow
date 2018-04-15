@@ -5,7 +5,7 @@ source ./head.sh
 if [ $# -lt 1 ];then
 echo -e "【使用】\n\takka instance -search [--sdate yyyy-mm-dd] [--edate yyyy-mm-dd] [--creator xxx] [--status 成功|失败|杀死|运行] [--key xxxx]"
 echo -e "【说明】\n\t根据条件去查找工作流实例"
-echo -e "【示例】\n\takka instance -search -status 失败"
+echo -e "【示例】\n\takka instance -search --status 失败"
 echo -e "\takka instance -search --sdate 2018-01-10 --edate 2018-01-11 --creator Unknown --status 失败 --key wf_\n"
 exit 1
 fi

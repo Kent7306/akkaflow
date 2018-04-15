@@ -95,10 +95,11 @@ function f_log()
 }
 
 if [ $# -lt 1 ];then
-echo -e "【使用】\n\takka workflow -info [-xml] <workflow_name>"
-echo -e "【说明】\n\t显示工作流相关信息,若加-xml，则显示实例xml信息"
+echo -e "【使用】\n\takka workflow -info <workflow_name> [--xml]"
+echo -e "【说明】\n\t显示工作流相关信息,若加--xml，则显示工作流xml信息, 若加--log,则显示工作流的调度日志"
 echo -e "【示例】\n\takka workflow -info wf_parall_sum"
-echo -e "\takka workflow -info -xml wf_parall_sum\n"
+echo -e "\takka workflow -info wf_parall_sum  --xml\n"
+echo -e "\takka workflow -info wf_parall_sum  --log\n"
 exit 1
 fi
 

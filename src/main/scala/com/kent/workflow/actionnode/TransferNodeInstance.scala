@@ -84,6 +84,7 @@ class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNo
     try{
       val resultF = (consumer ? Start()).mapTo[Boolean]
       val result = Await.result(resultF, 3600 seconds)
+      if(result == false && target.isInstanceOf[DBTarget]) errorLog("进行事务回滚")
       result
     }catch{
       case e: Exception => e.printStackTrace();return false

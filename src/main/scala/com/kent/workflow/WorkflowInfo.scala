@@ -22,6 +22,7 @@ import com.kent.db.LogRecorder
 import com.kent.main.Master
 import com.kent.pub.Event._
 import scala.util.Try
+import com.kent.workflow.Coor.Depend
 
 class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Daoable[WorkflowInfo] {
 	import com.kent.workflow.WorkflowInfo.WStatus._
@@ -61,16 +62,37 @@ class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Dao
 	  if(this.coorOpt.isDefined){
 	    this.coorOpt.get.depends.filter { _.workFlowName == dependWfName }.foreach { x =>
 	    x.isReady = dependIsReady 
-  		LogRecorder.info(WORKFLOW_MANAGER, null, this.name, s"前置依赖工作流[${dependWfName}]准备状态设置为：${dependIsReady}")
+  		LogRecorder.info(LogType.WORKFLOW_MANAGER, null, this.name, s"前置依赖工作流[${dependWfName}]准备状态设置为：${dependIsReady}")
 	  }
 	  Master.persistManager ! Save(this.deepClone())
-	    
-	    
 	  }
-	  
-	  
 	}
-	
+	/**
+	 * 检查调度器的依赖工作流是否存在,是否合法
+	 */
+	def checkIfAllDependExists(workflows: List[WorkflowInfo]): Tuple2[Boolean,List[String]] = {
+	  if(this.coorOpt.isDefined){
+	    val unExistWfNames = this.coorOpt.get.depends.map { case Depend(wfName,_) => 
+	      val existNum = workflows.filter { x => x.name == wfName }.size
+	      if(existNum == 0) wfName else null
+	    }.filter { _ != null }.toList
+	    if(unExistWfNames.size > 0) (false, unExistWfNames) else (true, unExistWfNames)
+	  }else{
+	    (true, List())
+	  }
+	}
+	/**
+	 * 检查是否被其他的调度器依赖
+	 */
+	def checkIfBeDependedExists(workflows: List[WorkflowInfo]): Tuple2[Boolean,List[String]] = {
+	  val dependedWfs = workflows.filter { wf => wf.coorOpt.isDefined }.map { wf => 
+	    if(wf.coorOpt.get.depends.filter { d => d.workFlowName == this.name }.size > 0)
+	      wf.name
+	    else
+	      null
+	  }.filter { _ != null }.toList
+	  if(dependedWfs.size > 0) (true, dependedWfs) else (false, dependedWfs)
+	}
   
   def delete(implicit conn: Connection): Boolean = {
     var result = false

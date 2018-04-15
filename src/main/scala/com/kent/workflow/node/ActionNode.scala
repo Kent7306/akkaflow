@@ -10,6 +10,7 @@ abstract class ActionNode(name: String) extends NodeInfo(name)  {
   var host:String = "-1"
   var ok: String = _
   var error: String = _ 
+  var label: String = _
   
   def getCateJson(): String = {
     s"""
@@ -68,6 +69,7 @@ object ActionNode {
     actionNode.timeout = if(!timeoutOpt.isEmpty) timeoutOpt.get.text.toInt else actionNode.timeout
     actionNode.host = if(!hostOpt.isEmpty) hostOpt.get.text else actionNode.host
     actionNode.ok = (node \ "ok" \ "@to").text
+    actionNode.label = childNode.label
     if((node \ "error").size == 1 && (node \ "error" \ "@to").size == 1){
     	actionNode.error = (node \ "error" \ "@to").text      
     }

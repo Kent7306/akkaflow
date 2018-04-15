@@ -20,8 +20,6 @@ class SqlNodeInstance(override val nodeInfo: SqlNode) extends ActionNodeInstance
   
   def execute(): Boolean = {
     val sqlArr = nodeInfo.sqls.split(";").map { _.trim() }.filter { _ != "" }.toList
-    
-    
     val dbLinkOptF = this.actionActor.getDBLink(nodeInfo.dbLinkName)
     val dbLinkOpt = Await.result(dbLinkOptF, 20 seconds)
     if(dbLinkOpt.isEmpty){
@@ -33,9 +31,7 @@ class SqlNodeInstance(override val nodeInfo: SqlNode) extends ActionNodeInstance
     	 this.conn = conn
     	 this.stat = stat
     	}, infoLine => infoLog(infoLine), errorLine => errorLog(errorLine))
-    	
     }
-    
   }
 
   def kill(): Boolean = {

@@ -17,10 +17,6 @@ import scala.util.Try
 
 class Consumer(target: Target, actionName: String, wfiId: String, producer: ActorRef) extends ActorTool { 
   var actionActorRef: ActorRef = _
-  
-  override def preStart(){
-    target.init()
-  }
   /**
    * 处理某方法的异常执行
    */
@@ -34,14 +30,18 @@ class Consumer(target: Target, actionName: String, wfiId: String, producer: Acto
        false
       }
     }catch{
-      case e: Exception => LogRecorder.error(LogType.ACTION_NODE_INSTANCE, wfiId, actionName, s"${errorMsg}: ${e.getMessage}") 
-      false
+      case e: Exception => 
+        //e.printStackTrace()
+        LogRecorder.error(LogType.ACTION_NODE_INSTANCE, wfiId, actionName, s"${errorMsg}: ${e.getMessage}") 
+        false
     }
   }
   def indivivalReceive: Actor.Receive = {
     case Start() => 
       actionActorRef = sender 
-      if(checkColNum() && handleException("执行pre语句失败", () => target.preOpera())){
+      if( handleException("初始化失败", () => target.init())
+          && checkColNum() 
+          && handleException("执行pre语句失败", () => target.preOpera())){
         producer ! GetRows()
       }else{
         finish(false)

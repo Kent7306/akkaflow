@@ -97,15 +97,15 @@ object TargetObj {
     }
 
     def preOpera(): Boolean = {
-      actionInstance.executeScript(preCmd, None)(pro => {
-        this.process = pro
-      })
+      if(preCmd != null){
+      actionInstance.executeScript(preCmd, None)(pro => {this.process = pro })
+      }else true
     }
 
     def afterOpera(): Boolean = {
-      actionInstance.executeScript(afterCmd, None)(pro => {
-        this.process = pro
-      })
+      if(afterCmd != null){
+        actionInstance.executeScript(afterCmd, None)(pro => { this.process = pro })
+      }else true
     }
 
     def finish(isSuccessed: Boolean): Unit = {
