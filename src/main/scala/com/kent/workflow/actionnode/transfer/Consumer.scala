@@ -40,8 +40,8 @@ class Consumer(target: Target, actionName: String, wfiId: String, producer: Acto
     case Start() => 
       actionActorRef = sender 
       if( handleException("初始化失败", () => target.init())
-          && checkColNum() 
-          && handleException("执行pre语句失败", () => target.preOpera())){
+          && handleException("执行pre语句失败", () => target.preOpera())
+          && checkColNum()){
         producer ! GetRows()
       }else{
         finish(false)
@@ -85,6 +85,7 @@ class Consumer(target: Target, actionName: String, wfiId: String, producer: Acto
     	  val sColNumOptTryF = (producer ? GetColNum()).mapTo[Try[Option[Int]]]
         val resultF = sColNumOptTryF.map { sColNumOptTry => 
         if(sColNumOptTry.isFailure){
+        	println(sColNumOptTry.failed.get.getStackTraceString)
            LogRecorder.error(LogType.ACTION_NODE_INSTANCE, wfiId, actionName, s"获取源数据字段数失败：${sColNumOptTry.failed.get.getMessage}")       
            false
         }else if(sColNumOptTry.get.isEmpty || tColNumOptTry.get.isEmpty){

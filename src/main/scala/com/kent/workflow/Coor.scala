@@ -40,7 +40,7 @@ class Coor() extends DeepCloneable[Coor] {
 		val paramHandler = ParamHandler()
 		var paramMap:Map[String, String] = Map()
 	  //系统变量
-    paramMap += ("x" -> "y")
+    //paramMap += ("x" -> "y")
     
     //内置变量
     paramList.foreach(x => paramMap += (x._1 -> paramHandler.getValue(x._2, paramMap)))

@@ -10,10 +10,9 @@
   <!-- 节点列表 -->
   <start name="start" to="transfer" />
   
-  <action name="transfer" retry-times="1" interval="10" desc = "执行sql">
+  <action name="transfer" retry-times="0" interval="10" desc = "执行sql">
       <transfer> 
 	    <source type="FILE">/tmp/1111.txt</source>
-	    <!-- <target type="FILE" path="/tmp/222.txt"><pre>ls</pre></target> -->
 	    <target type="DB" db-link="local_mysql" table="aaa">
 	    </target>
 	</transfer>

@@ -14,19 +14,19 @@ import scala.util.Success
 
 class Producer(source: Source, actionName: String, wfiId: String) extends ActorTool {
   var bufferRowsTry:Try[List[List[String]]] = null
-  var isInited = false
+  //var isInited = false
   
   def indivivalReceive: Actor.Receive = {
-    case GetColNum() => sender ! Try(source.getColNum)
+    case GetColNum() => sender ! Try{source.init();source.getColNum}
     case GetRows() => handleGetRows(sender)
     case End(isSuccess) => source.finish()
   }
   
   def handleGetRows(sdr: ActorRef) = {
-    if(!isInited) {
-      val initTry = Try{ source.init(); List[List[String]]()}
-      if(initTry.isFailure) sdr ! Rows(initTry)
-    }
+//    if(!isInited) {
+//      val initTry = Try{ source.init(); List[List[String]]()}
+//      if(initTry.isFailure) sdr ! Rows(initTry)
+//    }
     
     if(bufferRowsTry == null && source.isEnd == false){  //最开始的时候
       val dataTry = Try(source.fillRowBuffer())
