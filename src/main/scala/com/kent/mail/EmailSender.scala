@@ -54,7 +54,7 @@ class EmailSender(hostName: String, portOpt: Option[Int], auth:Boolean, account:
       email.send()
     } catch{
       case e: Exception => 
-        log.error("发送邮件失败");
+        log.error(s"发送邮件失败:+${e.getMessage}");
         e.printStackTrace()
     }
   }

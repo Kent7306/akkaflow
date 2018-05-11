@@ -3,6 +3,8 @@ version := "2.8.6"
 scalaVersion := "2.11.8"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 resolvers += "oracle" at "https://maven.atlassian.com/3rdparty/"
+//resolvers += "oracle" at "https://mvnrepository.com/artifact/com.oracle/ojdbc14"
+resolvers += "hive" at "https://mvnrepository.com/artifact/org.apache.hive/hive-jdbc"
 resolvers += "spring Repository" at "http://repo.spring.io/plugins-release/"
 resolvers += "cloudera Repository" at "https://repository.cloudera.com/artifactory/libs-release-local/"
 
@@ -22,14 +24,15 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-distributed-data-experimental" % akkaVersion,
     "com.typesafe.akka" %% "akka-http" % "10.0.6",
     "mysql" % "mysql-connector-java" % "5.1.42",
-    "com.oracle" % "ojdbc6" % "12.1.0.1-atlassian-hosted" % Test,
-    //"org.apache.hive" % "hive-jdbc" % "1.2.1",
-    "org.apache.hive" % "hive-jdbc" % "1.1.0-cdh5.13.1",
-    //"org.apache.sqoop" % "sqoop" % "1.4.6.2.4.2.12-1",
     "com.github.philcali" %% "cronish" % "0.1.3",
     "org.json4s" % "json4s-jackson_2.11" % "3.5.0",
     "org.apache.commons" % "commons-email" % "1.4",
-    "org.apache.hadoop" % "hadoop-client" % "2.6.0"
+    //"org.apache.hive" % "hive-jdbc" % "0.13.1",
+    "org.apache.hadoop" % "hadoop-client" % "2.6.0",
+    "org.apache.hive" % "hive-jdbc" % "1.1.0-cdh5.13.1"
+    //"com.oracle" % "ojdbc14" % "10.2.0.4.0",
+    //"com.oracle" % "ojdbc6" % "12.1.0.1-atlassian-hosted",
+    //"org.apache.sqoop" % "sqoop" % "1.4.6.2.4.2.12-1",
   )
 }
 

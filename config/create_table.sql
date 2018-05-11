@@ -94,4 +94,5 @@ create table if not exists data_monitor(
 ) comment = '数据监控保存表';
 
 delete from node_instance where workflow_instance_id in (select id from workflow_instance where status = 1);
-delete from workflow_instance where status = 1
+delete from workflow_instance where status = 1;
+delete from node where 1 = 1;

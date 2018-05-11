@@ -16,7 +16,6 @@ project/boot/
 project/plugins/project/
 .settings
 tmp/
-src/main/resources/application.conf
 src/main/scala/com/kent/test/
 
 # Scala-IDE specific
@@ -25,5 +24,3 @@ src/main/scala/com/kent/test/
 
 .cache-main
 .cache-tests
-
-src/main/resources/application.conf

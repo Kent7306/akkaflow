@@ -48,6 +48,16 @@ from (
     done
 }
 echo -e "=================================${GREEN}工作流列表${NC}====================================="
-f_node -1 0
+
+pid_arr=(-1)
+if [ $# -eq 1 ];then
+    pname=$1
+    pid_arr=(`akka_mysql -s -N -e "use $mysql_db;select id from directory where name = '$pname'" 2>/dev/null`)
+fi
+for pid in ${pid_arr[*]}
+do
+    f_node $pid 0
+done
+#f_node $pid 0
 
 echo ""

@@ -1,8 +1,8 @@
 <work-flow name="test" creator="Kent" mail-receivers="15018735011@163.com" mail-level="失败"
     dir="/TMP" desc="测试a">
   <!-- 调度配置 -->
-  <coordinator is-enabled="false">
-      <depend-list cron="*/1 * * * *"></depend-list>
+  <coordinator is-enabled="true">
+      <depend-list cron="*/1 2 * * *"></depend-list>
       <param-list>
           <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
       </param-list>
@@ -11,54 +11,15 @@
   <start name="start" to="transfer" />
   
   <action name="transfer" retry-times="0" interval="10" desc = "执行sql">
-      <transfer> 
-	    <source type="FILE">/tmp/1111.txt</source>
-	    <target type="DB" db-link="local_mysql" table="aaa">
-	    </target>
-	</transfer>
-      <ok to="sql"/>
-  </action>
-   
-  <action name="sql" retry-times="1" interval="10" desc = "执行sql">
-      <sql db-link="local_mysql">
-        select sleep(1);
-      	delete from workflow where 2 > 3;
-      </sql>
-      <ok to="file_monitor"/>
-  </action>
-  <action name="file_monitor" retry-times="1" interval="10" desc = "监测源数据">
-      <file-monitor>
-	    <file num-threshold="1" size-threshold="1B">/Users/kent/Documents/工作区/*.sh</file>
-	    <warn-msg>请填写文件检测异常告警信息</warn-msg>
-	</file-monitor>
-      <ok to="data_monitor"/>
-  </action> 
-
-
-  <action name="data_monitor" retry-times="1" interval="10" desc = "监测源数据">
-      <data-monitor>
-          <source type="COMMAND">cat /tmp/1111 | wc -l</source>
-          <min-threshold type="NUM">5</min-threshold> 
-          <max-threshold type="SQL" db-link="local_mysql">select count(1)+30 from workflow</max-threshold>
-          <warn-msg>麻烦xxx及时补上数据。</warn-msg>
-      </data-monitor> 
-      <ok to="script"/>
-  </action>
-
-  <action name="script" desc = "执行脚本">
-      <script>
-          <code><![CDATA[
-          #!/usr/bin/perl
-          $stime="2018-03-15 03:43";
-          $file="./order.log";
-          $result="/tmp/order.result";  
-          ]]></code>
-	      <attach-list>
-	      	<file>/Users/kent/unbackup/github_repository/akkaflow/logs/akka.2017-07-17.log</file>
-	      	<file>/Users/kent/unbackup/github_repository/akkaflow/logs/akka.2017-07-18.log</file>
-	      </attach-list>
-      </script>
-      <ok to="end"></ok>
+      <transfer>
+        <source type="DB" db-link="local_mysql">select name from workflow</source>
+        <target type="DB" db-link="local_orcl" table="tmp_test">
+            <pre>
+              delete from tmp_test where 1 = 1
+            </pre>
+        </target>
+      </transfer>
+      <ok to="end"/>
   </action>
 
   <end name="end"/>

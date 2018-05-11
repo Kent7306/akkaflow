@@ -20,6 +20,15 @@ dir=`get_fullpath "$file"`
 filename=`basename $1`
 file=$dir"/"$filename
 xml_str=`iconv -f ${local_lang} -t utf8 $file |sh ./url-encode|awk '{str=str"%0a"$0} END{print str}'`
+
+#检查xml合法性
+result=`curl -s -XPOST -d "xml=$xml_str" "http://$host:$port/akkaflow/workflow?action=check"`
+result=`echo $result | iconv -f utf8 -t $local_lang`
+is_failed=`echo $result | grep fail | wc -l`
+if [ $is_failed -eq 1 ];then
+    echo $result
+    exit 1
+fi
 file_str=`echo $file | iconv -f ${local_lang} -t utf8 | sh ./url-encode`
 result=`curl -s -XPOST -d "xml=$xml_str" "http://$host:$port/akkaflow/workflow?action=add&path=$file_str"`
 

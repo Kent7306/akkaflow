@@ -24,7 +24,7 @@ function workflow_cmd
         echo -e "【使用说明】"
         echo -e "\takka workflow -info <wf_name> :查看某运工作流信息"
         echo -e "\takka workflow -del <wf_name> :删除某工作流"
-        echo -e "\takka workflow -list :查看所有工作流列表"
+        echo -e "\takka workflow -list [可选:关键字] :查看所有工作流列表"
         echo -e "\takka workflow -add <xml文件> :提交工作流定义xml文件"
         echo -e "\takka workflow -check <xml文件> :测试某一工作流定义xml文件是否合法"
         echo -e "\takka workflow -reset <wf_name> :重置工作流前置任务状态"
@@ -51,6 +51,12 @@ function util_cmd
 
 
 if [ $# -lt 1 ];then
+echo "     _     _     _            __  _                 "
+echo "    / \\   | | __| | __ __ _  / _|| |  ___ __      __"
+echo "   / _ \\  | |/ /| |/ // _\` || |_ | | / _ \\\\ \\ /\\ / /"
+echo "  / ___ \\ |   < |   <| (_| ||  _|| || (_) |\\ V  V / "
+echo " /_/   \\_\\|_|\\_\\|_|\\_\\\\__,_||_|  |_| \\___/  \\_/\\_/  "
+echo ""
 echo -e "【使用】\n\takka [ front| instance| workflow| util]"
 echo -e "【说明】\n\takkaflow调度系统命令入口。"
 echo -e "\t1、akka front 调度系统首页"
