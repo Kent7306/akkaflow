@@ -1,12 +1,12 @@
 package com.kent.workflow.actionnode
 
 import com.kent.workflow.node.ActionNode
-import com.kent.workflow.actionnode.transfer.SourceObj.ConnectType
+import com.kent.workflow.actionnode.transfer.source.Source.ConnectType
 import com.kent.workflow.actionnode.TransferNode._
 import com.kent.pub.DeepCloneable
-import com.kent.workflow.actionnode.transfer.SourceObj.Source
-import com.kent.workflow.actionnode.transfer.TargetObj.Target
-import com.kent.workflow.actionnode.transfer.SourceObj.DBSource
+import com.kent.workflow.actionnode.transfer.source.Source
+import com.kent.workflow.actionnode.transfer.target.Target
+import com.kent.workflow.actionnode.transfer.source.DBSource
 import com.kent.pub.Event.DBLink
 
 /*

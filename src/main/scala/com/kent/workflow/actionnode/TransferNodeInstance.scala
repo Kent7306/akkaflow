@@ -17,10 +17,11 @@ import java.io.File
 import com.kent.db.LogRecorder
 import scala.sys.process.ProcessLogger
 import scala.sys.process._
-import com.kent.workflow.actionnode.transfer.SourceObj.Source
+import com.kent.workflow.actionnode.transfer.source._
 import com.kent.workflow.actionnode.transfer.Producer
-import com.kent.workflow.actionnode.transfer.SourceObj._
-import com.kent.workflow.actionnode.transfer.TargetObj._
+import com.kent.workflow.actionnode.transfer.source.Source._
+import com.kent.workflow.actionnode.transfer.target._
+import com.kent.workflow.actionnode.transfer.target.Target
 import com.kent.workflow.actionnode.transfer.Consumer
 
 class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNodeInstance(nodeInfo) {  
@@ -70,7 +71,7 @@ class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNo
       }else{
         new DBTarget(dbtInf.isPreTruncate, dbLinkOpt.get, dbtInf.table, dbtInf.preSql, dbtInf.afterSql)
       }
-   } else if(nodeInfo.ftInfOpt.get.path.toLowerCase().matches("hdfs:")){  //HDFS target
+   } else if(nodeInfo.ftInfOpt.get.path.toLowerCase().contains("hdfs:")){  //HDFS target
      val ftInf = nodeInfo.ftInfOpt.get
      new HdfsTarget(ftInf.isPreDel,ftInf.delimited,ftInf.path, ftInf.preCmd, ftInf.afterCmd, this)
    } else {  //local file target

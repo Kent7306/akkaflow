@@ -42,6 +42,7 @@ function util_cmd
     if [ $# -lt 1 ];then
         echo -e "【使用说明】"
         echo -e "\takka util -reset-all :重置所有工作流调度器前置任务状态"
+        echo -e "\takka util -del-dir :删除某个工作流目录，该目录下必须为空"
     else
         cmd="sh $cmd_dir/akka-util$1"
         shift

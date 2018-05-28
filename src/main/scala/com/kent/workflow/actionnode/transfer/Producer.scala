@@ -4,13 +4,13 @@ import com.kent.pub.ActorTool
 import akka.actor.Actor
 import akka.actor.ActorRef
 import com.kent.pub.Event.Start
-import com.kent.workflow.actionnode.transfer.SourceObj.GetColNum
 import akka.pattern.{ ask, pipe }
-import com.kent.workflow.actionnode.transfer.SourceObj._
+import com.kent.workflow.actionnode.transfer.source.Source._
 import com.kent.db.LogRecorder
 import com.kent.db.LogRecorder.LogType
 import scala.util.Try
 import scala.util.Success
+import com.kent.workflow.actionnode.transfer.source.Source
 
 class Producer(source: Source, actionName: String, wfiId: String) extends ActorTool {
   var bufferRowsTry:Try[List[List[String]]] = null
@@ -23,11 +23,6 @@ class Producer(source: Source, actionName: String, wfiId: String) extends ActorT
   }
   
   def handleGetRows(sdr: ActorRef) = {
-//    if(!isInited) {
-//      val initTry = Try{ source.init(); List[List[String]]()}
-//      if(initTry.isFailure) sdr ! Rows(initTry)
-//    }
-    
     if(bufferRowsTry == null && source.isEnd == false){  //最开始的时候
       val dataTry = Try(source.fillRowBuffer())
       sdr ! Rows(dataTry)

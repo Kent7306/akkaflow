@@ -1,0 +1,58 @@
+#!/bin/bash
+set -ue
+user_dir=`pwd`
+cd `dirname $0`
+source ./head.sh
+if [ $# -ne 1 ];then
+echo -e "【使用】\n\takka util -del-dir 目录绝对路径"
+echo -e "【说明】\n\t删除某个工作流目录，该目录下必须为空"
+echo -e "【示例】\n\takka util -del-dir /TMP/DEL/DIR\n"
+exit 1
+fi
+dir=$1
+#得到某个指定pid下的名称为name的目录id
+function getId()
+{
+    local pid=$1
+    local name=$2
+    local id=`akka_mysql -s -e " use $mysql_db;
+        select id from directory where pid = '$pid' and name = '$name'
+    " 2>/dev/null`
+    echo $id
+}
+#判断是否有子节点
+function isHasChildren()
+{
+    local id=$1
+    local cnt=`akka_mysql -s -e "use $mysql_db;
+        select count(1) from directory where pid = '$id'
+    " 2>/dev/null`
+    echo $cnt
+}
+#删除目录
+function deldir()
+{
+    local id=$1
+    local cnt=`akka_mysql -s -e "use $mysql_db;
+        delete from directory where id = '$id' and is_leaf = 0
+    " 2>/dev/null`
+}
+
+dir_arr=(${dir//\// })
+pid="-1"
+for dname in ${dir_arr[@]}; do
+    id=`getId $pid $dname`
+    pid=$id
+    if [ "$id" == "" ] ;then
+        echo "ERROR!路径$dir中的$dname不存在，请检查"
+        exit 1
+    fi
+done
+child_cnt=`isHasChildren $id`
+if [ $child_cnt -eq 0 ] ; then
+    deldir $id
+else
+    echo "ERROR!该目录不为空"
+        exit 1
+fi
+echo "SUCCESS!该目录已删除"

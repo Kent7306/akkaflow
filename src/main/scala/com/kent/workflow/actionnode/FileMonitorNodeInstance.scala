@@ -28,14 +28,16 @@ class FileMonitorNodeInstance(override val nodeInfo: FileMonitorNode)  extends A
    * 检测hdfs文件情况
    */
   private def getHdfsFiles(vFn: String,vDir: String): Map[String, Long] = {
-    	val conf = new Configuration()
-    	val fs = FileSystem.get(new URI(vDir), conf)
-    	if(fs.exists(new Path(vDir))){
-    		val status = fs.listStatus(new Path(vDir))
-    		status.map { x => (vDir+"/"+x.getPath.getName, x.getLen) }.toMap
-    	}else{
-    	  throw new DirNotExistException(s"${vDir}目录不存在")
-    	}
+    val regx = FileUtil.fileNameFuzzyMatch(vFn)
+  	val conf = new Configuration()
+  	val fs = FileSystem.get(new URI(vDir), conf)
+  	if(fs.exists(new Path(vDir))){
+  		val status = fs.listStatus(new Path(vDir))
+  		status.filter { x => regx.findFirstIn(x.getPath.getName).isDefined }
+  		   .map {x => (vDir+"/"+x.getPath.getName, x.getLen) }.toMap
+  	}else{
+  	  throw new DirNotExistException(s"${vDir}目录不存在")
+  	}
     	
   }
   /**

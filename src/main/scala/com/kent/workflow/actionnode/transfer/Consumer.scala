@@ -2,7 +2,7 @@ package com.kent.workflow.actionnode.transfer
 
 import com.kent.pub.ActorTool
 import akka.actor.Actor
-import com.kent.workflow.actionnode.transfer.TargetObj.Target
+import com.kent.workflow.actionnode.transfer.target.Target
 import com.kent.pub.Event._
 import akka.actor.ActorRef
 import akka.pattern.{ ask, pipe }
@@ -12,7 +12,7 @@ import com.kent.db.LogRecorder.LogType
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import akka.util.Timeout
-import com.kent.workflow.actionnode.transfer.SourceObj._
+import com.kent.workflow.actionnode.transfer.source.Source._
 import scala.util.Try
 
 class Consumer(target: Target, actionName: String, wfiId: String, producer: ActorRef) extends ActorTool { 
@@ -54,7 +54,7 @@ class Consumer(target: Target, actionName: String, wfiId: String, producer: Acto
       else {
     	  val result = handleException("插入数据失败", () => target.persist(rowsTry.get))
 			  if(result) {
-				  LogRecorder.info(LogType.ACTION_NODE_INSTANCE, wfiId, actionName, s"成功插入${rowsTry.get.size}")
+				  LogRecorder.info(LogType.ACTION_NODE_INSTANCE, wfiId, actionName, s"成功插入${target.totalRowNum}")
 				  producer ! GetRows()
 			  } else{        
 				  finish(false)

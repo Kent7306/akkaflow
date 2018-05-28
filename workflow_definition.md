@@ -298,13 +298,13 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
 ```xml
 <!-- example 1 监控本地文件-->
 <file-monitor>
-    <file num-threshold="1" size-thresold="2MB">/home/you/app/dir/*.sh</file>
+    <file num-threshold="1" size-threshold="2MB">/home/you/app/dir/*.sh</file>
     <warn-msg>请填写异常告警信息</warn-msg>
 </file-monitor>
 
 <!-- example 2 监控hdfs-->
 <file-monitor>
-    <file num-threshold="10" size-thresold="2G">hdfs:///home/you/app/dir/*.sh</file>
+    <file num-threshold="10" size-threshold="2G">hdfs:///home/you/app/dir/*.sh</file>
     <warn-msg>请填写异常告警信息</warn-msg>
 </file-monitor>
 ```

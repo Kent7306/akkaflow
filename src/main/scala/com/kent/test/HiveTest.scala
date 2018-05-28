@@ -13,7 +13,7 @@ object HiveTest extends App{
   val con = DriverManager.getConnection(DBURL,"hive","hive") // 2、连接数据库  
   val stmt = con.createStatement() // 3、Statement 接口需要通过Connection 接口进行实例化操作  
   val time = System.currentTimeMillis()  
-  
+   
   val logThread = new Thread(new LogRunnable(stmt.asInstanceOf[HiveStatement]));  
   logThread.setDaemon(true);  
   logThread.start();  
@@ -29,7 +29,14 @@ object HiveTest extends App{
   
   val result1 = stmt.execute("drop table if exists bbb")
   val result2 = stmt.execute("create table bbb(col string)")
-	//val result = stmt.executeQuery("select bb,sum(cnt) over(partition by bb order by cnt) from(select bb,count(1) cnt from aaa group by bb) cc")
+  //stmt.execute("load data local inpath '/tmp/data.txt' into table bbb")
+	val rs = stmt.executeQuery("select * from test.bb")
+	val md = rs.getMetaData();
+  (1 to md.getColumnCount).map{idx => 
+    println(md.getColumnName(idx) + "  "+
+    md.getColumnTypeName(idx) + "  " + 
+    md.getColumnType(idx))
+  }
 /*  while (result.next()) {
     println(result.getString(1)) 
   }  

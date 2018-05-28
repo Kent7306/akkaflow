@@ -6,21 +6,19 @@
       <param-list>
           <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
       </param-list>
-  </coordinator>
+  </coordinator>  
   <!-- 节点列表 -->
   <start name="start" to="transfer" />
   
   <action name="transfer" retry-times="0" interval="10" desc = "执行sql">
-      <transfer>
-        <source type="DB" db-link="local_mysql">select name from workflow</source>
-        <target type="DB" db-link="local_orcl" table="tmp_test">
-            <pre>
-              delete from tmp_test where 1 = 1
-            </pre>
-        </target>
-      </transfer>
-      <ok to="end"/>
-  </action>
+      <transfer> 
+	    <source type="DB" db-link="local_mysql">select * from log_record</source> 
+	    <target type="FILE" path="hdfs://quickstart.cloudera:8020/tmp/data3.tx">
+	      <pre>hive -e "xxxxx"</pre>
+	    </target>
+	  </transfer>
+      <ok to="end"/>  
+  </action>  
 
   <end name="end"/>
 </work-flow>
