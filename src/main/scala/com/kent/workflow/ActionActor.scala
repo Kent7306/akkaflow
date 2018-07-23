@@ -32,7 +32,9 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
     //自行结束
     case Termination() => terminate(workflowActorRef)
   }
-  
+  /**
+   * 开始执行节点
+   */
   def start(){
     actionNodeInstance.actionActor = this
     workflowActorRef = sender
@@ -88,6 +90,9 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
     actionNodeInstance.kill();
     terminate(sdr)
   }
+  /**
+   * 发送节点重试邮件
+   */
   def sendNodeRetryMail(result: Boolean, msg: String){
     val newMsg = msg.split("\n").map { "<p>" + _ + "</p>" }.mkString("")
     
@@ -119,6 +124,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   
   /**
    * 发送邮件
+   * 如果toUsers = null，则取工作流中配置的收件人列表
    */
   def sendMailMsg(toUsers: List[String],subject: String,htmlText: String){
     workflowActorRef ! EmailMessage(toUsers, subject, htmlText, List())

@@ -1,13 +1,13 @@
 #!/bin/bash
 cd `dirname $0`
 source ./head.sh
-./master-startup
+sh ./master-startup
 sleep 5
-./httpserver-startup
+sh ./httpserver-startup
 sleep 3
-./worker-startup
+sh ./worker-startup
 sleep 2
 tail -1000f ../logs/run.log &
 sleep 10
-ps -ef | grep tail | grep "/logs/run.log" | awk '{print $2}' | xargs kill -9 1>/dev/null 2>&1
+ps -ef | grep tail | grep "tail -1000" | awk '{print $2}' | xargs kill -9 1>/dev/null 2>&1
 exit 0

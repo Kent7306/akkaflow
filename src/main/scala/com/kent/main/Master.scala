@@ -217,12 +217,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
                       config.getString("workflow.mysql.jdbc-url"),
                       config.getBoolean("workflow.mysql.is-enabled")
                     )
-     //日志记录器配置
-    val logRecordConfig = (config.getString("workflow.log-mysql.user"),
-                      config.getString("workflow.log-mysql.password"),
-                      config.getString("workflow.log-mysql.jdbc-url"),
-                      config.getBoolean("workflow.log-mysql.is-enabled")
-                    )
     //Email参数配置
    val isHasPort = config.hasPath("workflow.email.smtp-port")
    val emailConfig = (config.getString("workflow.email.hostname"),
@@ -253,7 +247,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         }
         //创建日志记录器
         if(Master.logRecorder == null){
-          Master.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+          Master.logRecorder = context.actorOf(Props(LogRecorder(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"log-recorder")
           LogRecorder.actor = Master.logRecorder
         }
         //创建xml装载器

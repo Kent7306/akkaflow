@@ -8,7 +8,7 @@ import com.kent.pub.Event._
 import com.kent.util.Util
 import com.kent.util.Util._
 import com.kent.db.LogRecorder.LogMsg
-import com.kent.pub.Daoable
+import com.kent.pub._
 import com.kent.pub.ActorTool
 import com.kent.pub.DaemonActor
 import com.kent.db.LogRecorder.LogType
@@ -16,7 +16,7 @@ import akka.actor.ActorRef
 import java.util.Date
 import java.sql.ResultSet
 
-class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends DaemonActor with Daoable[Any] {
+class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends DaemonActor with Daoable {
   import com.kent.db.LogRecorder.LogType._
   
   implicit var connection: Connection = null
@@ -115,11 +115,6 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     })
     if(listOpt.isEmpty) null else listOpt.get
   }
-  
-  def delete(implicit conn: Connection): Boolean = ???
-  def getEntity(implicit conn: Connection): Option[Any] = ???
-  def save(implicit conn: Connection): Boolean = ???
-  
 }
 
 

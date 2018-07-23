@@ -27,9 +27,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import akka.util.Timeout
 import scala.concurrent.duration._
+import com.kent.pub.Persistable
 
 
-class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[WorkflowInstance] with Daoable[WorkflowInstance] {
+class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[WorkflowInstance] with Persistable[WorkflowInstance] {
   var id: String = _
   def actorName = s"${id}"
   var paramMap:Map[String, String] = Map()

@@ -13,6 +13,9 @@ import scala.concurrent.duration._
 import com.kent.workflow.actionnode.DataMonitorNode.SourceType._
 import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType._
 import com.kent.pub.Event.DBLink
+import com.kent.pub.db.MysqlOpera
+import com.kent.pub.db.HiveOpera
+import com.kent.pub.db.OracleOpera
 
 class SqlNodeInstance(override val nodeInfo: SqlNode) extends ActionNodeInstance(nodeInfo){
   var conn:Connection = null
@@ -25,13 +28,19 @@ class SqlNodeInstance(override val nodeInfo: SqlNode) extends ActionNodeInstance
     if(dbLinkOpt.isEmpty){
       errorLog(s"[db-link:${nodeInfo.dbLinkName}]未配置")
       false
-    }else{
-      val dbLink = dbLinkOpt.get
-    	this.executeSqls(sqlArr, dbLink, (conn,stat) => {
+    }else if(dbLinkOpt.get.dbType == MYSQL){
+      MysqlOpera.executeSqls(dbLinkOpt.get, sqlArr)
+    }else if(dbLinkOpt.get.dbType == ORACLE){
+      OracleOpera.executeSqls(dbLinkOpt.get, sqlArr)
+    }else if(dbLinkOpt.get.dbType == HIVE){
+      HiveOpera.executeSqls(sqlArr, dbLinkOpt.get, (conn,stat) => {
     	 this.conn = conn
     	 this.stat = stat
     	}, infoLine => infoLog(infoLine), errorLine => errorLog(errorLine))
+    }else{
+      throw new Exception(s"db-link未配置${dbLinkOpt.get.dbType}类型")
     }
+    true
   }
 
   def kill(): Boolean = {

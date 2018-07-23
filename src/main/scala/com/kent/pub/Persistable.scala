@@ -2,7 +2,7 @@ package com.kent.pub
 
 import java.sql.Connection
 
-trait Persistable[A] {
+trait Persistable[A] extends Daoable{
   /**
    * 保存或更新对象
    */

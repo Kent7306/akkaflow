@@ -4,9 +4,9 @@ cd `dirname $0`
 source ./head.sh
 
 if [ $# -lt 1 ];then
-echo -e "【使用】\n\takka workflow -run [--param xxx=xx&xx=xx] <wf_name>"
-echo -e "【说明】\n\t通过参数让工作流生成实例"
-echo -e "【示例】\n\takka workflow -run --param stadate=2017-12-12&city=guangzhou wf_parall_sum\n"
+printf "【使用】\n\takka workflow -run [--param xxx=xx&xx=xx] <wf_name>\n"
+printf "【说明】\n\t通过参数让工作流生成实例\n"
+printf "【示例】\n\takka workflow -run --param stadate=2017-12-12&city=guangzhou wf_parall_sum\n"
 exit 1
 fi
 

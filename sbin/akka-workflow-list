@@ -2,17 +2,18 @@
 cd `dirname $0`
 source ./head.sh
 
-space="    "
 function get_hf
 {
     local len=$1
     local str=""
     ((len=len-1))
-    for i in `seq 1 $len`;do
-       str=$str"####"
+    for i in `seq 0 $len`;do
+       if [ $i -ne 0 ] ; then
+         str=$str"####"
+       fi
     done
     str=$str"+--- "
-    echo "${YELLOW}$str${NC}"
+    printf "${YELLOW}$str${NC}\n"
 }
 
 function f_node
@@ -38,16 +39,16 @@ from (
         if [ $is_leaf -eq 0 ];then
             name=${BLUE}$name${NC}
         elif [ $coor_enable -eq 1 ];then
-            name="${GREEN}$name${NC}   【$creator】【$description】"
+            name="${GREEN}$name${NC}   [$creator]  [$description]"
         else
-            name="${RED}$name${NC}   【$creator】【$description】"
+            name="${RED}$name${NC}   [$creator]  [$description]"
         fi
         tmp=`get_hf $level`
-        echo -e "${tmp//#/ }$name"
+        printf "${tmp//#/ }$name\n"
         f_node $cid $level
     done
 }
-echo -e "=================================${GREEN}工作流列表${NC}====================================="
+printf "=================================${GREEN}工作流列表${NC}=====================================\n"
 
 pid_arr=(-1)
 if [ $# -eq 1 ];then

@@ -5,12 +5,12 @@ cmd_dir=`dirname $0`
 function instance_cmd
 {
     if [ $# -lt 1 ];then
-        echo -e "【使用说明】"
-        echo -e "\takka instance -info <wf_id> :查看某工作流实例信息"
-        echo -e "\takka instance -del <wf_id> :删除某工作流实例"
-        echo -e "\takka instance -kill <wf_id> :杀死某运行中的工作流实例"
-        echo -e "\takka instance -rerun <wf_id> :重跑某工作流实例"
-        echo -e "\takka instance -search [condition] :查找某实例"
+        printf "【使用说明】\n"
+        printf "\takka instance -info <wf_id> :查看某工作流实例信息\n"
+        printf "\takka instance -del <wf_id> :删除某工作流实例\n"
+        printf "\takka instance -kill <wf_id> :杀死某运行中的工作流实例\n"
+        printf "\takka instance -rerun <wf_id> :重跑某工作流实例\n"
+        printf "\takka instance -search [condition] :查找某实例\n"
     else
         cmd="sh $cmd_dir/akka-instance$1"
         shift
@@ -21,15 +21,15 @@ function instance_cmd
 function workflow_cmd
 {
     if [ $# -lt 1 ];then
-        echo -e "【使用说明】"
-        echo -e "\takka workflow -info <wf_name> :查看某运工作流信息"
-        echo -e "\takka workflow -del <wf_name> :删除某工作流"
-        echo -e "\takka workflow -list [可选:关键字] :查看所有工作流列表"
-        echo -e "\takka workflow -add <xml文件> :提交工作流定义xml文件"
-        echo -e "\takka workflow -check <xml文件> :测试某一工作流定义xml文件是否合法"
-        echo -e "\takka workflow -reset <wf_name> :重置工作流前置任务状态"
-        echo -e "\takka workflow -trigger <wf_name> :触发执行指定工作流 (成功执行后会触发后置任务)"
-        echo -e "\takka workflow -run <wf_name> [-p <params[xx1=xxx&xx2=xxxx]>] :自定义参数执行执行工作流 (单独跑该任务，成功执行后不会触发后置任务)"
+        printf "【使用说明】\n"
+        printf "\takka workflow -info <wf_name> :查看某运工作流信息\n"
+        printf "\takka workflow -del <wf_name> :删除某工作流\n"
+        printf "\takka workflow -list [可选:关键字] :查看所有工作流列表\n"
+        printf "\takka workflow -add <xml文件> :提交工作流定义xml文件\n"
+        printf "\takka workflow -check <xml文件> :测试某一工作流定义xml文件是否合法\n"
+        printf "\takka workflow -reset <wf_name> :重置工作流前置任务状态\n"
+        printf "\takka workflow -trigger <wf_name> :触发执行指定工作流 (成功执行后会触发后置任务)\n"
+        printf "\takka workflow -run <wf_name> [-p <params[xx1=xxx&xx2=xxxx]>] :自定义参数执行执行工作流 (单独跑该任务，成功执行后不会触发后置任务)\n"
     else
         cmd="sh $cmd_dir/akka-workflow$1"
         shift
@@ -40,9 +40,9 @@ function workflow_cmd
 function util_cmd
 {
     if [ $# -lt 1 ];then
-        echo -e "【使用说明】"
-        echo -e "\takka util -reset-all :重置所有工作流调度器前置任务状态"
-        echo -e "\takka util -del-dir :删除某个工作流目录，该目录下必须为空"
+        printf "【使用说明】\n"
+        printf "\takka util -reset-all :重置所有工作流调度器前置任务状态\n"
+        printf "\takka util -del-dir :删除某个工作流目录，该目录下必须为空\n"
     else
         cmd="sh $cmd_dir/akka-util$1"
         shift
@@ -58,15 +58,15 @@ echo "   / _ \\  | |/ /| |/ // _\` || |_ | | / _ \\\\ \\ /\\ / /"
 echo "  / ___ \\ |   < |   <| (_| ||  _|| || (_) |\\ V  V / "
 echo " /_/   \\_\\|_|\\_\\|_|\\_\\\\__,_||_|  |_| \\___/  \\_/\\_/  "
 echo ""
-echo -e "【使用】\n\takka [ front| instance| workflow| util]"
-echo -e "【说明】\n\takkaflow调度系统命令入口。"
-echo -e "\t1、akka front 调度系统首页"
-echo -e "\t2、akka instance 工作流实例操作命令集，详见该命令"
-echo -e "\t3、akka workflow 工作流操作命令集，详见该命令"
-echo -e "\t4、akka util 辅助操作命令集，详见该命令"
-echo -e "【示例】\n\takka front"
-echo -e "\takka instance -info -log 574de284 (查看某实例)"
-echo -e "\takka workflow -kill 574de284 (杀死某运行中的实例)\n"
+printf "【使用】\n\takka [ front| instance| workflow| util]\n"
+printf "【说明】\n\takkaflow调度系统命令入口。\n"
+printf "\t1、akka front 调度系统首页\n"
+printf "\t2、akka instance 工作流实例操作命令集，详见该命令\n"
+printf "\t3、akka workflow 工作流操作命令集，详见该命令\n"
+printf "\t4、akka util 辅助操作命令集，详见该命令\n"
+printf "【示例】\n\takka front\n"
+printf "\takka instance -info -log 574de284 (查看某实例)\n"
+printf "\takka workflow -kill 574de284 (杀死某运行中的实例)\n"
 exit 1
 fi
 
@@ -89,6 +89,6 @@ while [ $# -gt 0 ];do
         shift;;
       *)
        shift
-       ;;
+       shift;;
     esac
 done

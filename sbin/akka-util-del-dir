@@ -4,9 +4,9 @@ user_dir=`pwd`
 cd `dirname $0`
 source ./head.sh
 if [ $# -ne 1 ];then
-echo -e "【使用】\n\takka util -del-dir 目录绝对路径"
-echo -e "【说明】\n\t删除某个工作流目录，该目录下必须为空"
-echo -e "【示例】\n\takka util -del-dir /TMP/DEL/DIR\n"
+printf "【使用】\n\takka util -del-dir 目录绝对路径\n"
+printf "【说明】\n\t删除某个工作流目录，该目录下必须为空\n"
+printf "【示例】\n\takka util -del-dir /TMP/DEL/DIR\n"
 exit 1
 fi
 dir=$1

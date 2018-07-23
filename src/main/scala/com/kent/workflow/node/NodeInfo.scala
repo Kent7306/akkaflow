@@ -13,8 +13,9 @@ import java.io.ByteArrayInputStream
 import java.io.ObjectInputStream
 import java.io.IOException
 import org.json4s.jackson.JsonMethods
+import com.kent.pub.Persistable
 
-abstract class NodeInfo(var name: String) extends Daoable[NodeInfo] with DeepCloneable[NodeInfo] {
+abstract class NodeInfo(var name: String) extends Persistable[NodeInfo] with DeepCloneable[NodeInfo] {
   import com.kent.workflow.node.NodeInfo.Status._
   var workflowName: String = _
   var desc: String = _

@@ -27,10 +27,10 @@ object HiveTest extends App{
   
   con.setAutoCommit(false)
   
-  val result1 = stmt.execute("drop table if exists bbb")
-  val result2 = stmt.execute("create table bbb(col string)")
+  val result1 = stmt.execute("drop table if exists test.bbb")
+  val result2 = stmt.execute("create table test.bbb(col STRING, col2 double, col3 date, col4 int,col5 bigint)")
   //stmt.execute("load data local inpath '/tmp/data.txt' into table bbb")
-	val rs = stmt.executeQuery("select * from test.bb")
+	val rs = stmt.executeQuery("select * from test.bbb")
 	val md = rs.getMetaData();
   (1 to md.getColumnCount).map{idx => 
     println(md.getColumnName(idx) + "  "+

@@ -23,8 +23,9 @@ import com.kent.main.Master
 import com.kent.pub.Event._
 import scala.util.Try
 import com.kent.workflow.Coor.Depend
+import com.kent.pub.Persistable
 
-class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Daoable[WorkflowInfo] {
+class WorkflowInfo(var name:String) extends DeepCloneable[WorkflowInfo] with Persistable[WorkflowInfo] {
 	import com.kent.workflow.WorkflowInfo.WStatus._
   var creator: String = _
   var desc: String = _

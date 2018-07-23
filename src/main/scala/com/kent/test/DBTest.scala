@@ -9,11 +9,11 @@ object DBTest extends App{
     //得到连接
     val connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/wf?useSSL=false", "root", "root")
     val stat = connection.createStatement()
-    val rs = stat.executeQuery("select * from wf.ccc where 2 > 3")
+    val rs = stat.executeQuery("select * from wf.t_user where 2 > 3")
     (1 to rs.getMetaData.getColumnCount).map{idx =>
       println(rs.getMetaData.getColumnName(idx) + "  " + rs.getMetaData.getColumnTypeName(idx) 
               + "  " + rs.getMetaData.getColumnType(idx) + "  " + rs.getMetaData.getColumnClassName(idx) + "  "
-              + rs.getMetaData.getPrecision(idx))
+              + rs.getMetaData.getPrecision(idx)+ "  " + rs.getMetaData.getScale(idx))
    }
    println("-------------------\n")
    println(getColnums(rs.getMetaData))
@@ -27,6 +27,7 @@ object DBTest extends App{
          case x if(x.contains("INT")) => Column(md.getColumnName(idx), DataType.NUMBER, md.getPrecision(idx), 0)
          case x if(x == "DOUBLE") =>  Column(md.getColumnName(idx), DataType.NUMBER, 16, 8)
          case x if(x == "DECIMAL") => Column(md.getColumnName(idx), DataType.NUMBER, 16, 8)
+         case x if(x == "BIT") => Column(md.getColumnName(idx), DataType.NUMBER, md.getPrecision(idx), 0)
          case other => throw new Exception(s"未配置映射的mysql数据类型: ${other}")
        }
      }.toList

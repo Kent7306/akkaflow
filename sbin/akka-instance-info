@@ -19,13 +19,12 @@ function f_base()
     from workflow_instance where id='$wfid'
     " 2>/dev/null`
 
-    #echo -e "$ins_data" | awk -F '\t' '{print $3}'
-    ins_param=`echo -e "$ins_data" | awk -F '\t' '{tmp=$3;gsub(/"|\{|\}| /,"",tmp);gsub(/,/,", ",tmp)} END{print tmp}'`
-    mail_level=`echo -e "$ins_data" | awk -F '\t' '{tmp=$10;gsub(/"|\[|\]| /,"",tmp);
+    ins_param=`printf "$ins_data" | awk -F '\t' '{tmp=$3;gsub(/"|\{|\}| /,"",tmp);gsub(/,/,", ",tmp)} END{print tmp}'`
+    mail_level=`printf "$ins_data" | awk -F '\t' '{tmp=$10;gsub(/"|\[|\]| /,"",tmp);
                 gsub(/W_FAILED/,"失败告警",tmp);gsub(/W_KILLED/,"杀死告警",tmp);gsub(/W_SUCCESSED/,"成功告警",tmp)} END{print tmp}'`
 
 
-    echo -e "=================================${CYAN}工作流实例信息${NC}====================================="
+    printf "=================================${CYAN}工作流实例信息${NC}=====================================\n"
     echo "$ins_data" | awk -F '\t' -v para="$ins_param" -v ml="$mail_level" '{
         print "实 例 ID: "$1
         print "工 作 流: "$2
@@ -39,7 +38,7 @@ function f_base()
         print "实例上限: "$12
         print "描    述: "$9
     }'
-    echo -e "=================================${CYAN}节点运行信息${NC}====================================="
+    printf "=================================${CYAN}节点运行信息${NC}=====================================\n"
     akka_mysql -e "use $mysql_db;
     select name 节点名称,type 节点类型,case status when 1 then '运行中'
                   when 3 then '成功'
@@ -56,7 +55,7 @@ function f_base()
 function f_log()
 {
     wfid=$1
-    echo -e "=================================${CYAN}实例日志信息${NC}====================================="
+    printf "=================================${CYAN}实例日志信息${NC}=====================================\n"
     akka_mysql -s -e "use $mysql_db;
     select concat('[',level,'] [',stime,']',if(ctype='ACTION_NODE_INSTANCE',concat('[',name,']'),'')) 日志信息,content 内容
     from log_record where sid = '$wfid'
@@ -68,7 +67,7 @@ function f_log()
 function f_xml()
 {
     wfid=$1
-    echo -e "=================================${CYAN}实例xml信息${NC}====================================="
+    printf "=================================${CYAN}实例xml信息${NC}=====================================\n"
     akka_mysql -s -e "use $mysql_db;
     select xml_str from workflow_instance where id='$wfid'
     "  2>/dev/null | awk '{gsub(/\\\\n/,"@@@@",$0);gsub(/\\\\t/,"!!!!",$0);print $0}' \
@@ -77,11 +76,11 @@ function f_xml()
 
 
 if [ $# -lt 1 ];then
-echo -e "【使用】\n\takka instance -info <instance_id> [--log|--xml]"
-echo -e "【说明】\n\t显示工作流实例相关信息,若加--log，则显示实例日志，若加--xml，则显示实例xml信息"
-echo -e "【示例】\n\takka instance -info 574de284"
-echo -e "\takka instance -info 574de284 --log"
-echo -e "\takka instance -info 574de284 --xml\n"
+printf "【使用】\n\takka instance -info <instance_id> [--log|--xml]\n"
+printf "【说明】\n\t显示工作流实例相关信息,若加--log，则显示实例日志，若加--xml，则显示实例xml信息\n"
+printf "【示例】\n\takka instance -info 574de284\n"
+printf "\takka instance -info 574de284 --log\n"
+printf "\takka instance -info 574de284 --xml\n"
 exit 1
 fi
 

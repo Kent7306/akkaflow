@@ -1,8 +1,8 @@
-<work-flow name="test" creator="Kent" mail-receivers="15018735011@163.com" mail-level="失败"
+<work-flow name="test" creator="Kent" mail-receivers="15018735011@163.com"
     dir="/TMP" desc="测试a">
   <!-- 调度配置 -->
   <coordinator is-enabled="true">
-      <depend-list cron="*/1 2 * * *"></depend-list>
+      <depend-list cron="*/1 * * * *"></depend-list>
       <param-list>
           <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
       </param-list>
@@ -12,11 +12,26 @@
   
   <action name="transfer" retry-times="0" interval="10" desc = "执行sql">
       <transfer> 
-	    <source type="DB" db-link="local_mysql">select * from log_record</source> 
-	    <target type="FILE" path="hdfs://quickstart.cloudera:8020/tmp/data3.tx">
-	      <pre>hive -e "xxxxx"</pre>
-	    </target>
+	    <source type="DB" db-link="local_mysql">select name from workflow</source> 
+	    <target type="DB" db-link="local_mysql" is-pre-truncate="true" table="aa_4"></target>
 	  </transfer>
+      <ok to="node2"/>  
+  </action> 
+  
+  <action name="node2" retry-times="0" interval="10" desc = "执行sql">
+      <email>
+      	<html>
+      	  <html>
+      		<table>
+      		<tr>
+      		<td>sdfd</td><td>22222</td>
+      		<td>sdfd</td><td>22222</td>
+      		<td>sdfd</td><td>22222</td>
+      		</tr>
+      		</table>
+      		</html>
+      	</html>
+      </email>
       <ok to="end"/>  
   </action>  
 

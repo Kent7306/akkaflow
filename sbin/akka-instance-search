@@ -3,10 +3,10 @@ cd `dirname $0`
 source ./head.sh
 
 if [ $# -lt 1 ];then
-echo -e "【使用】\n\takka instance -search [--sdate yyyy-mm-dd] [--edate yyyy-mm-dd] [--creator xxx] [--status 成功|失败|杀死|运行] [--key xxxx]"
-echo -e "【说明】\n\t根据条件去查找工作流实例"
-echo -e "【示例】\n\takka instance -search --status 失败"
-echo -e "\takka instance -search --sdate 2018-01-10 --edate 2018-01-11 --creator Unknown --status 失败 --key wf_\n"
+printf "【使用】\n\takka instance -search [--sdate yyyy-mm-dd] [--edate yyyy-mm-dd] [--creator xxx] [--status 成功|失败|杀死|运行] [--key xxxx]\n"
+printf "【说明】\n\t根据条件去查找工作流实例\n"
+printf "【示例】\n\takka instance -search --status 失败\n"
+printf "\takka instance -search --sdate 2018-01-10 --edate 2018-01-11 --creator Unknown --status 失败 --key wf_\n"
 exit 1
 fi
 
@@ -56,7 +56,7 @@ while [ $# -gt 0 ];do
     esac
 done
 
-echo "=================================查询结果====================================="
+printf "=================================查询结果=====================================\n"
 akka_mysql -e "use $mysql_db;
 select id 实例ID,name 工作流,
        case when status = '0' then '就绪'
@@ -86,4 +86,4 @@ where date_format(stime,'%Y-%m-%d') between '${sdate}' and '${edate}'
 order by stime desc limit 500
 " 2>/dev/null`
 
-echo -e "共$len条记录(最多显示500条记录)\n"
+printf "共 $len 条记录(最多显示500条记录)\n"

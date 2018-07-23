@@ -16,8 +16,9 @@ import com.kent.workflow.actionnode._
 import com.kent.workflow.controlnode._
 import com.kent.main.Master
 import scala.concurrent.Future
+import com.kent.pub.Persistable
 
-abstract class NodeInstance(val nodeInfo: NodeInfo) extends Daoable[NodeInstance] with DeepCloneable[NodeInstance]{
+abstract class NodeInstance(val nodeInfo: NodeInfo) extends Persistable[NodeInstance] with DeepCloneable[NodeInstance]{
   var id: String = _
   var status: Status = PREP
   var executedMsg: String = _

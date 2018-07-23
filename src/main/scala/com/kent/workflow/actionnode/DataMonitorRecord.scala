@@ -5,9 +5,10 @@ import java.sql.Connection
 import java.sql.ResultSet
 import com.kent.pub.DeepCloneable
 import java.sql.SQLException
+import com.kent.pub.Persistable
 
 class DataMonitorRecord(val timeMark: String, val category: String, val sourceName: String, val num:Double, val minOpt: Option[Double], val maxOpt: Option[Double],val remark: String, val wfiId: String) 
-       extends Daoable[DataMonitorRecord] with DeepCloneable[DataMonitorRecord] {
+       extends Persistable[DataMonitorRecord] with DeepCloneable[DataMonitorRecord] {
   def delete(implicit conn: Connection): Boolean = {
     import com.kent.util.Util._
     executeSql(s"""delete from data_monitor 

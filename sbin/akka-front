@@ -9,7 +9,7 @@ function show_info
     for i in `seq 0 13`;do
       date_arr[$i]=`getdate $stadate -$i`
     done
-    echo -e "=================================${GREEN}近七天实例执行统计${NC}====================================="
+    printf "=================================${GREEN}近七天实例执行统计${NC}=====================================\n"
     akka_mysql -e "use $mysql_db;
     select status,
            sum(if(stadate='${date_arr[0]}',cnt,0)) '${date_arr[0]}',
@@ -35,13 +35,13 @@ function show_info
 
     result=`which jq 1>/dev/null 2>&1;echo $?`
     if [ $result -eq 1 ];then
-        echo -e "\n${RED}系统不支持jq命令，无法解析等待中的工作流队列${NC}\n"
+        printf "\n${RED}系统不支持jq命令，无法解析等待中的工作流队列${NC}\n"
     else
         result=`curl -s -XGET "http://${host}:${port}/akkaflow/workflow/watting_instance/list" | iconv -f utf8 -t gbk`
 
         length=`echo $result | jq .data[].length | wc -l`
         if [ $length -gt 0 ];then
-            echo -e "=================================${GREEN}等待中的工作流实例队列${NC}====================================="
+            printf "=================================${GREEN}等待中的工作流实例队列${NC}=====================================\n"
             echo "|  实例ID    |  工作流名称"
             ((length=length-1))
             for i in `seq 0 $length`;do
@@ -54,7 +54,7 @@ function show_info
     fi
 
 
-    echo -e "=================================${GREEN}运行中工作流实例${NC}====================================="
+    printf "=================================${GREEN}运行中工作流实例${NC}=====================================\n"
     akka_mysql -e "use $mysql_db;
     select id 实例ID,name 工作流名称,creator 创建者,stime 开始时间,
            UNIX_TIMESTAMP(if(etime is null,curtime(),etime)) - UNIX_TIMESTAMP(STIME) 运行时长
@@ -62,7 +62,7 @@ function show_info
     order by stime desc;
     " 2>/dev/null
     echo ""
-    echo -e "=================================${GREEN}运行结束工作流实例${NC}====================================="
+    printf "=================================${GREEN}运行结束工作流实例${NC}=====================================\n"
     akka_mysql -e "use $mysql_db;
     select id 实例ID,name 工作流名称,creator 创建者,
            case status when 1 then '运行中'

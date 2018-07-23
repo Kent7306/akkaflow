@@ -73,13 +73,14 @@ class Worker extends ClusterRole {
   def init(){
     val config = context.system.settings.config
     //日志记录器配置
-    val logRecordConfig = (config.getString("workflow.log-mysql.user"),
-                      config.getString("workflow.log-mysql.password"),
-                      config.getString("workflow.log-mysql.jdbc-url"),
-                      config.getBoolean("workflow.log-mysql.is-enabled")
+    //mysql持久化参数配置
+    val mysqlConfig = (config.getString("workflow.mysql.user"),
+                      config.getString("workflow.mysql.password"),
+                      config.getString("workflow.mysql.jdbc-url"),
+                      config.getBoolean("workflow.mysql.is-enabled")
                     )
     //创建日志记录器
-    Worker.logRecorder = context.actorOf(Props(LogRecorder(logRecordConfig._3,logRecordConfig._1,logRecordConfig._2,logRecordConfig._4)),"log-recorder")
+    Worker.logRecorder = context.actorOf(Props(LogRecorder(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2,mysqlConfig._4)),"log-recorder")
     LogRecorder.actor = Worker.logRecorder
   }
 }

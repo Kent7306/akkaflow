@@ -4,6 +4,6 @@ user_dir=`pwd`
 script_dir=`dirname "$0"`
 
 cd $script_dir/..
-echo -e "开始启动HttpServer节点..."
-echo -e "启动日志请查看[根目录]/logs/run.log"
-nohup bin/http-server 1>>logs/run.log 2>&1 &
+printf "开始启动HttpServer节点...\n"
+printf "启动日志请查看[根目录]/logs/run.log\n"
+nohup sh bin/http-server 1>>logs/run.log 2>&1 &

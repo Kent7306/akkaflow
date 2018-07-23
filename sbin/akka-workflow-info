@@ -20,7 +20,7 @@ function f_base()
     " 2>/dev/null
     `
     #任务告警级别
-    mail_level=`echo -e "$wf_data" | awk -F '\t' '{tmp=$5;gsub(/"|\[|\]| /,"",tmp);
+    mail_level=`echo "$wf_data" | awk -F '\t' '{tmp=$5;gsub(/"|\[|\]| /,"",tmp);
                 gsub(/W_FAILED/,"失败告警",tmp);gsub(/W_KILLED/,"杀死告警",tmp);gsub(/W_SUCCESSED/,"成功告警",tmp)} END{print tmp}'`
 
 
@@ -41,7 +41,7 @@ function f_base()
     " 2>/dev/null | awk '{if(NR == 1){str=str""$0}else{str=str"\n          "$0}} END{print str}'`
     #调度器是否可用
     coor_enable=`echo "$coor_info" | awk -F '\t' '{tmp=$1;gsub(/1/,"可用",tmp);gsub(/0/,"不可用",tmp)} END{print tmp}'`
-    echo -e "=================================${GREEN}工作流信息${NC}====================================="
+    printf "=================================${GREEN}工作流信息${NC}=====================================\n"
     echo "$wf_data" | awk -F '\t' -v ml="$mail_level" '{
         print "工 作 流: "$1
         print "创 建 者: "$2
@@ -54,7 +54,7 @@ function f_base()
         print "文件目录："$10
         print "描    述: "$4
     }'
-    echo -e "=================================${GREEN}调度配置${NC}====================================="
+    printf "=================================${GREEN}调度配置${NC}=====================================\n"
     echo "$coor_info" | awk -F '\t' -v tw="$trigger_wfs" -v dw="$depend_wfs" -v ce="$coor_enable" '{
         print "是否可用: "ce
         print "调度参数: "$2
@@ -63,7 +63,7 @@ function f_base()
         print "后置触发: "tw
         print "生效时段: "$5" - "$6
     }'
-    echo -e "=================================${GREEN}节点运行信息${NC}====================================="
+    printf "=================================${GREEN}节点运行信息${NC}=====================================\n"
     akka_mysql -e "use $mysql_db;
     select name 节点名称,type 节点类型,if(description is null,'',description) 描述
     from node
@@ -75,7 +75,7 @@ function f_base()
 function f_xml()
 {
     wf_name=$1
-    echo -e "=================================${GREEN}工作流xml信息${NC}====================================="
+    printf "=================================${GREEN}工作流xml信息${NC}=====================================\n"
     akka_mysql -s -e "use $mysql_db;
     select xml_str from workflow where name='$wf_name'
     "  2>/dev/null | awk '{gsub(/\\\\n/,"@@@@",$0);gsub(/\\\\t/,"!!!!",$0);print $0}' \
@@ -85,7 +85,7 @@ function f_xml()
 function f_log()
 {
     wfid=$1
-    echo -e "=================================${GREEN}实例日志信息${NC}====================================="
+    printf "=================================${GREEN}实例日志信息${NC}=====================================\n"
     akka_mysql -s -e "use $mysql_db;
     select concat('[',level,'] [',stime,']',if(ctype='ACTION_NODE_INSTANCE',concat('[',name,']'),'')) 日志信息,content 内容
     from (
@@ -95,11 +95,11 @@ function f_log()
 }
 
 if [ $# -lt 1 ];then
-echo -e "【使用】\n\takka workflow -info <workflow_name> [--xml]"
-echo -e "【说明】\n\t显示工作流相关信息,若加--xml，则显示工作流xml信息, 若加--log,则显示工作流的调度日志"
-echo -e "【示例】\n\takka workflow -info wf_parall_sum"
-echo -e "\takka workflow -info wf_parall_sum  --xml\n"
-echo -e "\takka workflow -info wf_parall_sum  --log\n"
+printf "【使用】\n\takka workflow -info <workflow_name> [--xml]\n"
+printf "【说明】\n\t显示工作流相关信息,若加--xml，则显示工作流xml信息, 若加--log,则显示工作流的调度日志\n"
+printf "【示例】\n\takka workflow -info wf_parall_sum\n"
+printf "\takka workflow -info wf_parall_sum  --xml\n"
+printf "\takka workflow -info wf_parall_sum  --log\n"
 exit 1
 fi
 

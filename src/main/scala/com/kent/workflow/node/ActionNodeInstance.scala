@@ -25,7 +25,8 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNode) extends Nod
   var allocateHost: String = _
   var actionActor: ActionActor = _
   //执行目录
-  def executeDir = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
+  def executeDir = "/tmp/" + s"action_${this.id}_${this.nodeInfo.name}"
+  //def executeDir = Worker.config.getString("workflow.action.script-location") + "/" + s"action_${this.id}_${this.nodeInfo.name}"
   
   //进行日志截断
   private val logLimiteNum: Int = 1000

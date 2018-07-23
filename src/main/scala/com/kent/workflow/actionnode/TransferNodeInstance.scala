@@ -23,6 +23,8 @@ import com.kent.workflow.actionnode.transfer.source.Source._
 import com.kent.workflow.actionnode.transfer.target._
 import com.kent.workflow.actionnode.transfer.target.Target
 import com.kent.workflow.actionnode.transfer.Consumer
+import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType._
+import com.kent.workflow.actionnode.transfer.source.Source.DataType._
 
 class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNodeInstance(nodeInfo) {  
   implicit val timeout = Timeout(3600 seconds)
@@ -43,12 +45,19 @@ class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNo
   def executeActorTransfer():Boolean = {
     val source: Source = if(nodeInfo.dbsInfOpt.isDefined){  //DB source
       val dbLinkF = actionActor.getDBLink(nodeInfo.dbsInfOpt.get.dbLinkName)
-      val dbLink = Await.result(dbLinkF, 20 seconds)
-      if(dbLink.isEmpty){
+      val dbLinkOpt = Await.result(dbLinkF, 20 seconds)
+      if(dbLinkOpt.isEmpty){
         errorLog("source中未找到对应的db-link配置")
         null
-      }else {
-        new DBSource(dbLink.get, nodeInfo.dbsInfOpt.get.query)
+      }else if(dbLinkOpt.get.dbType == MYSQL){
+        new MysqlSource(dbLinkOpt.get, nodeInfo.dbsInfOpt.get.query)
+      }else if(dbLinkOpt.get.dbType == ORACLE){
+        new OracleSource(dbLinkOpt.get, nodeInfo.dbsInfOpt.get.query)
+      }else if(dbLinkOpt.get.dbType == HIVE){
+        new HiveSource(dbLinkOpt.get, nodeInfo.dbsInfOpt.get.query)
+      }else{
+        errorLog("source中db-link配置的数据库类型未找到")
+        null
       }
     } else if(nodeInfo.fsInfOpt.get.path.toLowerCase().contains("hdfs:")){  //HDFS source
       val fsInf = nodeInfo.fsInfOpt.get
@@ -60,6 +69,8 @@ class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNo
     
     
   if(source == null) return false
+  source.actionName = this.nodeInfo.name
+  source.instanceId = this.id
  
   val target: Target = if(nodeInfo.dbtInfOpt.isDefined){  //DB target
       val dbtInf = nodeInfo.dbtInfOpt.get
@@ -68,8 +79,15 @@ class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNo
       if(dbLinkOpt.isEmpty){
         errorLog("target中未找到对应的db-link配置")
         null
+      }else if(dbLinkOpt.get.dbType == MYSQL){
+        new MysqlTarget(dbtInf.isPreTruncate, dbLinkOpt.get, dbtInf.table, dbtInf.preSql, dbtInf.afterSql)
+      }else if(dbLinkOpt.get.dbType == ORACLE){
+        new OracleTarget(dbtInf.isPreTruncate, dbLinkOpt.get, dbtInf.table, dbtInf.preSql, dbtInf.afterSql)
+      }else if(dbLinkOpt.get.dbType == HIVE){
+        new HiveTarget(dbtInf.isPreTruncate, dbLinkOpt.get, dbtInf.table, dbtInf.preSql, dbtInf.afterSql)
       }else{
-        new DBTarget(dbtInf.isPreTruncate, dbLinkOpt.get, dbtInf.table, dbtInf.preSql, dbtInf.afterSql)
+        errorLog("target中未找到对应的db-link配置")
+        null
       }
    } else if(nodeInfo.ftInfOpt.get.path.toLowerCase().contains("hdfs:")){  //HDFS target
      val ftInf = nodeInfo.ftInfOpt.get
@@ -78,14 +96,16 @@ class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNo
      val ftInf = nodeInfo.ftInfOpt.get
      new LocalFileTarget(ftInf.isPreDel,ftInf.delimited,ftInf.path, ftInf.preCmd, ftInf.afterCmd, this)
    }
-  if(target == null) return false
   
-  producer = this.actionActor.context.actorOf(Props(Producer(source, nodeInfo.name, this.id)),"producer")
-  consumer = this.actionActor.context.actorOf(Props(Consumer(target, nodeInfo.name, this.id, producer)),"target")
+  if(target == null) return false
+  target.actionName = this.nodeInfo.name
+  target.instanceId = this.id
+  
+  producer = this.actionActor.context.actorOf(Props(Producer(source)),"producer")
+  consumer = this.actionActor.context.actorOf(Props(Consumer(target, producer)),"target")
     try{
       val resultF = (consumer ? Start()).mapTo[Boolean]
       val result = Await.result(resultF, 3600 seconds)
-      if(result == false && target.isInstanceOf[DBTarget]) errorLog("进行事务回滚")
       result
     }catch{
       case e: Exception => e.printStackTrace();return false

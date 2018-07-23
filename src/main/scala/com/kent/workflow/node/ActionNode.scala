@@ -60,6 +60,8 @@ object ActionNode {
         actionNode = SqlNode(nameOpt.get.text, childNode) 
       case <transfer>{content @ _*}</transfer> => 
         actionNode = TransferNode(nameOpt.get.text, childNode) 
+      case <email>{content @ _*}</email> => 
+        actionNode = EmailNode(nameOpt.get.text, childNode) 
       case _ => 
         throw new Exception(s"该[action:${nameOpt.get}]的类型不存在")
     }

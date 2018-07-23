@@ -57,7 +57,7 @@ class HttpServer extends ClusterRole {
     case Terminated(ar) => 
       //若是活动节点，则删除
       if(ar == activeMaster){
-        ???
+        this.activeMaster = null
       }
     case SwitchActiveMaster() => 
       activeMaster = sender

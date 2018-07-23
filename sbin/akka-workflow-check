@@ -4,9 +4,9 @@ cd `dirname $0`
 source ./head.sh
 
 if [ $# -ne 1 ];then
-echo -e "【使用】\n\takka workflow -check <xml文件>"
-echo -e "【说明】\n\t测试某一工作流定义xml文件是否合法"
-echo -e "【示例】\n\takka workflow -check ~/akkaflow/xmlconfig/workflow/example/wf_parall_sum.xml\n"
+printf "【使用】\n\takka workflow -check <xml文件>\n"
+printf "【说明】\n\t测试某一工作流定义xml文件是否合法\n"
+printf "【示例】\n\takka workflow -check ~/akkaflow/xmlconfig/workflow/example/wf_parall_sum.xml\n"
 exit 1
 fi
 

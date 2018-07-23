@@ -16,7 +16,7 @@ import java.io.OutputStreamWriter
 
 object HdfsTest extends App{
   val conf = new Configuration();
-  val str = "hdfs://quickstart.cloudera:8020/tmp/data.txt"
+  val str = "hdfs://quickstart.cloudera:8020"
   val fs = FileSystem.get(new URI(str), conf);
   //val aa = new Path("/tmp/data.txt");
   //println(fs.exists(aa))

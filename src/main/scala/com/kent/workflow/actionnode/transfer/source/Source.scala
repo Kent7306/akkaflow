@@ -3,6 +3,8 @@ package com.kent.workflow.actionnode.transfer.source
 import scala.util.Try
 import scala.util.Try
 import com.kent.workflow.actionnode.transfer.source.Source.Column
+import com.kent.db.LogRecorder
+import com.kent.db.LogRecorder.LogType._
 
 trait Source {
   //单次导入记录数最大值
@@ -11,13 +13,23 @@ trait Source {
   var isEnd = false
   //列数
   var colNum: Int = _
+  
+  //日志
+  var actionName: String = _
+  var instanceId: String = _
+  def infoLog(line: String) = LogRecorder.info(ACTION_NODE_INSTANCE, instanceId, actionName, line) 
+  def errorLog(line: String) = LogRecorder.error(ACTION_NODE_INSTANCE, instanceId, actionName, line)
+  def warnLog(line: String) = LogRecorder.warn(ACTION_NODE_INSTANCE, instanceId, actionName, line)
+  
+  
   /**
-   * 获取数据源字段数
+   * 获取数据源字段类型列表
    */
-  def getColNum:Option[Int]
-  /**
-   * 获取数据源字段类型
-   */
+  def getAndSetColNums: Option[List[Column]] = {
+   val cols = getColNums
+   this.colNum = if(cols.isEmpty) 0 else cols.get.size
+   cols
+  }
   def getColNums: Option[List[Column]]
   /**
    * 获取记录集合
@@ -26,7 +38,7 @@ trait Source {
   /**
    * 初始化
    */
-  def init(): Boolean
+  def init()
   /**
    * 结束
    */
@@ -48,11 +60,11 @@ object Source {
   
   
   //Event
-  case class GetColNum()
+  case class GetColNums()
+  case class ColNums(colsOpt: Option[List[Column]])
   case class GetRows()
-  case class Rows(rows: Try[List[List[String]]])
+  case class Rows(rows: List[List[String]])
   case class End(isSuccess: Boolean)
-  case class ColNum(colnum: Try[Option[Int]])
   //
   case class ExecuteResult(isSuccess: Boolean, data: Any)
 }

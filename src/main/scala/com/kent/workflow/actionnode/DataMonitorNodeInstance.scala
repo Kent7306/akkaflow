@@ -24,10 +24,15 @@ import java.sql.Connection
 import java.sql.Statement
 import java.sql.DriverManager
 import com.kent.workflow.actionnode.DataMonitorNode._
+import java.sql.ResultSet
+import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType._
+import com.kent.pub.db.MysqlOpera
+import com.kent.pub.db.OracleOpera
+import com.kent.pub.db.HiveOpera
 
 class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends ActionNodeInstance(nodeInfo)  {
   implicit val timeout = Timeout(60 seconds)
-  
+  DatabaseType
   
   override def execute(): Boolean = {
     this.executedMsg = "自定义消息："+nodeInfo.warnMsg
@@ -85,9 +90,13 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
      * 获取rmdb数据
      */
     private def getRmdbData(sql: String, dbLink: DBLink):Double = {
-      querySql(sql,dbLink,rs => {
-    	  if(rs.next()) rs.getString(1).trim().toDouble else throw new Exception("无查询结果")        
-      }).get
+      def toNum(rs: ResultSet): Double = if(rs.next()) rs.getString(1).trim().toDouble else throw new Exception("无查询结果") 
+      dbLink.dbType match {
+        case MYSQL => MysqlOpera.querySql(sql, dbLink, toNum).get
+        case ORACLE => OracleOpera.querySql(sql, dbLink, toNum).get
+        case HIVE => HiveOpera.querySql(sql, dbLink, toNum).get
+        case _ => throw new Exception(s"不存在db-link类型未${dbLink.dbType}")
+      }
     }
     
     /**

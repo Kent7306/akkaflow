@@ -14,7 +14,7 @@ class HdfsSource(delimited: String, path: String) extends Source {
   var fs: FileSystem = null
   var in: FSDataInputStream = null
   var bf: BufferedReader = null 
-  def init(): Boolean = {
+  def init() = {
     fs = FileSystem.get(URI.create(path), conf)
     val (dir, baseName) = FileUtil.getDirAndBaseName(path)
     val hdfsPath = new Path(path)
@@ -24,7 +24,6 @@ class HdfsSource(delimited: String, path: String) extends Source {
     }else{
       throw new Exception("文件不存在")
     }
-    true
   }
 
   def getColNum: Option[Int] = {

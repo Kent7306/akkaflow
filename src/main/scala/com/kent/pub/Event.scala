@@ -39,9 +39,9 @@ object Event {
   case class DBLink(dbType: DatabaseType, name: String, jdbcUrl: String, username: String, password: String)
   
   //persist-manager
-  case class Save[A](obj: Daoable[A])
-  case class Delete[A](obj: Daoable[A])
-  case class Get[A](obj: Daoable[A])
+  case class Save[A](obj: Persistable[A])
+  case class Delete[A](obj: Persistable[A])
+  case class Get[A](obj: Persistable[A])
   case class Query(query: String)
   case class ExecuteSql(sql: String)
   //email-sender

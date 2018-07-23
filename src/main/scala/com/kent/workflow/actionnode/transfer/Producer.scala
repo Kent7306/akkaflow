@@ -12,24 +12,42 @@ import scala.util.Try
 import scala.util.Success
 import com.kent.workflow.actionnode.transfer.source.Source
 
-class Producer(source: Source, actionName: String, wfiId: String) extends ActorTool {
-  var bufferRowsTry:Try[List[List[String]]] = null
-  //var isInited = false
+class Producer(source: Source) extends ActorTool {
+  var bufferRows:List[List[String]] = null
   
-  def indivivalReceive: Actor.Receive = {
-    case GetColNum() => sender ! Try{source.init();source.getColNum}
-    case GetRows() => handleGetRows(sender)
-    case End(isSuccess) => source.finish()
+  private def handleException(msg: String, sdr: ActorRef, f:() => Unit){
+    try{ 
+      f()
+    }catch{
+      case e: Exception => 
+        source.errorLog(msg + "," + e.getMessage)
+        sdr ! End(false)
+    }
   }
   
+  def indivivalReceive: Actor.Receive = {
+    case GetColNums() =>
+      handleException("初始化源数据失败",sender,() => {
+        source.init()
+        handleException("执行源数据查询失败",sender,() => {
+          val colsOpt = source.getAndSetColNums
+          sender ! ColNums(colsOpt)
+        })
+      })
+    case GetRows() => handleException("装载源数据记录失败", sender, () => handleGetRows(sender))
+    case End(isSuccess) => source.finish()
+  }
+  /**
+   * 获取rows
+   */
   def handleGetRows(sdr: ActorRef) = {
-    if(bufferRowsTry == null && source.isEnd == false){  //最开始的时候
-      val dataTry = Try(source.fillRowBuffer())
-      sdr ! Rows(dataTry)
-      bufferRowsTry = Try(source.fillRowBuffer())
-    }else if(bufferRowsTry != null && bufferRowsTry.get.size > 0){  //读取时候
-      sdr ! Rows(bufferRowsTry)
-      bufferRowsTry = Try(source.fillRowBuffer())
+    if(bufferRows == null && source.isEnd == false){  //最开始的时候
+      val data = source.fillRowBuffer()
+      sdr ! Rows(data)
+      bufferRows = source.fillRowBuffer()
+    }else if(bufferRows != null && bufferRows.size > 0){  //读取时候
+      sdr ! Rows(bufferRows)
+      bufferRows = source.fillRowBuffer()
     }else{  //结束时候
       sdr ! End(true)
     }
@@ -41,5 +59,5 @@ class Producer(source: Source, actionName: String, wfiId: String) extends ActorT
 }
 
 object Producer {
-  def apply(source: Source, actionName: String, wfiId: String):Producer = new Producer(source, actionName, wfiId)
+  def apply(source: Source):Producer = new Producer(source)
 }

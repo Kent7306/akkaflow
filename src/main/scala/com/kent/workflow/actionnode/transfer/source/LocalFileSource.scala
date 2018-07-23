@@ -4,6 +4,8 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.FileInputStream
 import java.io.File
+import com.kent.workflow.actionnode.transfer.source.Source.Column
+import com.kent.workflow.actionnode.transfer.source.Source.DataType
 
   /**
    * 读取本机文件类
@@ -11,10 +13,9 @@ import java.io.File
 class LocalFileSource(delimited: String, path: String) extends Source {
   var br: BufferedReader = null
   var read: InputStreamReader = null
-  def init(): Boolean = {
+  def init() = {
     val read = new InputStreamReader(new FileInputStream(new File(path)))
     br = new BufferedReader(read)
-    true
   }
   
   def fillRowBuffer(): List[List[String]] = {
@@ -50,6 +51,19 @@ class LocalFileSource(delimited: String, path: String) extends Source {
   }
 
   def getColNums: Option[List[Source.Column]] = {
-    ???
+    val read = new InputStreamReader(new FileInputStream(new File(path)))
+    val brTmp = new BufferedReader(read)
+    val firstLine = brTmp.readLine()
+    brTmp.close()
+    read.close()
+    if(firstLine == null) {
+      None 
+    } else {
+      var i = 0;
+      val list = firstLine.split(this.delimited).zipWithIndex.map{
+        case (x,idx) => Column(s"col_${idx}", DataType.STRING, 256, 0) 
+      }.toList
+      Some(list)
+    }
   }
 }
