@@ -1,7 +1,12 @@
 ## akkaflow  
 ### 简介
 `akkaflow`是一个基于`akka`架构上构建的分布式高可用ETL调度工具，可以把任务分发在集群中不同的节点上并行执行，高效利用集群资源，支持时间及任务混合触发；提供多种节点类型。其中工作流由xml文件，并且提供一套完整的基于Shell的操作命令集，简洁易用，可作为构建数据仓库、或大数据平台上的调度工具。  
-用户基于命令集向系统提交工作流定义的xml文件，满足触发条件后，系统会触发执行工作流，用户可通过命令集查看任务执行情况，其中，工作流定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)，操作使用示例参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)，命令集操作文档详见下面使用章节。
+用户基于命令集向系统提交工作流定义的xml文件，满足触发条件后，系统会触发执行工作流，用户可通过命令集查看任务执行情况。其中
+
+* 工作流定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)
+* 操作使用示例参考[这里](https://github.com/Kent7306/akkaflow/blob/master/usage.md)
+* 命令集操作文档详见下面使用章节
+
 整个`akkaflow`架构目前包含有四个节点角色：Master、Master-Standby、Worker、Http-Server，每个角色可以独立部署于不同机器上，支持高可用。
 
 **节点角色关系图**
@@ -84,9 +89,30 @@
  * 关闭集群：`sbin/shutdown-cluster`
 
 #### 2、akkaflow操作命令集
-  `akka`是命令集入口
-  ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%91%BD%E4%BB%A4%E9%9B%86%E5%85%A5%E5%8F%A3.jpg) 
-  命令集合列表
+##### 命令集入口
+  ```shell
+  kentdeMacBook-Pro:sbin kent$ ./akka
+     _     _     _            __  _
+    / \   | | __| | __ __ _  / _|| |  ___ __      __
+   / _ \  | |/ /| |/ // _` || |_ | | / _ \\ \ /\ / /
+  / ___ \ |   < |   <| (_| ||  _|| || (_) |\ V  V /
+ /_/   \_\|_|\_\|_|\_\\__,_||_|  |_| \___/  \_/\_/
+
+【使用】
+	akka [ front| instance| workflow| util]
+【说明】
+	akkaflow调度系统命令入口。
+	1、akka front 调度系统首页
+	2、akka instance 工作流实例操作命令集，详见该命令
+	3、akka workflow 工作流操作命令集，详见该命令
+	4、akka util 辅助操作命令集，详见该命令
+【示例】
+	akka front
+	akka instance -info -log 574de284 (查看某实例)
+	akka workflow -kill 574de284 (杀死某运行中的实例) 
+  ```
+	
+##### 命令集合列表
    ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%91%BD%E4%BB%A4%E9%9B%86%E5%90%88.jpg)
   
 
