@@ -45,7 +45,7 @@
     <action name="script" desc = "生成数据文件">
         <script>
             <code><![CDATA[
-            rm -f test_data.txt
+            rm -f /tmp/test_data.txt
             for i in `seq 0 20`;do
                 printf "$i\t$i\n" >> /tmp/test_data.txt
             done

@@ -19,7 +19,7 @@
 
 ### 部署
 #### 1、打包
-* 可以直接在[这里](https://pan.baidu.com/s/1txmQF_dyiitiBsIf5jtS9w)下载`akkaflow-x.x.zip`，，这是已经打包好的程序包
+* 可以直接在[这里](https://pan.baidu.com/s/1ts_N10eIcM2is1Q_DSqlcw)下载`akkaflow-x.x.zip`，这是已经打包好的程序包
 * 可以把工程check out下来，用sbt-native-packager进行编译打包(直接运行`sbt dist`)
 
 #### 2、安装
