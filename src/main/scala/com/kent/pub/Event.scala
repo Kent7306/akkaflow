@@ -10,6 +10,7 @@ import com.kent.workflow.node.NodeInfo.Status._
 import com.kent.pub.ActorTool.ActorInfo
 import java.util.Date
 import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType._
+import com.kent.workflow.Coor.TriggerType._
 
 object Event {
   //pub
@@ -47,7 +48,7 @@ object Event {
   //email-sender
   case class EmailMessage(toUsers: List[String],subject: String,htmlText: String, attachFiles: List[String])
   //wfm
-  case class Trigger(name: String)
+  case class Trigger(name: String, triggerType: TriggerType)
   case class Reset(wfName: String)
   case class ResetAllWorkflow()
   case class ManualNewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])

@@ -1,5 +1,5 @@
 <db-links>
 	<link name="local_mysql" type="MYSQL" jdbc-url="jdbc:mysql://localhost:3306/wf" username="root" password="root"/>
-	<link name="local_orcl" type="ORACLE" jdbc-url="jdbc:oracle:thin:@//xxx.xxx.xxx.xxx:xxx/sid" username="xxxx" password="xxxx"/>
+	<link name="local_orcl" type="ORACLE" jdbc-url="jdbc:oracle:thin:@//192.168.31.163:1521/XE" username="etl" password="root"/>
 	<link name="local_hive" type="HIVE" jdbc-url="jdbc:hive2://quickstart.cloudera:10000/" username="hdfs" password="hdfs"/>
 </db-links> 

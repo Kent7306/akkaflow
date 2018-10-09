@@ -1,39 +1,25 @@
-<work-flow name="test" creator="Kent" mail-receivers="15018735011@163.com"
-    dir="/TMP" desc="测试a">
+<work-flow name="test" creator="区广能" mail-receivers="15018735011@163.com"
+    dir="/TMP" desc="测试c">
   <!-- 调度配置 -->
-  <coordinator is-enabled="true">
-      <depend-list cron="*/1 * * * *"></depend-list>
+  <coordinator is-enabled="false">
+      <depend-list>
+          <workflow name="job_depend"></workflow>
+      </depend-list>
       <param-list>
           <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
       </param-list>
-  </coordinator>  
+  </coordinator>
   <!-- 节点列表 -->
-  <start name="start" to="transfer" />
-  
-  <action name="transfer" retry-times="0" interval="10" desc = "执行sql">
-      <transfer> 
-	    <source type="DB" db-link="local_mysql">select name from workflow</source> 
-	    <target type="DB" db-link="local_mysql" is-pre-truncate="true" table="aa_4"></target>
-	  </transfer>
-      <ok to="node2"/>  
-  </action> 
-  
-  <action name="node2" retry-times="0" interval="10" desc = "执行sql">
-      <email>
-      	<html>
-      	  <html>
-      		<table>
-      		<tr>
-      		<td>sdfd</td><td>22222</td>
-      		<td>sdfd</td><td>22222</td>
-      		<td>sdfd</td><td>22222</td>
-      		</tr>
-      		</table>
-      		</html>
-      	</html>
-      </email>
-      <ok to="end"/>  
-  </action>  
+  <start name="start" to="script" />
+
+  <action name="script" retry-times="2" interval="4" desc = "执行脚本">
+      <data-monitor>
+	     <source type="NUM">20</source>
+	     <min-threshold type="COMMAND">echo $RANDOM | wc -l</min-threshold>
+	     <warn-msg>填写检测异常信息</warn-msg>
+	  </data-monitor>
+      <ok to="end"></ok>
+  </action>
 
   <end name="end"/>
 </work-flow>

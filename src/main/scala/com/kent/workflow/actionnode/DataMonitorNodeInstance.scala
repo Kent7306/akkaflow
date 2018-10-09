@@ -31,8 +31,8 @@ import com.kent.pub.db.OracleOpera
 import com.kent.pub.db.HiveOpera
 
 class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends ActionNodeInstance(nodeInfo)  {
+  val DATA_CHECK_INTERVAL = 10000
   implicit val timeout = Timeout(60 seconds)
-  DatabaseType
   
   override def execute(): Boolean = {
     this.executedMsg = "自定义消息："+nodeInfo.warnMsg
@@ -41,6 +41,22 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
     val monitorData = getData(nodeInfo.source)
     val maxDataOpt = if(nodeInfo.maxThre != null) Some(getData(nodeInfo.maxThre)) else None
     val minDataOpt = if(nodeInfo.minThre != null) Some(getData(nodeInfo.minThre)) else None
+    
+    //双重检测
+    //时间间隔内，如果数据发生了变化，则继续重试
+    Thread.sleep(DATA_CHECK_INTERVAL)
+    val monitorDataCheck = getData(nodeInfo.source)
+    if(monitorData != monitorDataCheck) throw new Exception(s"数据源在规定时间间隔内数值检测不一致：${monitorData} != ${monitorDataCheck}")
+    if(minDataOpt.isDefined){
+      val minDataCheck = getData(nodeInfo.minThre)
+      if(minDataOpt.get != minDataCheck) throw new Exception(s"下限在规定时间间隔内检测不一致：${minDataOpt.get} != ${minDataCheck}")
+    }
+    if(maxDataOpt.isDefined){
+      val maxDataCheck = getData(nodeInfo.maxThre)
+      if(maxDataOpt.get != maxDataCheck) throw new Exception(s"上限在规定时间间隔内检测不一致：${maxDataOpt.get} != ${maxDataCheck}")
+    }
+    
+    //
     val result = 
       if((maxDataOpt.isDefined && monitorData > maxDataOpt.get) 
         || (minDataOpt.isDefined && monitorData < minDataOpt.get)){

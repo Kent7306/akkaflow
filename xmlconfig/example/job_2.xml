@@ -1,8 +1,8 @@
 <work-flow name="job_2" creator="Kent" mail-receivers="15018735011@163.com"
     dir="/example" desc="工作流实例2">
   <!-- 调度配置 -->
-  <coordinator is-enabled="false">
-      <depend-list cron="*/5 * * * *"></depend-list>
+  <coordinator is-enabled="true">
+      <depend-list cron="*/5 1 * * *"></depend-list> 
       <param-list>
           <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
       </param-list>

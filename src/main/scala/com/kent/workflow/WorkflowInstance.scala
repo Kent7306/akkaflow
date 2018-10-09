@@ -28,6 +28,8 @@ import scala.concurrent.Future
 import akka.util.Timeout
 import scala.concurrent.duration._
 import com.kent.pub.Persistable
+import com.kent.workflow.Coor.TriggerType
+import com.kent.workflow.Coor.TriggerType._
 
 
 class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[WorkflowInstance] with Persistable[WorkflowInstance] {
@@ -39,7 +41,11 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   private var status: WStatus = W_PREP     
   var nodeInstanceList:List[NodeInstance] = List()
   //是否完成时，自动触发下个依赖
-  var isAutoTrigger = true
+  //var isAutoTrigger = true
+  
+  //后置触发类型
+  var triggerType: TriggerType = TriggerType.NEXT_SET
+  
   /**
    * 修改工作流状态
    */

@@ -4,7 +4,7 @@ cd `dirname $0`
 source ./head.sh
 
 if [ $# -ne 1 ];then
-printf "【使用】\n\takka instance -rerun [instance_id]n\"
+printf "【使用】\n\takka instance -rerun [instance_id]\n"
 printf "【说明】\n\t重跑指定运行中的工作流实例\n"
 printf "【示例】\n\takka instance -rerun 96e66660\n"
 exit 1

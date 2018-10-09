@@ -85,7 +85,17 @@ object Coor{
     coor.cronStr = cronConfig
     coor
   }
-	
+	/**
+	 * 触发类型，枚举
+	 * 默认 NEXT_SET: 设置后置触发工作流的调度器
+	 * BLOOD_EXECUTE: 所有后置触发有血缘依赖的都递归依次执行
+	 * NO_AFFECT: 不影响后置触发工作流的调度器
+	 */
+  object TriggerType extends Enumeration {
+    type TriggerType = Value
+    val NEXT_SET,BLOOD_EXCUTE, NO_AFFECT = Value
+  }
+  
 	//依赖类
 	case class Depend(workFlowName: String,var isReady: Boolean)
 }

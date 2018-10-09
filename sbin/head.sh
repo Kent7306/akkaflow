@@ -36,6 +36,7 @@ alias akka_mysql="mysql -h$mysql_host -u$mysql_user -p$mysql_pwd"
 #alias akka_mysql="/home/gzstat/mysql/bin/mysql -h$mysql_host -u$mysql_user --socket /home/gzstat/mysql/mysql.sock -p$mysql_pwd"
 
 local_lang=`echo ${LANG##*.}`
+#echo $local_lang
 
 red='\e[0;41m' # 红色
 RED='\e[1;31m'

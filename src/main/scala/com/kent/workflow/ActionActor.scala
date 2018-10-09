@@ -66,7 +66,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   		
   		//发送邮件
   		//有重试并且执行失败
-  		if(actionNodeInstance.nodeInfo.retryTimes > 0 && executedStatus == FAILED){
+  		if(actionNodeInstance.nodeInfo.retryTimes > 0 && actionNodeInstance.hasRetryTimes == 0 && executedStatus == FAILED){
   		  sendNodeRetryMail(false, actionNodeInstance.executedMsg)
   		}else if(actionNodeInstance.hasRetryTimes > 0 && executedStatus == SUCCESSED) {  //有重试过并且如果执行成功
   		  sendNodeRetryMail(true, actionNodeInstance.executedMsg)
@@ -105,7 +105,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
         h3 {margin-bottom: 5px}
         a {color:red;font-weight:bold}
         </style> 
-        <h3>实例<${actionNodeInstance.nodeInfo.label}/>节点执行${resultTmp},内容如下</h3>
+        <h3>实例中的&lt;${actionNodeInstance.nodeInfo.label}/&gt;节点执行${resultTmp},内容如下</h3>
         
           <table class="table-n" border="1">
             <tr><td>实例ID(工作流名称)</td><td>${actionNodeInstance.id}(${instanceInfo.name})</td></tr>

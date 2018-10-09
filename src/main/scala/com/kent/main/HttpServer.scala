@@ -24,6 +24,9 @@ import com.kent.pub.Event._
 import akka.actor.ActorRef
 import akka.actor.Terminated
 import scala.util.Success
+import com.kent.workflow.Coor.TriggerType
+import com.kent.workflow.Coor.TriggerType._
+
 /**
  * http接口服务角色
  */
@@ -74,7 +77,7 @@ class HttpServer extends ClusterRole {
     case event@KillWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
     case event@RemoveWorkFlowInstance(_) => getResponseFromWorkflowManager(sender, event)
     case event@Reset(_) => getResponseFromWorkflowManager(sender,event)
-    case event@Trigger(_) => getResponseFromWorkflowManager(sender,event)
+    case event@Trigger(_,_) => getResponseFromWorkflowManager(sender,event)
     case event@ManualNewAndExecuteWorkFlowInstance(_, _) => getResponseFromWorkflowManager(sender, event)
     case event@GetWaittingInstances() => getResponseFromWorkflowManager(sender, event)
     
@@ -126,9 +129,11 @@ object HttpServer extends App{
                  handleRequestWithActor(ManualNewAndExecuteWorkFlowInstance(name, paras))
              }
           }else if(action == "reset"){
-               handleRequestWithActor(Reset(name))                    
+            handleRequestWithActor(Reset(name))                    
           }else if(action == "trigger"){
-               handleRequestWithActor(Trigger(name))                    
+            handleRequestWithActor(Trigger(name, TriggerType.NEXT_SET))                    
+          }else if(action == "trigger-blood"){
+            handleRequestWithActor(Trigger(name, TriggerType.BLOOD_EXCUTE))  
           }else{
         	  handleRequestWithResponseData("fail","action参数有误",null)                      
           }

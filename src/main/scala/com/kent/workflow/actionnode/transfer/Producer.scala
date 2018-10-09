@@ -35,7 +35,7 @@ class Producer(source: Source) extends ActorTool {
         })
       })
     case GetRows() => handleException("装载源数据记录失败", sender, () => handleGetRows(sender))
-    case End(isSuccess) => source.finish()
+    case End(isSuccess) => finish()
   }
   /**
    * 获取rows

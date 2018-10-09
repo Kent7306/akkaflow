@@ -31,9 +31,10 @@ class Consumer(target: Target, producer: ActorRef) extends ActorTool {
   def indivivalReceive: Actor.Receive = {
     case Start() => 
       actionActorRef = sender 
-      handleException("初始化失败", () => target.init())
-      producer ! GetColNums()
-      
+      handleException("初始化失败", () => {
+        target.init()
+        producer ! GetColNums()
+      })
     case ColNums(colsOpt) => 
       //检查字段
       var tColLenOpt: Option[Int] = null
@@ -51,10 +52,11 @@ class Consumer(target: Target, producer: ActorRef) extends ActorTool {
       })
       
     case Rows(rows) => 
-      handleException("插入数据失败", () => target.persist(rows))
-      target.infoLog(s"成功插入${target.totalRowNum}")
-      producer ! GetRows()
-      
+      handleException("插入数据失败", () => {
+        target.persist(rows)
+        target.infoLog(s"成功插入${target.totalRowNum}")
+        producer ! GetRows() 
+      })
     case End(isSuccess) =>
       var flagTmp = isSuccess
       if(flagTmp){

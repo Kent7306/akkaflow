@@ -26,7 +26,6 @@ import com.kent.ddata.HaDataStorager._
 import com.kent.pub.ActorTool
 import com.kent.pub.DaemonActor
 import com.kent.db.LogRecorder.LogType
-import com.kent.db.LogRecorder.LogType.WORKFLOW_MANAGER
 import com.kent.db.LogRecorder.LogType._
 import com.kent.db.LogRecorder
 import java.io.File
@@ -34,10 +33,14 @@ import scala.io.Source
 import com.kent.util.FileUtil
 import com.kent.workflow.WorkflowInfo.WStatus
 import com.kent.util.Util
+import com.kent.workflow.Coor.TriggerType
+import com.kent.workflow.Coor.TriggerType._
+import scala.util.Try
+import scala.util.Failure
 
 class WorkFlowManager extends DaemonActor {
   /**
-   * 工作流信息
+   * 所有的工作流信息
    * [wfName, workflowInfo]
    */
   var workflows: Map[String, WorkflowInfo] = Map()
@@ -52,6 +55,11 @@ class WorkFlowManager extends DaemonActor {
   val waittingWorkflowInstance = scala.collection.mutable.ListBuffer[WorkflowInstance]()
   //调度器
   var scheduler: Cancellable = _
+  /**
+   * 用于重跑有血源后置触发的所有工作流（为了性能考虑，同一时间下，只能有一个这样的blood触发）
+   * 等待重跑的工作流名称列表
+   */
+  var bloodWaitExecuteWfNames = List[String]()
   
   /**
    * 初始化(从数据库中读取工作流xml，同步阻塞方法)
@@ -63,10 +71,8 @@ class WorkFlowManager extends DaemonActor {
      }
      val list = Await.result(listF, 20 second)
      list.map { 
-       case x if x.result == "success" => 
-         log.info(s"解析数据库的工作流: ${x.msg}")
-       case x if x.result == "error" => 
-         log.error(s"解析数据库的工作流: ${x.msg}")
+       case x if x.result == "success" =>  log.info(s"解析数据库的工作流: ${x.msg}")
+       case x if x.result == "error" => log.error(s"解析数据库的工作流: ${x.msg}")
      }
   }
   
@@ -90,7 +96,7 @@ class WorkFlowManager extends DaemonActor {
      */
     def getSatisfiedWFIfromWaitingWFIs(): Option[WorkflowInstance] = {
       for (wfi <- waittingWorkflowInstance) {
-        val runningInstanceNum = workflowActors.map { case (x, (y, z)) => y }
+        val runningInstanceNum = workflowActors.map { case (_, (instance, _)) => instance }
           .filter { _.workflow.name == wfi.workflow.name }.size
         if (runningInstanceNum < wfi.workflow.instanceLimit) {
           waittingWorkflowInstance -= wfi
@@ -100,10 +106,10 @@ class WorkFlowManager extends DaemonActor {
       }
       None
     }
-    //调度触发
+    //从工作流集合中找到满足触发条件的工作流
     workflows.foreach { case(name,wf) => 
       if (wf.coorOpt.isDefined && wf.coorOpt.get.isSatisfyTrigger()) {
-        this.newAndExecute(wf.name, wf.coorOpt.get.translateParam())
+        this.addToWaittingInstances(wf.name, wf.coorOpt.get.translateParam(), TriggerType.NEXT_SET)
         wf.resetCoor()
       }
     }
@@ -196,6 +202,9 @@ class WorkFlowManager extends DaemonActor {
       }
     }
   }
+  /**
+   * 删除实例
+   */
   def removeInstance(id: String): Future[ResponseData] = {
     if(id == null || id.trim() == ""){
       Future{ResponseData("fail", s"无效实例id", null)}
@@ -213,33 +222,33 @@ class WorkFlowManager extends DaemonActor {
     }
   }
   /**
-   * 生成工作流实例并执行
+   * 生成工作流实例并添加到等待队列中
+   * 返回生成的实例ID
    */
-  def newAndExecute(wfName: String, paramMap: Map[String, String]): Boolean = {
-    if (workflows.get(wfName).isEmpty) {
-      LogRecorder.error(WORKFLOW_MANAGER, null, null, s"未找到名称为[${wfName}]的工作流")
-      false
-    } else {
-    	val wfi = WorkflowInstance(workflows(wfName), paramMap)
-      //把工作流实例加入到等待队列中
-      waittingWorkflowInstance += wfi
-      Master.haDataStorager ! AddWWFI(wfi)
-      true
+  private def addToWaittingInstances(wfName: String, paramMap: Map[String, String], triggerType: TriggerType):Try[String] = {
+    Try{
+      if (workflows.get(wfName).isEmpty) {
+        val errorMsg = s"未找到名称为[${wfName}]的工作流"
+        LogRecorder.error(WORKFLOW_MANAGER, null, null, errorMsg)
+        throw new Exception(errorMsg)
+      } else {
+      	val wfi = WorkflowInstance(workflows(wfName), paramMap)
+      	wfi.triggerType = triggerType
+        //把工作流实例加入到等待队列中
+        waittingWorkflowInstance += wfi
+        Master.haDataStorager ! AddWWFI(wfi)
+        wfi.id
+      }
     }
   }
   /**
-   * 生成工作流实例并执行
+   * 手动执行某工作流，并带入参数
    */
   def manualNewAndExecute(wfName: String, paramMap: Map[String, String]): ResponseData = {
-    if (workflows.get(wfName).isEmpty) {
-      ResponseData("fail", s"工作流${wfName}不存在", null)
-    } else {
-      val wfi = WorkflowInstance(workflows(wfName), paramMap)
-      wfi.isAutoTrigger = false
-      //把工作流实例加入到等待队列中
-      waittingWorkflowInstance += wfi
-      Master.haDataStorager ! AddWWFI(wfi)
-      ResponseData("success", s"已生成工作流实例,id:${wfi.id}", null)
+    val rsTry = addToWaittingInstances(wfName, paramMap, TriggerType.NO_AFFECT)
+    rsTry match {
+      case Success(id) => ResponseData("success", s"已生成工作流实例,id:${id}", null)
+      case Failure(e) => ResponseData("fail", e.getMessage, null)
     }
   }
   /**
@@ -251,19 +260,40 @@ class WorkFlowManager extends DaemonActor {
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.id }
     Master.haDataStorager ! RemoveRWFI(wfInstance.id)
     LogRecorder.info(WORKFLOW_MANAGER, wfInstance.id, wfInstance.workflow.name, s"工作流实例：${wfInstance.actorName}执行完毕，执行状态为：${WStatus.getStatusName(wfInstance.getStatus())}")
-    //设置各个工作流前置任务的状态
-    if(wfInstance.getStatus() == W_SUCCESSED && wfInstance.isAutoTrigger)
-      workflows.foreach{ case(name, wf) => if(wf.coorOpt.isDefined){
-          wf.changeDependStatus(wfInstance.workflow.name, true)
-        }
+    
+    if(wfInstance.getStatus() == W_SUCCESSED){
+      wfInstance.triggerType match {
+        case NEXT_SET => //设置各个任务的前置依赖状态
+          workflows.foreach{ case(name, wf) if wf.coorOpt.isDefined =>
+            wf.changeDependStatus(wfInstance.workflow.name, true)
+          }
+        case BLOOD_EXCUTE =>
+          val finishedWfName = wfInstance.workflow.name
+          //剔除blood列表
+          bloodWaitExecuteWfNames =  bloodWaitExecuteWfNames.filter { _ !=  finishedWfName}.toList
+          //找到后置的任务,并且该任务不依赖其他bloor的任务。
+          val nextWfs = bloodWaitExecuteWfNames.map { wfnames => 
+            val depends = workflows(wfnames).coorOpt.get.depends
+            val size1 = depends.filter { dep => dep.workFlowName == finishedWfName }.size
+            val size2 = depends.filter { dep => bloodWaitExecuteWfNames.contains(dep.workFlowName) }.size
+            if(size1 > 0 && size2 == 0) workflows(wfnames) else null
+          }.filter { _ != null }.toList
+          //添加到等待队列中
+          nextWfs.map { wf =>	addToWaittingInstances(wf.name, workflows(wf.name).coorOpt.get.translateParam(), TriggerType.BLOOD_EXCUTE) }
+        case NO_AFFECT => //doing nothing
       }
+    }else{
+      //非成功的情况下，情况blood等待执行队列
+      if(wfInstance.triggerType == BLOOD_EXCUTE){
+        bloodWaitExecuteWfNames = List[String]()
+      }
+    }
     //根据状态发送邮件告警
     if (wfInstance.workflow.mailLevel.contains(wfInstance.getStatus())) {
     	Thread.sleep(3000)
-    	val relateWfs = getAllTriggerWfs(wfInstance.workflow.name, this.workflows, scala.collection.mutable.ArrayBuffer[WorkflowInfo]())
-    	val relateReceivers = relateWfs.flatMap { x => x.mailReceivers }.distinct
-    	wfInstance.getStatus()
-      val result = wfInstance.htmlMail(relateWfs).map { html => 
+    	val nextTriggerWfs = getNextTriggerWfs(wfInstance.workflow.name, this.workflows, scala.collection.mutable.ArrayBuffer[WorkflowInfo]())
+    	val relateReceivers = (nextTriggerWfs.flatMap { _.mailReceivers } ++ wfInstance.workflow.mailReceivers).distinct
+      val result = wfInstance.htmlMail(nextTriggerWfs).map { html => 
           EmailMessage(relateReceivers, s"【Akkaflow】任务执行${WStatus.getStatusName(wfInstance.getStatus())}", html, List[String]())  
       }
     	if(relateReceivers.size > 0)
@@ -272,21 +302,39 @@ class WorkFlowManager extends DaemonActor {
     true
   }
   /**
-   * 得到后置触发任务的工作流列表(递归获取)
+   * 得到后置触发并且可用的任务的工作流列表(递归获取)
    */
-  def getAllTriggerWfs(wfName: String, wfs:Map[String, WorkflowInfo],nextWfs: scala.collection.mutable.ArrayBuffer[WorkflowInfo]):List[WorkflowInfo] = {
-    if(wfs.get(wfName).isDefined && !nextWfs.exists { _.name == wfName }){
-      nextWfs += wfs(wfName)
+  private def getAllTriggerWfsBak(wfName: String, wfs:Map[String, WorkflowInfo],nextWfs: scala.collection.mutable.ArrayBuffer[WorkflowInfo]):List[WorkflowInfo] = {
+    if(wfs.get(wfName).isDefined && !nextWfs.exists { _.name == wfName }
+       && (wfs(wfName).coorOpt.isEmpty || wfs(wfName).coorOpt.get.isEnabled)){
+    	  nextWfs += wfs(wfName)        
       wfs.foreach{case (name, wf) =>
         if(wf.coorOpt.isDefined){
           wf.coorOpt.get.depends.foreach {
-            case dep if(dep.workFlowName == wfName) =>  getAllTriggerWfs(name, wfs, nextWfs)
+            case dep if(dep.workFlowName == wfName) =>  getAllTriggerWfsBak(name, wfs, nextWfs)
             case _ => 
-            
           }
         }
       }
     }
+    nextWfs.toList
+  }
+  
+  
+  private def getNextTriggerWfs(curWfName: String, wfs:Map[String, WorkflowInfo],nextWfs: scala.collection.mutable.ArrayBuffer[WorkflowInfo]):List[WorkflowInfo] = {
+      wfs.foreach{case (nextWfname, nextWf) =>
+        if(nextWf.coorOpt.isDefined && nextWf.coorOpt.get.isEnabled) {
+          nextWf.coorOpt.get.depends.foreach {
+            case dep if(dep.workFlowName == curWfName) =>  
+              //避免重复
+              if(!nextWfs.exists { _.name == nextWfname}){ 
+                nextWfs += nextWf
+              	getNextTriggerWfs(nextWfname, wfs, nextWfs)
+              }
+            case _ => 
+          }
+        }
+      }
     nextWfs.toList
   }
   
@@ -295,12 +343,13 @@ class WorkFlowManager extends DaemonActor {
    */
   def killWorkFlowInstance(id: String): Future[ResponseData] = {
     if (!workflowActors.get(id).isEmpty) {
-      val wfaRef = workflowActors(id)._2
+      val (wfi, wfaRef) = workflowActors(id)
       val resultF = (wfaRef ? Kill()).mapTo[WorkFlowInstanceExecuteResult]
       this.workflowActors = this.workflowActors.filterKeys { _ != id }.toMap
       Master.haDataStorager ! RemoveRWFI(id)
       val resultF2 = resultF.map {
         case WorkFlowInstanceExecuteResult(x) =>
+          if(wfi.triggerType == BLOOD_EXCUTE) bloodWaitExecuteWfNames = List()
           ResponseData("success", s"工作流[${id}]已被杀死", x.getStatus())
       }
       resultF2
@@ -314,7 +363,7 @@ class WorkFlowManager extends DaemonActor {
   def killWorkFlow(wfName: String): Future[ResponseData] = {
     val result = workflowActors.filter(_._2._1 == wfName).map(x => killWorkFlowInstance(x._1)).toList
     val resultF = Future.sequence(result).map { x =>
-      ResponseData("success", s"工作流名称[wfName]的所有实例已经被杀死", null)
+      ResponseData("success", s"工作流名称[${wfName}]的所有实例已经被杀死", null)
     }
     resultF
   }
@@ -325,7 +374,6 @@ class WorkFlowManager extends DaemonActor {
     val result = workflowActors.map(x => killWorkFlowInstance(x._1)).toList
     val resultF = Future.sequence(result).map { x =>
       ResponseData("success", s"所有工作流实例已经被杀死", null)
-
     }
     resultF
   }
@@ -335,27 +383,21 @@ class WorkFlowManager extends DaemonActor {
    */
   def reRunFormer(wfiId: String): Future[ResponseData] = {
     val wfi = WorkflowInstance(wfiId)
-    
     val wfiF = (Master.persistManager ? Get(wfi.deepClone())).mapTo[Option[WorkflowInstance]]
     wfiF.map { wfiOpt =>
       if (wfiOpt.isEmpty) {
         ResponseData("fail", s"工作流实例[${wfiId}]不存在", null)
-      } else {
-        if (!workflowActors.get(wfiId).isEmpty) {
-          ResponseData("fail", s"工作流实例[${wfiId}]已经在重跑", null)
-        } else {
-          //重置
-          val wfi2 = wfiOpt.get
-          wfi2.reset()
-          //把工作流实例加入到等待队列中
-          if (waittingWorkflowInstance.filter { _.id == wfi2.id }.size >= 1) {
-            ResponseData("fail", s"工作流实例[${wfiId}]已经存在等待队列中", null)
-          } else {
-            waittingWorkflowInstance += wfi2
-            Master.haDataStorager ! AddWWFI(wfi)
-            ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)
-          }
-        }
+      }else if(!workflowActors.get(wfiId).isEmpty){
+        ResponseData("fail", s"工作流实例[${wfiId}]已经在重跑", null)
+      }else if(waittingWorkflowInstance.filter { _.id == wfiOpt.get.id }.size >= 1){
+        ResponseData("fail", s"工作流实例[${wfiId}]已经存在等待队列中", null)
+      }else {
+        //重置
+        val wfi2 = wfiOpt.get
+        wfi2.reset()
+        waittingWorkflowInstance += wfi2
+        Master.haDataStorager ! AddWWFI(wfi)
+        ResponseData("success", s"工作流实例[${wfiId}]放在等待队列，准备开始重跑", null)
       }
     }
   }
@@ -385,7 +427,6 @@ class WorkFlowManager extends DaemonActor {
           ResponseData("success", s"工作流实例[${wfiId}]开始重跑", null)
         }
       }
-      
     }
   }
   /**
@@ -411,11 +452,26 @@ class WorkFlowManager extends DaemonActor {
     /**
    * （调用）触发指定工作流的调度器
    */
-  def trigger(wfName: String):ResponseData = {
+  def trigger(wfName: String, triggerType: TriggerType):ResponseData = {
     if(!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isDefined){
-      this.newAndExecute(wfName, workflows(wfName).coorOpt.get.translateParam())
-      workflows(wfName).resetCoor()
-      ResponseData("success",s"成功触发工作流[${wfName}]执行", null)
+      triggerType match {
+        case NEXT_SET => 
+          val idTry = addToWaittingInstances(wfName, workflows(wfName).coorOpt.get.translateParam(), triggerType)
+    	    workflows(wfName).resetCoor()
+    	    ResponseData("success",s"成功触发工作流[${wfName}: ${idTry.get}]执行", null) 
+        case BLOOD_EXCUTE =>
+          if(bloodWaitExecuteWfNames.size == 0) {
+        	  val nextRelateWfs = getNextTriggerWfs(wfName, this.workflows, scala.collection.mutable.ArrayBuffer[WorkflowInfo]())
+    			  bloodWaitExecuteWfNames = nextRelateWfs.map { wf => wf.name }.toList
+    			  val nextBloodwfNames = nextRelateWfs.map { _.name }.toList
+    			  val idTry = addToWaittingInstances(wfName, workflows(wfName).coorOpt.get.translateParam(), triggerType)
+    			  ResponseData("success",s"成功触发工作流[${wfName}: ${idTry.get}]执行,后续依次关联的工作流: ${nextBloodwfNames.mkString(",")}", null) 
+          }else{
+            ResponseData("fail",s"当前blood触发正在执行，剩余有: ${bloodWaitExecuteWfNames.mkString(",")}", null)
+          }
+        case _ => 
+          ResponseData("fail",s"工作流[${wfName}]触发类型出错", null)
+      } 
     }else if(!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isEmpty){
       ResponseData("fail",s"工作流[${wfName}]未配置调度", null)
     }else{
@@ -450,7 +506,7 @@ class WorkFlowManager extends DaemonActor {
     case GetWaittingInstances() => sender ! getWaittingInstances()
     //调度器操作
     case Reset(wfName) => sender ! this.resetCoor(wfName)
-    case Trigger(wfName) => sender ! this.trigger(wfName)
+    case Trigger(wfName, triggerType) => sender ! this.trigger(wfName, triggerType)
     case ResetAllWorkflow() => sender ! this.resetAllWorkflow()
     case Tick() => tick()
   }
