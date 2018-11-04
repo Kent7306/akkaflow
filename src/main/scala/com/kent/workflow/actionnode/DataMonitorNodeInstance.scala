@@ -25,10 +25,11 @@ import java.sql.Statement
 import java.sql.DriverManager
 import com.kent.workflow.actionnode.DataMonitorNode._
 import java.sql.ResultSet
-import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType._
+import com.kent.pub.db.DBLink.DatabaseType._
 import com.kent.pub.db.MysqlOpera
 import com.kent.pub.db.OracleOpera
 import com.kent.pub.db.HiveOpera
+import com.kent.pub.db.DBLink
 
 class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends ActionNodeInstance(nodeInfo)  {
   val DATA_CHECK_INTERVAL = 10000
@@ -56,12 +57,12 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       if(maxDataOpt.get != maxDataCheck) throw new Exception(s"上限在规定时间间隔内检测不一致：${maxDataOpt.get} != ${maxDataCheck}")
     }
     
-    //
+    //检测比较
+    val max = if(maxDataOpt.isDefined) maxDataOpt.get else "未定义"
+	  val min = if(minDataOpt.isDefined) minDataOpt.get else "未定义"
     val result = 
       if((maxDataOpt.isDefined && monitorData > maxDataOpt.get) 
         || (minDataOpt.isDefined && monitorData < minDataOpt.get)){
-      val max = if(maxDataOpt.isDefined) maxDataOpt.get else "未定义"
-	    val min = if(minDataOpt.isDefined) minDataOpt.get else "未定义"
       detectMsg = s"检测值未在范围内，检测值:${monitorData}，下限:${min}，上限:${max}\n"
       detectMsg += "自定义信息："+ nodeInfo.warnMsg
   	  this.executedMsg = detectMsg
@@ -69,6 +70,8 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
     }else{
       true
     }
+    infoLog(s"检测通过，检测值: ${monitorData}，下限: ${min}，上限: ${max}")
+    
     
     //保存数据
     if(nodeInfo.isSaved){

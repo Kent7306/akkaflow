@@ -1,11 +1,24 @@
 ## akkaflow  
 ### 简介
-`akkaflow`是一个基于`akka`架构上构建的分布式高可用ETL调度工具，可以把任务分发在集群中不同的节点上并行执行，高效利用集群资源，支持时间及任务混合触发；提供多种节点类型。其中工作流由xml文件，并且提供一套完整的基于Shell的操作命令集，简洁易用，可作为构建数据仓库、或大数据平台上的调度工具。  
-用户基于命令集向系统提交工作流定义的xml文件，满足触发条件后，系统会触发执行工作流，用户可通过命令集查看任务执行情况。其中
+`akkaflow`是一个基于`akka`架构上构建的分布式高可用ETL工作流调度工具，可以把任务分发在集群中不同的节点上并行执行，高效利用集群资源，支持时间及任务混合触发；提供多种节点类型。其中工作流由xml文件，并且提供一套完整的基于Shell的操作命令集，简洁易用，长期稳定运行，可作为构建数据仓库、或大数据平台上的调度工具。  
+用户提交的xml工作流定义文件，满足触发条件后，系统会触发执行工作流；实例运行产生的各类数据将被记录并提供用户查看与进一步操作，其中
 
-* 工作流定义文档参考[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)
-* 操作使用示例参考[这里](https://github.com/Kent7306/akkaflow/blob/master/usage.md)
-* 命令集操作文档详见下面使用章节
+* 工作流定义文档详见[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md) ，目前支持行动节点类型有以下，可进一步扩展功能  
+
+行动节点类型 | 节点功能简述
+--------- | -------------
+`<sql/>` | sql执行节点，目前支持Hive、Mysql、Oracle、Impala数据库。
+`<transfer/>` | 数据传输节点，目前支持Mysql、Oracle、Hive、本地文件、hdfs文件之间的数据行传输。
+`<metadata/>` | 元数据配置节点（库表注释配置），可通过血缘表自动配置目标表元数据，亦可显式配置。
+`<script/>` | 脚本代码执行节点，支持各类型脚本，bash、python、perl、scala等。
+`<file-executor/>` | 脚本文件远程执行节点，把master机器上的脚本文件及附件分发到目标worker机器上执行。
+`<file-monitor/>` | 文件监控节点，监控本地或hdfs文件数量及大小。
+`<data-monitor/>` | 数据监控节点，可监控数据库记录数，文件行数，文件大小等不同类型数据。
+`<email/>` | 自定义邮件节点，可以以html形式自定义邮件内容，发送目标邮箱。
+
+  
+* 使用示例点击[这里](https://github.com/Kent7306/akkaflow/blob/master/usage.md)
+* 基于shell命令集操作文档详见下面使用章节
 
 整个`akkaflow`架构目前包含有四个节点角色：Master、Master-Standby、Worker、Http-Server，每个角色可以独立部署于不同机器上，支持高可用。
 
@@ -23,7 +36,7 @@
 * 可以把工程check out下来，用sbt-native-packager进行编译打包(直接运行`sbt dist`)
 
 #### 2、安装
-* 安装环境：Linux系统（UTF8编码环境）、jdk1.8或以上、MySQL5.7或以上
+* 安装环境：Linux系统（UTF8编码环境）或MacOS、jdk1.8或以上、MySQL5.7或以上
 * 设置好`JAVA_HOME`环境变量
 
 #### 3、目录说明
@@ -74,14 +87,14 @@
 2124 Master
 ```
 
-**注意**：akkaflow工作流定义可以存放于xmlconfig下，akkaflow启动时，会自动不断扫描xmlconfig下面的文件，生成对应的worflow提交给Master，所以工作流文件，也可以放到该目录中，安装包下的xmlconfig/example下有工作流定义示例。
+**注意**：akkaflow工作流定义可以存放于xmlconfig下，akkaflow启动时，会自动并一直扫描xmlconfig下面的文件，生成对应的worflow提交给Master，所以工作流文件，也可以放到该目录中，安装包下的xmlconfig/example下有工作流定义示例。
 
 #### 5、关闭集群  
 执行`./sbin/shutdown-cluster`, 关闭集群系统
 
 ### 命令使用
 #### 1、角色节点操作命令  
-  * standalone模式启动：`sbin/standalone-startup.sh`(该模式下会启动master、worker、httpserver)  
+  * standalone模式启动：`sbin/standalone-startup`(该模式下会启动master、worker、http-server)  
  * master节点启动：`sbin/master-startup`  
  * worker节点启动：`sbin/worker-startup`  
  * http_server节点启动：`sbin/httpserver-startup`  

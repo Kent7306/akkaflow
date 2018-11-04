@@ -5,6 +5,7 @@ import com.kent.workflow.actionnode.transfer.source.Source.Column
 import java.sql._
 import com.kent.workflow.actionnode.transfer.source.Source.DataType
 import com.kent.pub.db.MysqlOpera
+import com.kent.pub.db.DBLink
 
 class MysqlSource(dbLink: DBLink,  tableSql: String) extends Source {
   var conn: Connection = null

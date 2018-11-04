@@ -60,7 +60,13 @@ function f_log()
     select concat('[',level,'] [',stime,']',if(ctype='ACTION_NODE_INSTANCE',concat('[',name,']'),'')) 日志信息,content 内容
     from log_record where sid = '$wfid'
     order by stime;
-    "  2>/dev/null
+    "  2>/dev/null | while read line
+    do
+      line=${line//WARN/${YELLOW}WARN${NC}}
+      line=${line//INFO/${GREEN}INFO${NC}}
+      line=${line//ERROR/${RED}ERROR${NC}}
+      printf "$line\n"
+    done
 }
 
 ##显示xml

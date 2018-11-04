@@ -6,7 +6,6 @@ import com.kent.workflow.actionnode.TransferNode._
 import com.kent.pub.DeepCloneable
 import com.kent.workflow.actionnode.transfer.source.Source
 import com.kent.workflow.actionnode.transfer.target.Target
-import com.kent.pub.Event.DBLink
 
 /*
 <transfer>

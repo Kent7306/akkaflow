@@ -5,6 +5,7 @@ import com.kent.pub.Event._
 import com.kent.pub.db.OracleOpera
 import com.kent.workflow.actionnode.transfer.source.Source.Column
 import com.kent.workflow.actionnode.transfer.source.Source.DataType
+import com.kent.pub.db.DBLink
 
 class OracleSource(dbLink: DBLink,  tableSql: String)  extends Source {
   var conn: Connection = null

@@ -2,7 +2,6 @@ package com.kent.pub.db
 
 import com.kent.pub.Event._
 import java.sql.Connection
-import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType._
 import java.sql.DriverManager
 import java.sql.Statement
 import scala.util.Try

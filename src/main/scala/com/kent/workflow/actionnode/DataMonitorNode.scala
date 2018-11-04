@@ -10,7 +10,6 @@ import com.kent.workflow.actionnode.DataMonitorNode._
 import java.sql.DriverManager
 import java.sql.Connection
 import java.sql.Statement
-import com.kent.pub.Event.DBLink
 
 class DataMonitorNode(name: String) extends ActionNode(name) {
   //数据源分类
@@ -68,10 +67,6 @@ class DataMonitorNode(name: String) extends ActionNode(name) {
 }
 
 object DataMonitorNode {
-  object DatabaseType extends Enumeration {
-    type DatabaseType = Value
-    val HIVE, ORACLE, MYSQL = Value
-  }
   object SourceType extends Enumeration {
     type SourceType = Value
     val SQL, COMMAND, NUM = Value

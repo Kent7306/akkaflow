@@ -91,7 +91,13 @@ function f_log()
     from (
         select * from log_record where ctype = 'WORKFLOW_MANAGER' and name = '$wfid' order by stime desc limit 100
     ) a order by stime
-    "  2>/dev/null
+    "  2>/dev/null | while read line
+    do
+      line=${line//WARN/${YELLOW}WARN${NC}}
+      line=${line//INFO/${GREEN}INFO${NC}}
+      line=${line//ERROR/${RED}ERROR${NC}}
+      printf "$line\n"
+    done
 }
 
 if [ $# -lt 1 ];then

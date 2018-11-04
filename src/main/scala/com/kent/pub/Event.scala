@@ -9,8 +9,8 @@ import com.kent.workflow.WorkflowInfo.WStatus._
 import com.kent.workflow.node.NodeInfo.Status._
 import com.kent.pub.ActorTool.ActorInfo
 import java.util.Date
-import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType._
 import com.kent.workflow.Coor.TriggerType._
+import com.kent.pub.db._
 
 object Event {
   //pub
@@ -36,8 +36,6 @@ object Event {
   //xml-loader
   case class AddDBLink(dbl: DBLink)
   case class GetDBLink(name: String)
-  import com.kent.workflow.actionnode.DataMonitorNode.SourceType._
-  case class DBLink(dbType: DatabaseType, name: String, jdbcUrl: String, username: String, password: String)
   
   //persist-manager
   case class Save[A](obj: Persistable[A])
@@ -78,7 +76,7 @@ object Event {
   case class ActionExecuteResult(status: Status, msg: String) extends Serializable
   case class Termination()
   case class GetInstanceShortInfo()
-  case class InstanceShortInfo(id: String, name: String, desc: String, dir: String)
+  case class InstanceShortInfo(id: String, name: String, desc: String, dir: String, dependWfNames: List[String])
   
   //http-server
   case class ResponseData(result:String, msg: String, data: Any)

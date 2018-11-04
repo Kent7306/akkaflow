@@ -7,6 +7,7 @@ import com.kent.workflow.actionnode.transfer.source.Source.DataType
 import org.apache.hive.jdbc.HiveStatement
 import scala.collection.JavaConverters._
 import com.kent.pub.db.HiveOpera
+import com.kent.pub.db.DBLink
 
 class HiveSource(dbLink: DBLink,  tableSql: String) extends Source {
   var conn: Connection = null

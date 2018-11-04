@@ -38,18 +38,18 @@ alias akka_mysql="mysql -h$mysql_host -u$mysql_user -p$mysql_pwd"
 local_lang=`echo ${LANG##*.}`
 #echo $local_lang
 
-red='\e[0;41m' # 红色
-RED='\e[1;31m'
-green='\e[0;32m' # 绿色
-GREEN='\e[1;32m'
-yellow='\e[5;43m' # 黄色
-YELLOW='\e[1;33m'
-blue='\e[0;34m' # 蓝色
-BLUE='\e[1;34m'
-purple='\e[0;35m' # 紫色
-PURPLE='\e[1;35m'
-cyan='\e[4;36m' # 蓝绿色
-CYAN='\e[1;36m'
-WHITE='\e[1;37m' # 白色
+red='\033[0;41m' # 红色
+RED='\033[1;31m'
+green='\033[0;32m' # 绿色
+GREEN='\033[1;32m'
+yellow='\033[5;43m' # 黄色
+YELLOW='\033[1;33m'
+blue='\033[0;34m' # 蓝色
+BLUE='\033[1;34m'
+purple='\033[0;35m' # 紫色
+PURPLE='\033[1;35m'
+cyan='\033[4;36m' # 蓝绿色
+CYAN='\033[1;36m'
+WHITE='\033[1;37m' # 白色
 
-NC='\e[0m' # 没有颜色
+NC='\033[0m' # 没有颜色

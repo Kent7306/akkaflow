@@ -23,7 +23,7 @@ import com.kent.workflow.actionnode.transfer.source.Source._
 import com.kent.workflow.actionnode.transfer.target._
 import com.kent.workflow.actionnode.transfer.target.Target
 import com.kent.workflow.actionnode.transfer.Consumer
-import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType._
+import com.kent.pub.db.DBLink.DatabaseType._
 import com.kent.workflow.actionnode.transfer.source.Source.DataType._
 
 class TransferNodeInstance(override val nodeInfo: TransferNode) extends ActionNodeInstance(nodeInfo) {  

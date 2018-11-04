@@ -5,8 +5,6 @@ import java.sql.ResultSet
 import java.sql.Statement
 import scala.util.Try
 import scala.collection.JavaConverters._
-import com.kent.pub.Event.DBLink
-import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType._
 import java.sql.DriverManager
 import org.apache.hive.jdbc.HiveStatement
 import java.sql.PreparedStatement

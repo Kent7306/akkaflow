@@ -2,6 +2,7 @@ package com.kent.pub.db
 
 import java.sql._
 import com.kent.pub.Event._
+import com.kent.pub.db.DBLink
 
 object OracleOpera {
   /**
@@ -13,7 +14,7 @@ object OracleOpera {
   }
   /**
    * 执行多条sql语句
-   */
+   */ 
   def executeSqls(dbLink: DBLink, sqls: List[String]) = {
     var conn: Connection = null
     var stat: Statement = null

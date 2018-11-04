@@ -2,24 +2,42 @@
     dir="/TMP" desc="测试c">
   <!-- 调度配置 -->
   <coordinator is-enabled="false">
-      <depend-list>
-          <workflow name="job_depend"></workflow>
-      </depend-list>
       <param-list>
           <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
       </param-list>
   </coordinator>
   <!-- 节点列表 -->
-  <start name="start" to="script" />
+  <start name="start" to="script" />  
 
-  <action name="script" retry-times="2" interval="4" desc = "执行脚本">
-      <data-monitor>
-	     <source type="NUM">20</source>
-	     <min-threshold type="COMMAND">echo $RANDOM | wc -l</min-threshold>
-	     <warn-msg>填写检测异常信息</warn-msg>
-	  </data-monitor>
+  <action name="script">
+      <metadata table="test.cc" db-link="local_hive" from="test.bbb">
+          <column-comment name="other">ewaide2dfd</column-comment> 
+          <table-comment>用户访问表ccc</table-comment>
+      </metadata>
       <ok to="end"></ok>
   </action>
+  
+  
+ <!--  <action name="script2" desc = "监控数据库">
+      <data-monitor>
+          <source type="SQL" db-link="local_mysql">select count(1) from workflow</source>
+          <min-threshold type="NUM">5</min-threshold> 
+          <max-threshold type="SQL" db-link="local_mysql">select count(1)+30 from workflow</max-threshold>
+      </data-monitor> 
+      <ok to="end"/>
+  </action> -->
+<!--   <action name="文本到数据" desc = "文件类型可以是本地文件、HDFS文件、ftp文件">
+	  <transfer> 
+	    <source type="FILE" delimited="aaaaaa">/etc/profile</source>
+	    <target type="DB" db-link="local_mysql" table="aaa">
+	    	<pre>
+	    	  create table if not exists aaa(col varchar(1024));
+	    	  delete from aaa where 1 = 1
+	    	</pre>
+	    </target>
+	  </transfer>
+      <ok to="end"/>
+  </action> -->
 
   <end name="end"/>
 </work-flow>

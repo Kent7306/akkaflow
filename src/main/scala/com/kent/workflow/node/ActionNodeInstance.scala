@@ -21,8 +21,11 @@ import akka.util.Timeout
 import scala.concurrent.ExecutionContext.Implicits.global
 
 abstract class ActionNodeInstance(override val nodeInfo: ActionNode) extends NodeInstance(nodeInfo) {
+  //当前重试次数
   var hasRetryTimes: Int = 0
+  //当前分配的主机IP
   var allocateHost: String = _
+  //actor引用
   var actionActor: ActionActor = _
   //执行目录
   def executeDir = "/tmp/" + s"action_${this.id}_${this.nodeInfo.name}"
@@ -56,12 +59,12 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNode) extends Nod
    * 找到下一执行节点
    */
   def terminate(wfa: WorkflowActor): Boolean = {
-      this.getStatus() match {
+    this.getStatus() match {
       case SUCCESSED => 
       case FAILED => 
         if(this.getNextNodes(wfa.workflowInstance).size <=0){    //若该action节点执行失败后无下一节点
           wfa.terminateWith(W_FAILED, "工作流实例执行失败")
-      		return false
+      		  return false
         }
       case KILLED =>
         wfa.terminateWith(W_KILLED, "工作流实例被杀死")

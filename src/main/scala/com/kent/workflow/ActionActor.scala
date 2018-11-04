@@ -22,6 +22,7 @@ import java.io.File
 import com.kent.util.FileUtil
 import akka.util.Timeout
 import scala.concurrent.Await
+import com.kent.pub.db.DBLink
 
 class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   var workflowActorRef: ActorRef = _
@@ -49,7 +50,8 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
         result = actionNodeInstance.execute()
       }catch{
         case e: Exception =>
-          actionNodeInstance.executedMsg = s"${e.getMessage}\n" + actionNodeInstance.executedMsg
+          val eMsg = if(actionNodeInstance.executedMsg == null) "" else s"\n${actionNodeInstance.executedMsg}"
+          actionNodeInstance.executedMsg = s"${e.getMessage}" + eMsg
           result = false
       }
       val executedStatus = if(result) SUCCESSED else FAILED

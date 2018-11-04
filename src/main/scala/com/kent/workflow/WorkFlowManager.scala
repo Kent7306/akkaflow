@@ -304,23 +304,6 @@ class WorkFlowManager extends DaemonActor {
   /**
    * 得到后置触发并且可用的任务的工作流列表(递归获取)
    */
-  private def getAllTriggerWfsBak(wfName: String, wfs:Map[String, WorkflowInfo],nextWfs: scala.collection.mutable.ArrayBuffer[WorkflowInfo]):List[WorkflowInfo] = {
-    if(wfs.get(wfName).isDefined && !nextWfs.exists { _.name == wfName }
-       && (wfs(wfName).coorOpt.isEmpty || wfs(wfName).coorOpt.get.isEnabled)){
-    	  nextWfs += wfs(wfName)        
-      wfs.foreach{case (name, wf) =>
-        if(wf.coorOpt.isDefined){
-          wf.coorOpt.get.depends.foreach {
-            case dep if(dep.workFlowName == wfName) =>  getAllTriggerWfsBak(name, wfs, nextWfs)
-            case _ => 
-          }
-        }
-      }
-    }
-    nextWfs.toList
-  }
-  
-  
   private def getNextTriggerWfs(curWfName: String, wfs:Map[String, WorkflowInfo],nextWfs: scala.collection.mutable.ArrayBuffer[WorkflowInfo]):List[WorkflowInfo] = {
       wfs.foreach{case (nextWfname, nextWf) =>
         if(nextWf.coorOpt.isDefined && nextWf.coorOpt.get.isEnabled) {

@@ -11,6 +11,8 @@ abstract class ActionNode(name: String) extends NodeInfo(name)  {
   var ok: String = _
   var error: String = _ 
   var label: String = _
+  //是否忽略
+  var isIgnore: Boolean = false
   
   def getCateJson(): String = {
     s"""
@@ -18,6 +20,7 @@ abstract class ActionNode(name: String) extends NodeInfo(name)  {
        "retry-times":${retryTimes},
        "timeout":${timeout},
        "interval":${interval},
+       "is-ignore":${isIgnore},
        "ok":"${ok}",
        "error":"${if(error == null) "" else error}"
       }
@@ -34,6 +37,10 @@ object ActionNode {
 	  val intervalOpt = node.attribute("interval")
 		val timeoutOpt = node.attribute("timeout")
 		val hostOpt = node.attribute("host")
+		val isIgnoreOpt = node.attribute("is-ignore")
+		
+		
+		
     if((node \ "@name").size != 1){    
   	  throw new Exception("存在action未配置name属性")
     }else if((node \ "ok").size != 1){
@@ -41,7 +48,6 @@ object ActionNode {
     }else if((node \ "ok" \ "@to").size != 1){
        throw new Exception("[action] "+nameOpt.get.text+":-->[ok]:未配置name属性")
     }
-    
     var actionNode: ActionNode = null
 
     val childNode = (node \ "_")(0)
@@ -62,11 +68,14 @@ object ActionNode {
         actionNode = TransferNode(nameOpt.get.text, childNode) 
       case <email>{content @ _*}</email> => 
         actionNode = EmailNode(nameOpt.get.text, childNode) 
+      case <metadata>{content @ _*}</metadata> => 
+        actionNode = MetadataNode(nameOpt.get.text, childNode) 
       case _ => 
         throw new Exception(s"该[action:${nameOpt.get}]的类型不存在")
     }
     
     actionNode.retryTimes = if(!retryOpt.isEmpty) retryOpt.get.text.toInt else actionNode.retryTimes 
+    	actionNode.isIgnore = if(!isIgnoreOpt.isEmpty) isIgnoreOpt.get.text.toBoolean else actionNode.isIgnore 
     actionNode.interval = if(!intervalOpt.isEmpty) intervalOpt.get.text.toInt else actionNode.interval
     actionNode.timeout = if(!timeoutOpt.isEmpty) timeoutOpt.get.text.toInt else actionNode.timeout
     actionNode.host = if(!hostOpt.isEmpty) hostOpt.get.text else actionNode.host

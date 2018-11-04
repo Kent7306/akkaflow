@@ -4,6 +4,7 @@ import com.kent.pub.Event._
 import java.sql._
 import org.apache.hive.jdbc.HiveStatement
 import scala.collection.JavaConverters._
+import com.kent.pub.db.DBLink
 
 object HiveOpera {
   /**

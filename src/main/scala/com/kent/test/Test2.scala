@@ -12,14 +12,6 @@ import scala.util.Try
 import scala.util._
 
 object Test2 extends App {
-  def f():Try[String] = {
-    Try (
-    throw new Exception("****")
-    )
-  }
-  
-  f() match {
-    case Success(a) => println(a)
-    case Failure(e) => println(e.getMessage+"dfdfdfd")
-  }
+  val a = "22".split("\\.")
+  a.map(println _)
 }  

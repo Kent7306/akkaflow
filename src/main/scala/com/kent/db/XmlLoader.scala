@@ -19,16 +19,15 @@ import com.kent.ddata.HaDataStorager.AddXmlFile
 import com.kent.pub.ActorTool
 import com.kent.pub.DaemonActor
 import scala.xml.XML
-import com.kent.workflow.actionnode.DataMonitorNode.SourceType._
-import com.kent.workflow.actionnode.DataMonitorNode.SourceType
-import com.kent.workflow.actionnode.DataMonitorNode.DatabaseType
+import com.kent.pub.db.DBLink
+import com.kent.pub.db.DBLink.DatabaseType
 
 class XmlLoader(wfXmlPath: String, interval: Int) extends DaemonActor{
   //工作流（文件名称，上次修改时间）
   var workflowFileMap: Map[String,Long] = Map()
   //数据库连接配置（上次修改时间）
   var dbLinkFileLastModTime:  Long = 0
-  var dbLinks: Map[String,DBLink] = Map()
+  var dbLinks: Map[String, DBLink] = Map()
   var scheduler:Cancellable = _;
   
   

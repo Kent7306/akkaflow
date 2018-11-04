@@ -192,10 +192,11 @@ kill节点，用来杀死当前工作流实例，而被杀死的工作流实例�
 执行特定任务的节点，可以分发到不同的服务器上执行，具有容错并重试机制。
 ##### * 属性
 * `name`： 必填，节点名称，当前工作流范围内唯一标识
-* `host`：可选，指定该动作节点在某台机器运行，默认为空，随机选定一个节点执行。
+* `host`：可选，指定该动作节点在某台机器运行，默认为-1，随机选定一个节点执行。
 * `retry-times`：可选，默认为0，节点执行失败后重试次数
 * `interval`：可选，默认为0，节点执行失败后等待重新执行的时间间隔（秒）
 * `timeout`：可选，默认为-1，即不会超时，`timeout`是整个节点生命周期的超时限定，包括重试执行的时间，单位秒。
+* `is-ignore`: 可选，默认为false，是否忽略当前动作节点继续往下执行，例如，用于保留创建库表（一次运行即可）的场景。
 * `desc`：可选，默认无，节点描述
 
 ##### * 子标签: 
@@ -206,18 +207,17 @@ kill节点，用来杀死当前工作流实例，而被杀死的工作流实例�
 
 ##### * 示例
 ```xml
-<!-- example 1 -->
-<action name="node_1" host="127.0.0.1" retry-times="10" interval="300" timeout="6000" desc="action example desc">
+<!-- example complex -->
+<action name="node_1" host="127.0.0.1" retry-times="10" interval="300" timeout="6000" is-ignore="false" desc="action example desc">
 	...
 	<ok to="next_ok_node"/>
 	<error to="next_error_node"/>
 </action>
 
-<!-- example 2 -->
+<!-- example simple -->
 <action name="node_2">
 	...
 	<ok to="next_ok_node"/>
-	<error to="next_error_node"/>
 </action>
 ```
 
@@ -384,6 +384,34 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
 	</script> 
 </transfer>
 ```
+
+#### &lt;metadata/&gt;
+库表注释配置节点，给指定的库表添加注释，可以通过设置来源库表，由来源的库表有效字段自动填充目标库表，简化注释配置；再用显式声明的注释来覆盖默认注释。
+##### * 属性
+* `table`，属性，必填，目标库表，如 ods.xxx_xx_xx
+* `db-link`，属性，必填，数据库连接，指定数据库
+* `from`，属性，可选，源表，来源于哪些表，可以根据字段名称，把源表的字段注释拿过来默认填充，多个表用逗号分隔
+
+##### * 子标签
+* `<column-comment>`，可选，字段注释标签，显示指定字段的注释，若配置源表，默认为源表同字段的注释。属性`name`：必填，字段名称，标签内容为字段注释。
+*  `<table-comment>`：可选，表注释标签，默认不配置时，工作流说明即为该表的注释。
+
+##### * 示例
+```xml
+<!-- example 1 简洁实例-->
+ <metadata table="log_record_2" db-link="local_mysql">
+     <column-comment name="id">标识符</column-comment>
+     <column-comment name="name">日志名称</column-comment>
+ </metadata>
+
+<!-- example 2 完整实例-->
+ <metadata table="log_record_2" db-link="local_mysql" from="wf.test_6,wf.log_record">
+     <column-comment name="id">标识符</column-comment>
+     <column-comment name="name">日志名称</column-comment>
+     <table-comment>测试表注释</table-comment>
+ </metadata>
+```
+
 #### &lt;file-executor/&gt;
 脚本文件分发执行节点，把当前活动的master机器上执行的脚本文件以及其他附件分发到Worker上执行。
 ##### * 子标签
@@ -406,4 +434,31 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
    <command>perl /xx/xx/import_item/clean_import.pl "${param:stime}"</command>
 </file-executor>
 ```
+
+#### &lt;email/&gt;
+自定义邮件节点，可以以html形式自定义邮件内容，默认发送到工作流配置的`mail-receives`邮箱。
+##### * 子标签
+* `<html>`，必填，邮件内容，填写html形式的邮件内容。
+
+##### * 示例
+```xml
+<!-- example 1 表格-->
+<email>
+   <html>
+       <table>
+       	<tr><td>标题1</td><td>标题2</td></tr>
+       	<tr><td>112</td><td>223</td></tr>
+       	<tr><td>124</td><td>421</td></tr>
+       </table>
+   </html>
+</emial>
+
+<!-- example 简单文字 -->
+<email>
+   <html>
+       <a color="red">这里填写邮件内容</a>
+   </html>
+</emial>
+```
+
 

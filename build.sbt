@@ -1,5 +1,5 @@
 name := "akkaflow"
-version := "2.9.2"
+version := "2.9.3"
 scalaVersion := "2.11.8"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 resolvers += "oracle" at "https://maven.atlassian.com/3rdparty/"
@@ -29,9 +29,9 @@ libraryDependencies ++= {
     "org.apache.commons" % "commons-email" % "1.4",
     //"org.apache.hive" % "hive-jdbc" % "0.13.1",
     "org.apache.hadoop" % "hadoop-client" % "2.6.0",
-    "org.apache.hive" % "hive-jdbc" % "1.1.0-cdh5.13.3"
+    "org.apache.hive" % "hive-jdbc" % "1.1.0-cdh5.13.3",
     //"com.oracle" % "ojdbc14" % "10.2.0.4.0",
-    //"com.oracle" % "ojdbc6" % "12.1.0.1-atlassian-hosted",
+    "com.oracle" % "ojdbc6" % "12.1.0.1-atlassian-hosted"
     //"org.apache.sqoop" % "sqoop" % "1.4.6.2.4.2.12-1",
   )
 }
