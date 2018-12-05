@@ -26,11 +26,6 @@ class DataMonitorNode(name: String) extends ActionNode(name) {
   var warnMsg: String = _
   //是否持久化
   var isSaved = false
-  //是否超过限制就失败
-  var isExceedError = true
-  //时间标志
-  var timeMark: String = _
-  
   override def getJson(): String = {
 	  import org.json4s.JsonDSL._
 	  import com.kent.util.Util._
@@ -38,8 +33,6 @@ class DataMonitorNode(name: String) extends ActionNode(name) {
 	      "category":${transJsonStr(category)},
 	      "source-name":${transJsonStr(sourceName)},
 	      "is-saved":${isSaved},
-	      "is-exceed-error":${isExceedError},
-	      "time-mark":${transJsonStr(timeMark)},
 	      "warn-msg":${transJsonStr(warnMsg)},
 	      "source":{
 	        "type":${transJsonStr(source.stype.toString())},
@@ -84,21 +77,12 @@ object DataMonitorNode {
 	  val node = DataMonitorNode(name)
 	  //属性
 	  val scOpt = xmlNode.attribute("category")
-	  val snOpt = xmlNode.attribute("source-name")
+	  val snOpt = xmlNode.attribute("name")
 	  node.isSaved = if(xmlNode.attribute("is-saved").isDefined) 
   	      xmlNode.attribute("is-saved").get.text.toBoolean
   	  else
   	    node.isSaved
-  	if(node.isSaved && xmlNode.attribute("time-mark").isEmpty){
-  	  throw new Exception(s"节点[data-monitor: ${name}] 当is-saved=true的时候，必须配置time-mark属性")
-  	}
-	  node.timeMark = if(xmlNode.attribute("time-mark").isDefined)
-  	    xmlNode.attribute("time-mark").get.text
-  	  else 
-  	    node.timeMark
-  	val ieeOpt = xmlNode.attribute("is-exceed-error")
-  	node.isExceedError = if(ieeOpt.isDefined) ieeOpt.get.text.toBoolean else node.isExceedError
-  	
+  	    
 	  if(node.isSaved && scOpt.isEmpty){
 	    throw new Exception(s"节点[data-monitor: ${name}] 未配置属性: category")
 	  }

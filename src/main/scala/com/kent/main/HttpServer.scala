@@ -91,7 +91,11 @@ object HttpServer extends App{
   implicit val timeout = Timeout(20 seconds)
   def props = Props[HttpServer]
   val defaultConf = ConfigFactory.load()
-  val httpConf = defaultConf.getStringList("workflow.nodes.http-servers").get(0).split(":")
+  val httpConf = defaultConf.getString("workflow.nodes.http-server").split(":")
+  val httpConnectorArr = defaultConf.getString("workflow.http-connector").split(":")
+  val httpAccessIp = httpConnectorArr(0)
+  val httpAccessPort = httpConnectorArr(1).toInt
+  
   
   // 创建一个Config对象
   val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + httpConf(1))
@@ -200,7 +204,7 @@ object HttpServer extends App{
     
     val route = wfRoute ~ wfiRoute ~ clusterRoute
   
-   val bindingFuture = Http().bindAndHandle(route, "localhost", 8090)
+   val bindingFuture = Http().bindAndHandle(route, httpAccessIp, httpAccessPort)
    def shutdwon(){
       bindingFuture.flatMap(_.unbind()).onComplete(_ => system.terminate())
     }

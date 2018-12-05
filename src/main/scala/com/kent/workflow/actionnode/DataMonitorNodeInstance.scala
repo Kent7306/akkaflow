@@ -30,6 +30,7 @@ import com.kent.pub.db.MysqlOpera
 import com.kent.pub.db.OracleOpera
 import com.kent.pub.db.HiveOpera
 import com.kent.pub.db.DBLink
+import java.text.SimpleDateFormat
 
 class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends ActionNodeInstance(nodeInfo)  {
   val DATA_CHECK_INTERVAL = 10000
@@ -75,7 +76,9 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
     
     //保存数据
     if(nodeInfo.isSaved){
-      val dmr = DataMonitorRecord(nodeInfo.timeMark, nodeInfo.category, nodeInfo.sourceName, monitorData, minDataOpt,maxDataOpt, detectMsg, this.id)
+      val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      val timeMark = df.format(Util.nowDate);
+      val dmr = DataMonitorRecord(timeMark, nodeInfo.category, nodeInfo.sourceName, monitorData, minDataOpt,maxDataOpt, detectMsg, this.id)
       val persistManagerPath = this.actionActor.workflowActorRef.path / ".." / ".." / "pm"
       val persistManager = this.actionActor.context.actorSelection(persistManagerPath)
       persistManager ! Save(dmr)

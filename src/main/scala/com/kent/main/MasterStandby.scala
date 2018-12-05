@@ -16,7 +16,7 @@ object MasterStandby extends App{
   var logRecorder: ActorRef = _
   
   val defaultConf = ConfigFactory.load()
-  val masterConf = defaultConf.getString("workflow.nodes.master_standby").split(":")
+  val masterConf = defaultConf.getString("workflow.nodes.master-standby").split(":")
   val hostConf = "akka.remote.netty.tcp.hostname=" + masterConf(0)
   val portConf = "akka.remote.netty.tcp.port=" + masterConf(1)
   

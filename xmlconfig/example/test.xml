@@ -8,24 +8,15 @@
   </coordinator>
   <!-- 节点列表 -->
   <start name="start" to="script" />  
-
-  <action name="script">
-      <metadata table="test.cc" db-link="local_hive" from="test.bbb">
-          <column-comment name="other">ewaide2dfd</column-comment> 
-          <table-comment>用户访问表ccc</table-comment>
-      </metadata>
-      <ok to="end"></ok>
-  </action>
   
-  
- <!--  <action name="script2" desc = "监控数据库">
-      <data-monitor>
+  <action name="script" desc = "监控数据库">
+      <data-monitor category="示例-各节点类型" is-saved="true" name="workflow数量">
           <source type="SQL" db-link="local_mysql">select count(1) from workflow</source>
           <min-threshold type="NUM">5</min-threshold> 
           <max-threshold type="SQL" db-link="local_mysql">select count(1)+30 from workflow</max-threshold>
       </data-monitor> 
       <ok to="end"/>
-  </action> -->
+  </action>
 <!--   <action name="文本到数据" desc = "文件类型可以是本地文件、HDFS文件、ftp文件">
 	  <transfer> 
 	    <source type="FILE" delimited="aaaaaa">/etc/profile</source>

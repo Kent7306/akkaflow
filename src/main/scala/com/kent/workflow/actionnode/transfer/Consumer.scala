@@ -38,10 +38,10 @@ class Consumer(target: Target, producer: ActorRef) extends ActorTool {
     case ColNums(colsOpt) => 
       //检查字段
       var tColLenOpt: Option[Int] = null
-      handleException("获取目标字段数失败",() => { 
-        tColLenOpt = target.getColNum(colsOpt.get) 
-        handleException("执行pre语句失败", () => {
-          target.preOpera()
+      handleException("执行pre语句失败",() => { 
+      	  target.preOpera()       
+        handleException("获取目标字段数失败", () => {
+          tColLenOpt = target.getColNum(colsOpt.get)
           if(tColLenOpt.isEmpty || colsOpt.isEmpty || tColLenOpt.get == colsOpt.get.size){
         	  producer ! GetRows()        
           }else{
