@@ -6,7 +6,12 @@
 .history
 .lib/
 dist/*
-target/
+target/universal/
+target/resolution-cache/
+target/scala-2.11/
+target/streams/
+project/target/
+project/project/
 lib_managed/
 bin/
 .classpath

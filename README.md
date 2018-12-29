@@ -4,7 +4,7 @@
 用户提交的xml工作流定义文件，满足触发条件后，系统会触发执行工作流；实例运行产生的各类数据将被记录并提供用户查看与进一步操作，其中
 
 
-* 简单的前端操作页面详见[演示地址](http://148.70.11.221:8080/akkaflow-ui/home/login)，演示账号密码分别为admin/admin
+* 简单的前端操作页面详见[演示地址](http://148.70.11.221:8080/akkaflow-ui/home/login)，演示账号密码分别为admin/admin，机器配置为（1内核,1G内存）
 * 工作流定义文档详见[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md) ，目前支持行动节点类型有以下，可进一步扩展功能  
 
 行动节点类型 | 节点功能简述
@@ -38,7 +38,7 @@
 * 可以把工程check out下来，用sbt-native-packager进行编译打包(直接运行`sbt dist`)
 
 #### 2、安装
-* 安装环境：Linux系统（UTF8编码环境）或MacOS、jdk1.8或以上、MySQL5.7或以上
+* 安装环境：Linux系统（UTF8编码环境）或MacOS、jdk1.8或以上、MySQL5.7或以上(UTF8编码)
 * 设置好`JAVA_HOME`环境变量
 
 #### 3、目录说明
@@ -92,7 +92,7 @@
 **注意**：akkaflow工作流定义可以存放于xmlconfig下，akkaflow启动时，会自动并一直扫描xmlconfig下面的文件，生成对应的worflow提交给Master，所以工作流文件，也可以放到该目录中，安装包下的xmlconfig/example下有工作流定义示例。
 
 #### 5、关闭集群  
-执行`./sbin/shutdown-cluster`, 关闭集群系统
+执行`./sbin/stop-cluster`, 关闭集群系统
 
 ### 命令使用
 #### 1、角色节点操作命令  
@@ -101,7 +101,7 @@
  * worker节点启动：`sbin/worker-startup`  
  * http_server节点启动：`sbin/httpserver-startup`  
  * master-standby节点启动：`sbin/master-standby-startup`  
- * 关闭集群：`sbin/shutdown-cluster`
+ * 关闭集群：`sbin/stop-cluster`
 
 #### 2、akkaflow操作命令集
 ##### 命令集入口

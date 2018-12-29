@@ -83,14 +83,15 @@ do
     shift
 done
 
-LANG=C  export LANG
+#LANG=C  export LANG
+LC_ALL=C
 $AWK '
     BEGIN {
     # We assume an awk implementation that is just plain dumb.
     # We will convert an character to its ASCII value with the
     # table ord[], and produce two-digit hexadecimal output
     # without the printf("%02X") feature.
-
+    
     EOL = "%0A"     # "end of line" string (encoded)
     split ("1 2 3 4 5 6 7 8 9 A B C D E F", hextab, " ")
     hextab [0] = 0
