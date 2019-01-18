@@ -1,5 +1,5 @@
 name := "akkaflow"
-version := "2.9.4"
+version := "2.9.6"
 scalaVersion := "2.11.8"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 resolvers += "oracle" at "https://maven.atlassian.com/3rdparty/"
@@ -8,8 +8,9 @@ resolvers += "hive" at "https://mvnrepository.com/artifact/org.apache.hive/hive-
 resolvers += "spring Repository" at "http://repo.spring.io/plugins-release/"
 resolvers += "cloudera Repository" at "https://repository.cloudera.com/artifactory/libs-release-local/"
 
-libraryDependencies ++= {
-  val akkaVersion = "2.4.16"
+libraryDependencies ++= { 
+  //val akkaVersion = "2.4.16"
+  val akkaVersion = "2.5.18"
   Seq(
     "com.typesafe.akka" %% "akka-actor"      % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j"      % akkaVersion,
@@ -21,7 +22,8 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
     "com.typesafe.akka" %% "akka-cluster-metrics" % akkaVersion,
     "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
-    "com.typesafe.akka" %% "akka-distributed-data-experimental" % akkaVersion,
+    //"com.typesafe.akka" %% "akka-distributed-data-experimental" % akkaVersion,
+    "com.typesafe.akka" %% "akka-distributed-data" % akkaVersion,
     "com.typesafe.akka" %% "akka-http" % "10.0.6",
     "mysql" % "mysql-connector-java" % "5.1.42",
     "com.github.philcali" %% "cronish" % "0.1.3",

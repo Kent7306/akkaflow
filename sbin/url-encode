@@ -82,8 +82,8 @@ do
     esac
     shift
 done
-
-#LANG=C  export LANG
+LANG=C  export LANG
+#modified by ogn
 LC_ALL=C
 $AWK '
     BEGIN {

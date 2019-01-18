@@ -23,6 +23,7 @@ import com.kent.util.FileUtil
 import akka.util.Timeout
 import scala.concurrent.Await
 import com.kent.pub.db.DBLink
+import scala.util.Try
 
 class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   var workflowActorRef: ActorRef = _
@@ -57,32 +58,36 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
       val executedStatus = if(result) SUCCESSED else FAILED
       //删除临时目录
       FileUtil.deleteDirOrFile(dir)
-      //这里，如果主动kill掉的话，不会杀死执行线程，所以还是会返回结果，所以是主动杀死的话，看status
-      if(actionNodeInstance.getStatus() == KILLED) return
       
+      //这里，如果主动kill掉的话，不会杀死当前执行线程，所以线程还是会继续执行，看status
+      if(actionNodeInstance.getStatus() == KILLED) return
+      //设置节点实例的执行后状态及执行信息
       actionNodeInstance.status = executedStatus
-  		actionNodeInstance.executedMsg = 
-  		  if(executedStatus == SUCCESSED) "节点执行成功" 
-  		  else if (executedStatus == FAILED && actionNodeInstance.executedMsg == null) "节点执行失败" 
-  		  else actionNodeInstance.executedMsg 
-  		
-  		//发送邮件
-  		//有重试并且执行失败
-  		if(actionNodeInstance.nodeInfo.retryTimes > 0 && actionNodeInstance.hasRetryTimes == 0 && executedStatus == FAILED){
-  		  sendNodeRetryMail(false, actionNodeInstance.executedMsg)
-  		}else if(actionNodeInstance.hasRetryTimes > 0 && executedStatus == SUCCESSED) {  //有重试过并且如果执行成功
-  		  sendNodeRetryMail(true, actionNodeInstance.executedMsg)
-  		}
-  		  
-      if(context != null){
-        self ! Termination()
+      actionNodeInstance.executedMsg = executedStatus match {
+        case SUCCESSED => "节点执行成功" 
+        case FAILED if actionNodeInstance.executedMsg == null => "节点执行失败"
+        case _ => actionNodeInstance.executedMsg
       }
+
+    		//发送邮件
+    		//重试次数参数>0，并且当前重试次数=设定的阈值，并且执行失败，就发送节点执行失败邮件
+      //（即使重试多次，只发送一次）
+    		val config = context.system.settings.config
+    		val reTryFailAlamMin = Try(config.getInt("workflow.email.node-retry-fail-times")).getOrElse(0)
+    		if(actionNodeInstance.nodeInfo.retryTimes > 0  && actionNodeInstance.hasRetryTimes == reTryFailAlamMin && executedStatus == FAILED){
+    		  sendNodeRetryMail(false, actionNodeInstance.executedMsg)
+    		}else if(actionNodeInstance.hasRetryTimes > reTryFailAlamMin && executedStatus == SUCCESSED) {  //有重试过并且如果执行成功
+    		  sendNodeRetryMail(true, actionNodeInstance.executedMsg)
+    		}
+    		
+  		  //线程执行后，节点执行成功或失败
+      if(context != null) self ! Termination()
     }
     //起独立线程运行
     val thread = new Thread(new Runnable() {
-  		def run() {
-  		  	asynExcute()
-  		}
+    		def run() {
+    		  	asynExcute()
+    		}
 	  },s"action_${actionNodeInstance.id}_${actionNodeInstance.name}")
     thread.start()
   }
@@ -121,6 +126,8 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
           <a>&nbsp;<a>
         """
        val mailTitle = s"【Akkaflow】${actionNodeInstance.nodeInfo.label}节点执行${resultTmp}"
+       
+       actionNodeInstance.infoLog(s"发送节点执行${resultTmp}通知邮件")
        this.sendMailMsg(null, mailTitle, mailHtml)
   }
   

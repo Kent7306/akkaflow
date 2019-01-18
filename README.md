@@ -4,7 +4,7 @@
 用户提交的xml工作流定义文件，满足触发条件后，系统会触发执行工作流；实例运行产生的各类数据将被记录并提供用户查看与进一步操作，其中
 
 
-* 简单的前端操作页面详见[演示地址](http://148.70.11.221:8080/akkaflow-ui/home/login)，演示账号密码分别为admin/admin，机器配置为（1内核,1G内存）
+* 简单的前端操作页面详见[演示地址](http://148.70.11.221:8080/akkaflow-ui/home/login)，演示账号密码分别为admin/admin，机器配置为（公网集群，3台机器，1内核,1G内存）
 * 工作流定义文档详见[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md) ，目前支持行动节点类型有以下，可进一步扩展功能  
 
 行动节点类型 | 节点功能简述
@@ -19,7 +19,7 @@
 `<email/>` | 自定义邮件节点，可以以html形式自定义邮件内容，发送目标邮箱。
 
   
-* 使用示例点击[这里](https://github.com/Kent7306/akkaflow/blob/master/usage.md)
+* 使用示例文档点击[这里](https://github.com/Kent7306/akkaflow/blob/master/usage.md)
 * 基于shell命令集操作文档详见下面使用章节
 
 整个`akkaflow`架构目前包含有四个节点角色：Master、Master-Standby、Worker、Http-Server，每个角色可以独立部署于不同机器上，支持高可用。
@@ -34,12 +34,11 @@
 
 ### 部署
 #### 1、打包
-* 可以直接在[这里](https://pan.baidu.com/s/1ts_N10eIcM2is1Q_DSqlcw)下载`akkaflow-x.x.zip`，这是已经打包好的程序包
+* 可以直接在[这里](https://pan.baidu.com/s/1Tja46lBXJ2OmupsocXoo0Q)下载`akkaflow-x.x.zip`，这是已经打包好的程序包
 * 可以把工程check out下来，用sbt-native-packager进行编译打包(直接运行`sbt dist`)
 
 #### 2、安装
 * 安装环境：Linux系统（UTF8编码环境）或MacOS、jdk1.8或以上、MySQL5.7或以上(UTF8编码)
-* 设置好`JAVA_HOME`环境变量
 
 #### 3、目录说明
 * `sbin` 存放用户操作命令，如启动节点命令等
@@ -55,22 +54,43 @@
 * 修改配置文件 `config/application.conf`中以下部分（基本修改数据库以及邮件配置项就可以了）
 
 ```scala
+  workflow {
+  node {
+    master {    		//主节点，所部署机器端口，目前只支持单主节点
+      hostname = "127.0.0.1"  	//若内网，则为内网IP，若公网部署，则为公网IP，一个集群中，这个是固定的
+      port = 2751
+      standby {  	//备份主节点
+        port = 2752
+      }
+    }
+    worker {  		//工作节点，所部署机器端口，支持单个机器上多个工作节点 
+      ports = [2851, 2852, 2853]
+    }
+    http-server{		//http-server节点
+      port = 2951
+      connector-port = 8090  //http访问端口
+    }
+  }
+  current.inner.hostname = "127.0.0.1"  //当前机器内网IP
+  current.public.hostname = "127.0.0.1"  //当前机器公网IP，若部署在内网，则与内网IP一致
+  
   mysql {   //用mysql来持久化数据
   	user = "root"
   	password = "root"
-  	jdbc-url = "jdbc:mysql://localhost:3306/wf?autoReconnect=true"
+  	jdbc-url = "jdbc:mysql://localhost:3306/wf?useSSL=false&autoReconnect=true&failOverReadOnly=false"
   	is-enabled = true
   }
   email {	//告警邮箱设置
   	hostname = "smtp.163.com"
-  	smtp-port = 465  //smtp端口，可选
+  	smtp-port = 465 	  //smtp端口，可选
   	auth = true
   	account = "15018735011@163.com"
-  	password = "******"
+  	password = "******"   //这里改成自己的邮箱密码哈
   	charset = "utf8"
   	is-enabled = true
+  	node-retry-fail-times = 1	//节点执行n次失败才发出重试失败告警
   }
-  extra {  //hdfs集群配置
+  extra {
   	hdfs-uri = "hdfs://quickstart.cloudera:8020"
   }
 ```
@@ -137,7 +157,7 @@
 ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%91%8A%E8%AD%A6%E9%82%AE%E4%BB%B6.png) 
 
 ### 版本计划
-1. 界面集成一个可视化拖拉配置工作流与调度器的开发功能模块（这一块感觉自己做不来），目前的工作流以及调度器主要还是要自己编写xml文件，不够简便。
+1. 界面集成一个可视化拖拉配置工作流与调度器的开发功能模块（这一块感觉自己做不来,有兴趣的前端开发同学可以联系我，共同合作开发），目前的工作流以及调度器主要还是要自己编写xml文件，不够简便。
 2. 增加运行节点收集机器性能指标的功能。
 3. 外面套一层功能权限管理的模块，区分限制人员角色模块及数据权限，支持多人使用或协助的场景。
 

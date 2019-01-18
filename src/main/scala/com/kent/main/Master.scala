@@ -76,7 +76,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
   })
   def indivivalReceive: Actor.Receive = { 
     case MemberUp(member) => 
-      log.info("Member is Up: {}", member.address)
+      //log.info("Member is Up: {}", member.address)
       registerRoleMember(member)
     case StartIfActive(isAM) => (if(isAM) active() else standby()) pipeTo sender
     case Terminated(ar) => 
@@ -266,7 +266,8 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
           this.httpServerRef ! SwitchActiveMaster()
         }
         //设置
-        Master.haDataStorager ! AddRole(getHostPortKey(), self, RoleType.MASTER_ACTIVE)
+        val (host,port) = getHostPortKey
+        Master.haDataStorager ! AddRole(s"$host:$port", self, RoleType.MASTER_ACTIVE)
         log.info(s"当前节点角色为${RoleType.MASTER_ACTIVE}，已启动成功")
         this.status = R_INITED
         
@@ -301,7 +302,8 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       if(x.filter { !_ }.size > 0) false else true 
     }
     rF.map{x => 
-      Master.haDataStorager ! AddRole(getHostPortKey(), self, RoleType.MASTER_STANDBY)
+      val (host,port) = getHostPortKey
+      Master.haDataStorager ! AddRole(s"$host:$port", self, RoleType.MASTER_STANDBY)
       log.info(s"当前节点角色为${RoleType.MASTER_STANDBY}，已启动成功")     
       x
     }
@@ -371,13 +373,13 @@ object Master extends App{
    */
   def startUp() = {
       val defaultConf = ConfigFactory.load()
-      val masterConf = defaultConf.getString("workflow.nodes.master").split(":")
-      val hostConf = "akka.remote.netty.tcp.hostname=" + masterConf(0)
-      val portConf = "akka.remote.netty.tcp.port=" + masterConf(1)
+      val port = defaultConf.getInt("workflow.node.master.port")
+      val portConf = "akka.remote.artery.canonical.port=" + port
+      val portBindConf = "akka.remote.artery.bind.port=" + port
       
       // 创建一个Config对象
       val config = ConfigFactory.parseString(portConf)
-          .withFallback(ConfigFactory.parseString(hostConf))
+          .withFallback(ConfigFactory.parseString(portBindConf))
           .withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [${RoleType.MASTER}]"))
           .withFallback(defaultConf)
       // 创建一个ActorSystem实例

@@ -88,14 +88,14 @@ class Worker extends ClusterRole {
 object Worker extends App {
   import scala.collection.JavaConverters._
   val defaultConf = ConfigFactory.load()
-  val workersConf = defaultConf.getStringList("workflow.nodes.workers").asScala.map { x => val y = x.split(":");(y(0),y(1)) }.toList
+  val ports = defaultConf.getIntList("workflow.node.worker.ports").asScala.toList
   var logRecorder: ActorRef = _
   var config:Config = _
-  workersConf.foreach{ info =>
-    val hostConf = "akka.remote.netty.tcp.hostname=" + info._1
-    val portConf = "akka.remote.netty.tcp.port=" + info._2
-    val config = ConfigFactory.parseString(hostConf)
-        .withFallback(ConfigFactory.parseString(portConf))
+  ports.foreach{ port =>
+    val portConf = "akka.remote.artery.canonical.port=" + port
+    val portBindConf = "akka.remote.artery.bind.port=" + port
+    val config = ConfigFactory.parseString(portConf)
+        .withFallback(ConfigFactory.parseString(portBindConf))
         .withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [${RoleType.WORKER}]"))
         .withFallback(defaultConf)
     Worker.config = config

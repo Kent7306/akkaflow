@@ -20,14 +20,9 @@ function getdate()
     fi
 }
 
-info=`cat ../config/application.conf | grep -e "http-connector" | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+"`
-if [ -a "$info" ];then
-    echo "ERROR!请检查config/application.conf中workflow.node.http-servers的配置"
-    exit 1;
-fi
-arr=(${info//:/ })
-host=${arr[0]}
-port=${arr[1]}
+port=`cat ../config/application.conf | grep -e "connector-port" | grep -Eo "=\s*[0-9]+" | grep -Eo "[0-9]+"`
+host=`cat ../config/application.conf | grep -e "current.inner.hostname" |  grep -v "bind" | grep -Eo "\".*?\"" | grep -Eo "[^\"]+"`
+
 mysql_user=`cat ../config/application.conf | grep user | awk 'NR==1' | grep -Eo "\".*?\"" | grep -Eo "[^\"]+"`
 mysql_pwd=`cat ../config/application.conf | grep password | awk 'NR==1' | grep -Eo "\".*?\"" | grep -Eo "[^\"]+"`
 mysql_db=`cat ../config/application.conf | grep jdbc-url | grep mysql | awk 'NR==1' | grep -Eo ":[0-9]+/\w+" | grep -Eo "/\w+" | grep -Eo "\w+"`

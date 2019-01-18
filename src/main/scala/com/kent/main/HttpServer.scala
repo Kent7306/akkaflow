@@ -26,6 +26,7 @@ import akka.actor.Terminated
 import scala.util.Success
 import com.kent.workflow.Coor.TriggerType
 import com.kent.workflow.Coor.TriggerType._
+import java.net.InetAddress
 
 /**
  * http接口服务角色
@@ -91,21 +92,18 @@ object HttpServer extends App{
   implicit val timeout = Timeout(20 seconds)
   def props = Props[HttpServer]
   val defaultConf = ConfigFactory.load()
-  val httpConf = defaultConf.getString("workflow.nodes.http-server").split(":")
-  val httpConnectorArr = defaultConf.getString("workflow.http-connector").split(":")
-  val httpAccessIp = httpConnectorArr(0)
-  val httpAccessPort = httpConnectorArr(1).toInt
-  
-  
+  val serverPort = defaultConf.getInt("workflow.node.http-server.port")
+  val httpPort = defaultConf.getInt("workflow.node.http-server.connector-port")
+  val hostIp = defaultConf.getString("workflow.current.inner.hostname")
   // 创建一个Config对象
-  val config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + httpConf(1))
-      .withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + httpConf(0)))
+  val config = ConfigFactory.parseString("akka.remote.artery.canonical.port=" + serverPort)
+      .withFallback(ConfigFactory.parseString("akka.remote.artery.bind.port=" + serverPort))
       .withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [${RoleType.HTTP_SERVER}]"))
       .withFallback(defaultConf)
   
   implicit val system = ActorSystem("akkaflow", config)
   implicit val materializer = ActorMaterializer()
-    // needed for the future flatMap/onComplete in the end
+  // needed for the future flatMap/onComplete in the end
   implicit val executionContext = system.dispatcher
   val httpServer = system.actorOf(HttpServer.props,RoleType.HTTP_SERVER)
   
@@ -204,7 +202,7 @@ object HttpServer extends App{
     
     val route = wfRoute ~ wfiRoute ~ clusterRoute
   
-   val bindingFuture = Http().bindAndHandle(route, httpAccessIp, httpAccessPort)
+   val bindingFuture = Http().bindAndHandle(route, hostIp, httpPort)
    def shutdwon(){
       bindingFuture.flatMap(_.unbind()).onComplete(_ => system.terminate())
     }

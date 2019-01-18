@@ -118,10 +118,10 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     //若失败重试
     if(sta == FAILED && ni.hasRetryTimes < ni.nodeInfo.retryTimes){
       ni.hasRetryTimes += 1
-      warnLog(s"动作节点[${ni.nodeInfo.name}]执行失败，等待${ni.nodeInfo.interval}秒")
+      warnLog(s"动作节点[${ni.nodeInfo.name}]执行失败，等待${ni.nodeInfo.interval}秒...")
       context.system.scheduler.scheduleOnce(ni.nodeInfo.interval second){
       	   ni.reset()
-      	   warnLog(s"动作节点[${ni.nodeInfo.name}]执行失败，进行第${ni.hasRetryTimes}次重试")
+      	   warnLog(s"动作节点[${ni.nodeInfo.name}]进行第${ni.hasRetryTimes}次重试")
       	   ni.run(this)
       }
     }else{

@@ -45,15 +45,15 @@ class HaDataStorager extends DaemonActor{
   val replicator = DistributedData(context.system).replicator
   implicit val cluster = Cluster(context.system)
   //以工作流的name作为key
-  val WorkflowDK = LWWMapKey[WorkflowInfo]("workflows")
+  val WorkflowDK = LWWMapKey[String, WorkflowInfo]("workflows")
   //以等待队列中的工作流实例id作为key
-  val RWFIDK = LWWMapKey[WorkflowInstance]("RWFIids")
+  val RWFIDK = LWWMapKey[String, WorkflowInstance]("RWFIids")
   //以等待队列中的工作流实例id作为key
-  val WWFIDK = LWWMapKey[WorkflowInstance]("WWFIids")
+  val WWFIDK = LWWMapKey[String, WorkflowInstance]("WWFIids")
   //xml文件信息
-  val XmlFileDK = LWWMapKey[Long]("xmlFiles")
+  val XmlFileDK = LWWMapKey[String, Long]("xmlFiles")
   //master actor信息
-  val RoleDK = LWWMapKey[RoleContent]("roles")
+  val RoleDK = LWWMapKey[String, RoleContent]("roles")
   /*override def preStart(): Unit = {
     // 订阅集群事件
     cluster.subscribe(self, initialStateMode = InitialStateAsEvents,
@@ -71,9 +71,9 @@ class HaDataStorager extends DaemonActor{
    */
   def operaWorkflow:Receive = {
     case AddWorkflow(wf) =>
-      replicator ! Update(WorkflowDK, LWWMap.empty[WorkflowInfo], writeMajority, request = Some(sender)) ( _ + (wf.name -> wf))
+      replicator ! Update(WorkflowDK, LWWMap.empty[String, WorkflowInfo], writeMajority, request = Some(sender)) ( _ + (wf.name -> wf))
     case RemoveWorkflow(wfname) => 
-      replicator ! Update(WorkflowDK, LWWMap.empty[WorkflowInfo], writeMajority, request = Some(sender)) ( _ - wfname)
+      replicator ! Update(WorkflowDK, LWWMap.empty[String, WorkflowInfo], writeMajority, request = Some(sender)) ( _ - wfname)
     case UpdateSuccess(WorkflowDK, Some(replyTo: ActorRef)) => 
       //println("update success wf")
     case GetWorkflows() =>
@@ -90,9 +90,9 @@ class HaDataStorager extends DaemonActor{
    */
   def operaRWFI:Receive = {
     case AddRWFI(wfi) =>
-      replicator ! Update(RWFIDK, LWWMap.empty[WorkflowInstance], writeMajority, request = Some(sender)) ( _ + (wfi.id -> wfi))
+      replicator ! Update(RWFIDK, LWWMap.empty[String, WorkflowInstance], writeMajority, request = Some(sender)) ( _ + (wfi.id -> wfi))
     case RemoveRWFI(wfiId) =>
-      replicator ! Update(RWFIDK, LWWMap.empty[WorkflowInstance], writeMajority, request = Some(sender)) ( _ - wfiId)
+      replicator ! Update(RWFIDK, LWWMap.empty[String, WorkflowInstance], writeMajority, request = Some(sender)) ( _ - wfiId)
     case UpdateSuccess(RWFIDK, Some(replyTo: ActorRef)) => 
       //println("update success RWFI")
     case GetRWFIs() =>
@@ -109,9 +109,9 @@ class HaDataStorager extends DaemonActor{
    */
   def operaWWFI:Receive = {
     case AddWWFI(wfi) =>
-      replicator ! Update(WWFIDK, LWWMap.empty[WorkflowInstance], writeMajority, request = Some(sender)) ( _ + (wfi.id -> wfi))
+      replicator ! Update(WWFIDK, LWWMap.empty[String, WorkflowInstance], writeMajority, request = Some(sender)) ( _ + (wfi.id -> wfi))
     case RemoveWWFI(wfiId) =>
-      replicator ! Update(WWFIDK, LWWMap.empty[WorkflowInstance], writeMajority, request = Some(sender)) ( _ - wfiId)
+      replicator ! Update(WWFIDK, LWWMap.empty[String, WorkflowInstance], writeMajority, request = Some(sender)) ( _ - wfiId)
     case UpdateSuccess(WWFIDK, Some(replyTo: ActorRef)) => 
       //println("update success WWFI")
     case GetWWFIs() =>
@@ -128,9 +128,9 @@ class HaDataStorager extends DaemonActor{
    */
   def operaXmlFile:Receive = {
     case AddXmlFile(filename, lastModTime) =>
-      replicator ! Update(XmlFileDK, LWWMap.empty[Long], writeMajority, request = Some(sender)) ( _ + (filename -> lastModTime))
+      replicator ! Update(XmlFileDK, LWWMap.empty[String, Long], writeMajority, request = Some(sender)) ( _ + (filename -> lastModTime))
     case RemoveXmlFile(filename) =>
-      replicator ! Update(XmlFileDK, LWWMap.empty[Long], writeMajority, request = Some(sender)) ( _ - filename)
+      replicator ! Update(XmlFileDK, LWWMap.empty[String, Long], writeMajority, request = Some(sender)) ( _ - filename)
     case UpdateSuccess(XmlFileDK, Some(replyTo: ActorRef)) => 
       //println("update success XmlFile")
     case GetXmlFiles() =>
@@ -148,10 +148,10 @@ class HaDataStorager extends DaemonActor{
   //implicit def path2String(p: ActorPath):String = p.toString()
   def operareRole:Receive = {
     case AddRole(hostPortKey, sdr, roleType) =>
-      replicator ! Update(RoleDK, LWWMap.empty[RoleContent], writeMajority, request = Some(sender)) ( 
+      replicator ! Update(RoleDK, LWWMap.empty[String, RoleContent], writeMajority, request = Some(sender)) ( 
           _ + (hostPortKey -> RoleContent(roleType,sdr)))
     case removeRole(hostPortKey) =>
-      replicator ! Update(RoleDK, LWWMap.empty[RoleContent], writeMajority, request = Some(sender)) ( _ - hostPortKey)
+      replicator ! Update(RoleDK, LWWMap.empty[String, RoleContent], writeMajority, request = Some(sender)) ( _ - hostPortKey)
     case UpdateSuccess(RoleDK, Some(replyTo: ActorRef)) => 
     case GetRoles() =>
       replicator ! Get(RoleDK, readMajority, request = Some(sender))

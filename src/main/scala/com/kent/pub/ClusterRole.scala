@@ -56,10 +56,10 @@ abstract class ClusterRole extends ActorTool {
   /**
    * 得到角色的ip与端口串
    */
-  def getHostPortKey():String = {
-    val host = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
-    val port = context.system.settings.config.getString("akka.remote.netty.tcp.port")
-    s"${host}:${port}"
+  def getHostPortKey():Tuple2[String, Int] = {
+    val host = context.system.settings.config.getString("akka.remote.artery.canonical.hostname")
+    val port = context.system.settings.config.getInt("akka.remote.artery.canonical.port")
+    (host,port)
   }
   /**
    * 角色加入的操作
@@ -77,8 +77,9 @@ abstract class ClusterRole extends ActorTool {
   }
   override def collectActorInfo():Future[ActorInfo] = {
     val ai = new ActorInfo()
-    ai.ip = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
-    ai.port = context.system.settings.config.getInt("akka.remote.netty.tcp.port")
+    val(ip,port) = getHostPortKey()
+    ai.ip = ip
+    ai.port = port
     ai.name = s"${self.path.name}(${ai.ip}:${ai.port})"
 		ai.atype = this.actorType
     val caiFs = context.children.map { child => (child ? CollectActorInfo()).mapTo[ActorInfo] }.toList

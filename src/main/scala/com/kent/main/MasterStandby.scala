@@ -16,13 +16,13 @@ object MasterStandby extends App{
   var logRecorder: ActorRef = _
   
   val defaultConf = ConfigFactory.load()
-  val masterConf = defaultConf.getString("workflow.nodes.master-standby").split(":")
-  val hostConf = "akka.remote.netty.tcp.hostname=" + masterConf(0)
-  val portConf = "akka.remote.netty.tcp.port=" + masterConf(1)
+  val port = defaultConf.getInt("workflow.nodes.master-standby-port")
+  val portConf = "akka.remote.artery.canonical.port=" + port
+  val portBindConf = "akka.remote.artery.bind.port=" + port
   
   // 创建一个Config对象
   val config = ConfigFactory.parseString(portConf)
-      .withFallback(ConfigFactory.parseString(hostConf))
+      .withFallback(ConfigFactory.parseString(portBindConf))
       .withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [${RoleType.MASTER}]"))
       .withFallback(defaultConf)
   // 创建一个ActorSystem实例
