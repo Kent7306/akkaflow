@@ -3,36 +3,42 @@ package com.kent.workflow
 import akka.actor.ActorLogging
 import akka.actor.Actor
 import akka.actor.ActorRef
+
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.Cancellable
 import com.kent.workflow.ActionActor._
 import com.kent.workflow.node._
-import com.kent.workflow.node.NodeInfo.Status._
-import com.kent.workflow.WorkflowInfo.WStatus._
+import com.kent.workflow.node.Node.Status._
+import com.kent.workflow.Workflow.WStatus._
 import akka.pattern.ask
 import akka.actor.Props
 import com.kent.util.Util
+
 import scala.concurrent.Future
 import akka.util._
+
 import scala.util.control.NonFatal
 import akka.actor.PoisonPill
 import akka.actor.OneForOneStrategy
-import com.kent.db.PersistManager
+
 import scala.util.Random
 import com.kent.main.Master
 import com.kent.pub.Event._
-import scala.util.Success
-import com.kent.pub.ActorTool
-import jnr.ffi.annotations.Synchronized
-import com.kent.db.LogRecorder.LogType
-import com.kent.db.LogRecorder.LogType._
-import com.kent.db.LogRecorder
-import java.io.File
-import com.kent.util.FileUtil
 
-class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
+import scala.util.Success
+import jnr.ffi.annotations.Synchronized
+import com.kent.daemon.LogRecorder.LogType
+import com.kent.daemon.LogRecorder.LogType._
+import java.io.File
+
+import com.kent.daemon.{LogRecorder, PersistManager}
+import com.kent.pub.actor.BaseActor
+import com.kent.util.FileUtil
+import com.kent.workflow.node.action.ActionNodeInstance
+
+class WorkflowActor(val workflowInstance: WorkflowInstance) extends BaseActor {
 	import com.kent.workflow.WorkflowActor._
   
   var workflowManageActorRef:ActorRef = _
@@ -53,8 +59,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
    */
   def start(sdr: ActorRef):Boolean = {
     workflowManageActorRef = sdr
-    infoLog(s"工作流实例:[${this.workflowInstance.workflow.name}:${this.workflowInstance.id}]开始启动")
-	  log.debug(s"工作流实例:[${this.workflowInstance.workflow.name}:${this.workflowInstance.id}]开始启动")
+    infoLog(s"开始运行实例")
 	  
 	  //保存工作流实例
 	  workflowInstance.startTime = Util.nowDate
@@ -82,17 +87,18 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
     	  val(ni, queue) = waitingNodeInstances.dequeue
       	waitingNodeInstances = queue
       	//执行或忽略节点
+      val nodeTypeName =	 ni.getClass.getName.split("\\.").last.replace("NodeInstance", "")
       	ni match {
     	    //动作节点，设置了忽略执行
       	  case x:ActionNodeInstance if x.nodeInfo.isIgnore => 
-      	    	infoLog("忽略节点："+ni.nodeInfo.name+"， 类型："+ni.getClass.getName.split("\\.").last)
+      	    	infoLog(s"忽略【${nodeTypeName}】节点：${ni.nodeInfo.name}")
       	    	ni.executedMsg = "忽略执行节点"
         		ni.endTime = Util.nowDate
         		ni.changeStatus(SUCCESSED)
         		ni.terminate(this)
           	ni.postTerminate()
       	  case _ =>
-      	    	infoLog("执行节点："+ni.nodeInfo.name+"， 类型："+ni.getClass.getName.split("\\.").last)
+      	    	infoLog(s"执行【${nodeTypeName}】节点：${ni.nodeInfo.name}")
 	        ni.run(this)
       	}
     }
@@ -146,7 +152,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
 	    case wOpt if wOpt.isDefined =>  
     	    val worker = wOpt.get
     	    actionNodeInstance.allocateHost = worker.path.address.host.get
-    	    infoLog(s"节点[${actionNodeInstance.nodeInfo.name}]分配给Worker[${actionNodeInstance.allocateHost}:${worker.path.address.port.get}]")
+    	    infoLog(s"节点${actionNodeInstance.nodeInfo.name}分配到Worker[${actionNodeInstance.allocateHost}:${worker.path.address.port.get}]")
   	      (worker ? CreateAction(actionNodeInstance.deepCloneAs[ActionNodeInstance])).mapTo[ActorRef].map{
     	      case af if af != null =>
     	        runningActors += (af -> actionNodeInstance)
@@ -253,12 +259,13 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends ActorTool {
         case Some(coor) => coor.depends.map(_.workFlowName).toList
         case None => List[String]()
       }
-      InstanceShortInfo(this.workflowInstance.id, this.workflowInstance.workflow.name,  
-          this.workflowInstance.workflow.desc, this.workflowInstance.workflow.dir.dirname, dependWfNames)
+      InstanceShortInfo(this.workflowInstance.id, this.workflowInstance.workflow.name, 
+          this.workflowInstance.workflow.name, this.workflowInstance.workflow.desc, 
+          this.workflowInstance.workflow.creator, dependWfNames)
   }
   
   
-  def indivivalReceive: Actor.Receive = {
+  def individualReceive: Actor.Receive = {
     case Start() => start(sender)
     case Kill() => kill(sender)
     case ActionExecuteResult(sta, msg) => handleActionResult(sta, msg, sender)

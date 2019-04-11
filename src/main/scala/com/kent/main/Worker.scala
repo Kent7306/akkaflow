@@ -1,39 +1,24 @@
 package com.kent.main
 
-import akka.actor.Actor
-import com.typesafe.config.ConfigFactory
-import akka.actor.ActorSystem
-import akka.actor.Props
-import akka.cluster.ClusterEvent.MemberUp
-import akka.cluster.ClusterEvent.UnreachableMember
-import akka.cluster.ClusterEvent.MemberRemoved
-import akka.cluster.ClusterEvent.CurrentClusterState
-import akka.cluster.ClusterEvent.MemberEvent
-import akka.cluster.Member
-import scala.concurrent.ExecutionContext.Implicits.global
-import akka.pattern.{ ask, pipe }
-import akka.actor.RootActorPath
-import akka.actor.ActorPath
-import akka.actor.ActorRef
-import com.kent.workflow.node.ActionNodeInstance
-import com.kent.workflow.ActionActor
-import com.kent.db.LogRecorder
-import com.typesafe.config.Config
-import com.kent.pub.Event._
-import scala.concurrent.Future
-import akka.util.Timeout
-import scala.concurrent.duration._
-import scala.util.Success
-import com.kent.pub.ActorTool
-import com.kent.pub.ClusterRole
-import akka.actor.OneForOneStrategy
 import java.sql.SQLException
+
+import akka.actor.{Actor, ActorRef, ActorSystem, OneForOneStrategy, Props}
+import akka.pattern.{ask, pipe}
+import com.kent.daemon.LogRecorder
+import com.kent.pub.Event._
+import com.kent.pub.actor.ClusterRole
+import com.kent.workflow.ActionActor
+import com.kent.workflow.node.action.ActionNodeInstance
+import com.typesafe.config.{Config, ConfigFactory}
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration._
 
 /**
  * worker工作节点
  */
 class Worker extends ClusterRole {
-	import com.kent.main.Worker._
 	//运行中的action节点  【actioninstance_name,ar】
   var runningActionActors = Map[String,ActorRef]()
   init()
@@ -43,7 +28,7 @@ class Worker extends ClusterRole {
     case _:Exception => akka.actor.SupervisorStrategy.Restart
   }
   
-  def indivivalReceive: Actor.Receive = {
+  def individualReceive: Actor.Receive = {
     case CreateAction(ani) => sender ! createActionActor(ani)
     case RemoveAction(name) => runningActionActors = runningActionActors - name
     case KillAllActionActor() => killAllActionActor() pipeTo sender
@@ -96,11 +81,11 @@ object Worker extends App {
     val portBindConf = "akka.remote.artery.bind.port=" + port
     val config = ConfigFactory.parseString(portConf)
         .withFallback(ConfigFactory.parseString(portBindConf))
-        .withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [${RoleType.WORKER}]"))
+        .withFallback(ConfigFactory.parseString(s"akka.cluster.roles = [${ClusterRole.WORKER}]"))
         .withFallback(defaultConf)
     Worker.config = config
     val system = ActorSystem("akkaflow", config)
-    val worker = system.actorOf(Worker.props, name = RoleType.WORKER)
+    val worker = system.actorOf(Worker.props, name = ClusterRole.WORKER)
   }
   def props = Props[Worker]
 }

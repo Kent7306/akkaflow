@@ -1,6 +1,6 @@
 package com.kent.test
 
-import com.kent.coordinate.ParamHandler
+import com.kent.util.ParamHandler
 
 object ParamReplaceTest extends App{
   val str = """

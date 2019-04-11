@@ -1,24 +1,28 @@
 package com.kent.workflow.node
 
-import com.kent.workflow.node.NodeInfo.Status._
+import com.kent.workflow.node.Node.Status._
 import com.kent.workflow.WorkflowActor
 import com.kent.workflow.WorkflowInstance
 import java.util.Date
+
 import com.kent.pub.DeepCloneable
 import com.kent.pub.Daoable
 import java.sql.Connection
+
 import com.kent.util.Util
 import java.sql.ResultSet
-import com.kent.db.PersistManager
+
+import com.kent.daemon.PersistManager
 import com.kent.pub.Event._
-import com.kent.workflow.controlnode._
-import com.kent.workflow.actionnode._
-import com.kent.workflow.controlnode._
+import com.kent.workflow.node.control._
+import com.kent.workflow.node.action._
+import com.kent.workflow.node.control._
 import com.kent.main.Master
+
 import scala.concurrent.Future
 import com.kent.pub.Persistable
 
-abstract class NodeInstance(val nodeInfo: NodeInfo) extends Persistable[NodeInstance] with DeepCloneable[NodeInstance]{
+abstract class NodeInstance(val nodeInfo: Node) extends Persistable[NodeInstance] with DeepCloneable[NodeInstance]{
   var id: String = _
   var status: Status = PREP
   var executedMsg: String = _
@@ -97,19 +101,19 @@ abstract class NodeInstance(val nodeInfo: NodeInfo) extends Persistable[NodeInst
     val isAction = if(this.isInstanceOf[ActionNodeInstance]) 1 else 0
     val insertStr = s"""
     insert into node_instance
-    values(${withQuate(id)},${withQuate(nodeInfo.name)},${isAction},${withQuate(this.nodeInfo.getClass.getName.split("\\.").last)},
-          ${withQuate(nodeInfo.assembleJson())},${withQuate(nodeInfo.desc)},
-           ${status.id},${withQuate(formatStandarTime(startTime))},
-           ${withQuate(formatStandarTime(endTime))},${withQuate(executedMsg)})
+    values(${wq(id)},${wq(nodeInfo.name)},${isAction},${wq(this.nodeInfo.getClass.getName.split("\\.").last)},
+          ${wq(nodeInfo.toJson())},${wq(nodeInfo.desc)},
+           ${status.id},${wq(formatStandarTime(startTime))},
+           ${wq(formatStandarTime(endTime))},${wq(executedMsg)})
     """
     val updateStr = s"""
       update node_instance set status = ${status.id},
-                               stime = ${withQuate(formatStandarTime(startTime))},
-                               etime = ${withQuate(formatStandarTime(endTime))},
-                               msg = ${withQuate(executedMsg)}
-                      where name = ${withQuate(nodeInfo.name)} and workflow_instance_id = ${withQuate(id)}
+                               stime = ${wq(formatStandarTime(startTime))},
+                               etime = ${wq(formatStandarTime(endTime))},
+                               msg = ${wq(executedMsg)}
+                      where name = ${wq(nodeInfo.name)} and workflow_instance_id = ${wq(id)}
       """
-    val isExistsql = s"select name from node_instance where name = ${withQuate(nodeInfo.name)} and workflow_instance_id = ${withQuate(id)}"
+    val isExistsql = s"select name from node_instance where name = ${wq(nodeInfo.name)} and workflow_instance_id = ${wq(id)}"
     querySql(isExistsql, (rs) => {
       if(rs.next()) executeSql(updateStr) else executeSql(insertStr)
     }).get
@@ -124,7 +128,7 @@ object NodeInstance {
   def apply(nodeType: String, name: String, id: String): NodeInstance = {
     val nodeClass = Class.forName(nodeType)
     val method = nodeClass.getMethod("apply", "str".getClass)
-    val node = method.invoke(null, name).asInstanceOf[NodeInfo];
+    val node = method.invoke(null, name).asInstanceOf[Node];
     val ni = node.createInstance(id)
     ni
   }

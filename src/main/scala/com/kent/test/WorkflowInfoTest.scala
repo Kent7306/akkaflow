@@ -1,6 +1,6 @@
 package com.kent.test
 
-import com.kent.workflow.WorkflowInfo
+import com.kent.workflow.Workflow
 
 object WorkflowInfoTest extends App{
   val str = """
@@ -46,6 +46,6 @@ select 'tmall' origin,mark,skuid,skuname,price,up_date from DW_3C_DIM_SALE_TMALL
 </work-flow>
     """
   
-  val wf = WorkflowInfo(str)
+  val wf = Workflow(str)
   println(wf.coorOpt)
 }

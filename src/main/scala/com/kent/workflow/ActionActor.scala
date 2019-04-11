@@ -1,33 +1,24 @@
 package com.kent.workflow
 
-import akka.actor.ActorLogging
-import akka.actor.Actor
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-import com.kent.workflow.node.NodeInfo.Status._
-import akka.pattern.{ ask, pipe }
-import akka.actor.Cancellable
-import akka.actor.ActorRef
-import com.kent.workflow.node.ActionNodeInstance
-import com.kent.main.Worker
-import com.kent.pub.Event._
-import scala.util.Success
-import scala.concurrent.Future
-import com.kent.pub.ActorTool
-import com.kent.workflow.node.ActionNodeInstance
-import com.kent.db.LogRecorder.LogType
-import com.kent.db.LogRecorder.LogType._
-import com.kent.db.LogRecorder
 import java.io.File
-import com.kent.util.FileUtil
+
+import akka.actor.{Actor, ActorRef}
+import akka.pattern.ask
 import akka.util.Timeout
-import scala.concurrent.Await
+import com.kent.pub.Event._
+import com.kent.pub.actor.BaseActor
 import com.kent.pub.db.DBLink
+import com.kent.util.FileUtil
+import com.kent.workflow.node.Node.Status._
+import com.kent.workflow.node.action.ActionNodeInstance
+
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 import scala.util.Try
 
-class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
+class ActionActor(actionNodeInstance: ActionNodeInstance) extends BaseActor {
   var workflowActorRef: ActorRef = _
-  def indivivalReceive: Actor.Receive = {
+  def individualReceive: Actor.Receive = {
     case Start() => start()
     //外界kill
     case Kill() => kill(sender)
@@ -127,7 +118,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
         """
        val mailTitle = s"【Akkaflow】${actionNodeInstance.nodeInfo.label}节点执行${resultTmp}"
        
-       actionNodeInstance.infoLog(s"发送节点执行${resultTmp}通知邮件")
+       actionNodeInstance.infoLog(s"节点执行${resultTmp},发送告警邮件")
        this.sendMailMsg(null, mailTitle, mailHtml)
   }
   
@@ -158,9 +149,9 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends ActorTool {
   def terminate(ar:ActorRef){
     //日志记录
 		if(actionNodeInstance.getStatus() == SUCCESSED){
-		  (s"执行成功："+actionNodeInstance.executedMsg).split("\n").foreach { actionNodeInstance.infoLog(_)}
+		  actionNodeInstance.infoLog("节点执行成功")
 		}else {
-		  (s"执行失败："+actionNodeInstance.executedMsg).split("\n").foreach { actionNodeInstance.errorLog(_)}
+		  (s"执行失败，出错信息:"+actionNodeInstance.executedMsg).split("\n").foreach { actionNodeInstance.errorLog(_)}
 		}
 		//结束
     ar ! ActionExecuteResult(actionNodeInstance.getStatus(),actionNodeInstance.executedMsg) 

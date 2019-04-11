@@ -10,12 +10,17 @@ import org.apache.hive.jdbc.HiveStatement
 import java.sql.PreparedStatement
 
 /**
- * 数据操作特质
- */
+  * 数据操作特质
+  */
 trait Daoable {
   /**
-   * 查询sql
-   */
+    * 查询sql
+    * @param sql
+    * @param f
+    * @param conn
+    * @tparam A
+    * @return
+    */
   def querySql[A](sql: String, f:(ResultSet) => A)(implicit conn: Connection): Option[A] = {
     var stat:Statement = null
     var rs:ResultSet = null
@@ -31,13 +36,21 @@ trait Daoable {
       if(stat != null) stat.close()
     }
   }
+
   /**
-   * 执行sql
-   */
+    * 执行sql
+    * @param sql
+    * @param conn
+    * @return
+    */
   def executeSql(sql: String)(implicit conn: Connection): Boolean = executeSqls(List(sql))
+
   /**
-   * 批量执行sql，如果外层有事务，则嵌套在里面，出错则抛出异常；否则，自己起事务，异常自己处理
-   */
+    * 批量执行sql，如果外层有事务，则嵌套在里面，出错则抛出异常；否则，自己起事务，异常自己处理
+    * @param sqls
+    * @param conn
+    * @return
+    */
   def executeSqls(sqls: List[String])(implicit conn: Connection):Boolean = {
     var isTransation = false
     if(conn.getAutoCommit){
@@ -62,4 +75,3 @@ trait Daoable {
     true
   }
 }
-  

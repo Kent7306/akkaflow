@@ -28,7 +28,13 @@ object AA extends App{
   while(matches.hasNext){
     matches.next()
     println(matches.group(1))
-    
   }  
   
+  val b = "jdbc:mysql://xxx:24/wf"
+	val rgx = ":\\d+/([^\\?]+)".r
+  val ms = rgx.findAllIn(b)
+  if(ms.hasNext){
+    ms.next()
+    println(ms.group(1))
+  }  
 }

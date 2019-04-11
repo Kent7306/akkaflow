@@ -9,6 +9,16 @@ class DBLink() extends DeepCloneable[DBLink]{
   var jdbcUrl: String = _
   var username: String = _
   var password: String = _
+  
+  def getDatabase: String = {
+    import com.kent.pub.db.DBLink.DatabaseType._
+    dbType match {
+      case HIVE => HiveOpera.getDBName(this)
+      case ORACLE => OracleOpera.getDBName(this)
+      case MYSQL => MysqlOpera.getDBName(this)
+      case _ => ???
+    }
+  }
 }
 
 object DBLink{

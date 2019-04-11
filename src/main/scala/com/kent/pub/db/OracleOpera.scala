@@ -1,29 +1,51 @@
 package com.kent.pub.db
 
 import java.sql._
-import com.kent.pub.Event._
-import com.kent.pub.db.DBLink
 
-object OracleOpera {
+object OracleOpera extends JdbcOpera {
   /**
-   * 获取数据库连接
-   */
-  def getConnection(dbLink: DBLink): Connection = {
-    	Class.forName("oracle.jdbc.driver.OracleDriver")
-    	DriverManager.getConnection(dbLink.jdbcUrl, dbLink.username, dbLink.password) 
+    * 获取数据库连接
+    *
+    * @param dbLink
+    * @return Connection
+    */
+  override def getConnection(dbLink: DBLink): Connection = {
+    Class.forName("oracle.jdbc.driver.OracleDriver")
+    DriverManager.getConnection(dbLink.jdbcUrl, dbLink.username, dbLink.password)
   }
+
   /**
-   * 执行多条sql语句
-   */ 
-  def executeSqls(dbLink: DBLink, sqls: List[String]) = {
+    * 得到数据库，或表前缀
+    *
+    * @param dbLink
+    * @return String
+    */
+  override def getDBName(dbLink: DBLink): String = dbLink.name
+
+  /**
+    * 执行多条SQL
+    *
+    * @param sqls            : 执行的SQL集合
+    * @param dbLink          : 数据库连接
+    * @param stateRecorder   : 给外界记录conn及statement，一般用来取消执行
+    * @param infoLogHandler  : info级别的日志记录处理
+    * @param errorLogHandler : error级别的日志记录处理
+    * @return List[Boolean]
+    */
+  override def executeSqls(sqls: List[String], dbLink: DBLink,
+                           stateRecorder: (Connection, Statement) => Unit,
+                           infoLogHandler: String => Unit,
+                           errorLogHandler: String => Unit): List[Boolean] = {
     var conn: Connection = null
     var stat: Statement = null
     try {
       conn = getConnection(dbLink)
       conn.setAutoCommit(false)
-    	stat = conn.createStatement()
+      stat = conn.createStatement()
+      stateRecorder(conn, stat)
       val results = sqls.map { stat.execute(_) }.toList
       conn.commit()
+      results
     } catch {
       case e: Exception => conn.rollback();throw e
     } finally{
@@ -31,19 +53,33 @@ object OracleOpera {
       if(conn != null) conn.close()
     }
   }
+
   /**
-   * 查询sql(特供actionnode使用)
-   */
-  def querySql[A](sql: String, dbLink: DBLink, f:(ResultSet) => A): Option[A] = {
+    * 查询SQL
+    *
+    * @param sql             SQL
+    * @param dbLink          数据库连接
+    * @param rsHandler       rs处理器，处理每条记录
+    * @param stateRecorder   给外界记录conn及statement，一般用来取消执行
+    * @param infoLogHandler  info级别的日志记录处理
+    * @param errorLogHandler error级别的日志记录处理
+    * @tparam A 查询组装返回的类型
+    * @return Option[A]
+    */
+  override def querySql[A](sql: String, dbLink: DBLink,
+                           rsHandler: ResultSet => A,
+                           stateRecorder: (Connection, Statement) => Unit,
+                           infoLogHandler: String => Unit, errorLogHandler: String => Unit): Option[A] = {
     var conn: Connection = null
     var stat: Statement = null
     var rs: ResultSet = null
     try {
-    	conn = this.getConnection(dbLink)
+      conn = this.getConnection(dbLink)
       stat = conn.createStatement()
-    	val rs = stat.executeQuery(sql)
-    	val obj = f(rs)
-    	if(obj != null) Some(obj) else None
+      stateRecorder(conn, stat)
+      rs = stat.executeQuery(sql)
+      val obj = rsHandler(rs)
+      Option(obj)
     } catch{
       case e:Exception => throw e
     }finally{
@@ -53,14 +89,14 @@ object OracleOpera {
     }
   }
   /**
-   * 批量执行同一个sql
-   */
+    * 批量执行同一个sql
+    */
   def executeBatch(sql: String,rows: List[List[String]])(implicit conn: Connection) = {
-    var isTransation = false
+    var isTransaction = false
     val pstat: PreparedStatement = null
     try{
       if(conn.getAutoCommit){
-        isTransation = true
+        isTransaction = true
         conn.setAutoCommit(false)
       }
       val pstat = conn.prepareStatement(sql)
@@ -71,7 +107,7 @@ object OracleOpera {
       pstat.executeBatch()
     }catch{
       case e: Exception =>
-        if(!isTransation) {
+        if(!isTransaction) {
           throw e
         }else{
           conn.rollback()
@@ -79,7 +115,7 @@ object OracleOpera {
         }
     }finally{
       if(pstat != null) pstat.close()
-      if(isTransation) conn.setAutoCommit(true)
+      if(isTransaction) conn.setAutoCommit(true)
     }
   }
 }

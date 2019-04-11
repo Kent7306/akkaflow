@@ -56,7 +56,13 @@ object Util {
     	dateFormat.parse(str)      
     }
   }
-  
+  /**
+   * 给字符串加上单引号（简写）
+   */
+  def wq(str: String): String = withQuate(str)
+  /**
+   * 给字符串加上单引号
+   */
   def withQuate(str: String):String = {
     if(str == null){
       null
@@ -150,7 +156,6 @@ object Util {
       }}.foreach { sb.append(_) }
       sb.toString()
   }
-  
   def main(args: Array[String]): Unit = {
     val a = Util.convertHumen2Byte("23.927 KB")
     println(a)

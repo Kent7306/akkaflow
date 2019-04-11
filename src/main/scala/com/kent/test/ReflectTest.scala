@@ -1,6 +1,6 @@
 package com.kent.test
 
-import com.kent.workflow.node.NodeInfo
+import com.kent.workflow.node.Node
 import java.sql.DriverManager
 import com.kent.workflow.WorkflowInstance
 

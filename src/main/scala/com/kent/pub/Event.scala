@@ -1,16 +1,16 @@
 package com.kent.pub
 
-import akka.actor.ActorRef
-import com.kent.db.LogRecorder.LogType
-import com.kent.db.LogRecorder.LogType._
-import com.kent.workflow.node.ActionNodeInstance
-import com.kent.workflow.WorkflowInstance
-import com.kent.workflow.WorkflowInfo.WStatus._
-import com.kent.workflow.node.NodeInfo.Status._
-import com.kent.pub.ActorTool.ActorInfo
 import java.util.Date
-import com.kent.workflow.Coor.TriggerType._
+
+import akka.actor.ActorRef
+import com.kent.daemon.LineageRecorder.LineageRecord
+import com.kent.daemon.LogRecorder.LogType._
 import com.kent.pub.db._
+import com.kent.workflow.Coor.TriggerType._
+import com.kent.workflow.Workflow.WStatus._
+import com.kent.workflow.WorkflowInstance
+import com.kent.workflow.node.Node.Status._
+import com.kent.workflow.node.action.ActionNodeInstance
 
 object Event {
   //pub
@@ -60,7 +60,6 @@ object Event {
   case class ReRunWorkflowInstance(worflowInstanceId: String, isFormer: Boolean)
   case class WorkFlowInstanceExecuteResult(workflowInstance: WorkflowInstance)
   case class WorkFlowExecuteResult(wfName: String, status: WStatus)
-  case class GetWaittingInstances()
   //读取文件内容
   case class FileContent(isSuccessed: Boolean, msg: String,path: String, content:Array[Byte])
   case class GetFileContent(path: String)
@@ -76,7 +75,11 @@ object Event {
   case class ActionExecuteResult(status: Status, msg: String) extends Serializable
   case class Termination()
   case class GetInstanceShortInfo()
-  case class InstanceShortInfo(id: String, name: String, desc: String, dir: String, dependWfNames: List[String])
+  case class InstanceShortInfo(id: String, name: String, desc: String, dir: String, owner: String, dependWfNames: List[String])
+  
+  //lineage-record
+  case class SaveLineageRecord(lr: LineageRecord)
+  case class DelLineageTable(tableName: String)
   
   //http-server
   case class ResponseData(result:String, msg: String, data: Any)
@@ -84,4 +87,19 @@ object Event {
   //收集集群信息
   case class CollectClusterActorInfo()
   case class CollectActorInfo()
+  //今天剩余触发的次数
+  case class GetTodayLeftTriggerCnt(wfName: String)
+  case class GetTodayAllLeftTriggerCnt()
+
+
+  //后面ask的返回最好都采用这种好一点
+  sealed class Result[A](isSuccess: Boolean, msg: String, dataOpt: Option[A] = None) extends Serializable{
+    def isFailed = !isSuccess
+    def isSuccessed = isSuccess
+    def isDataDefined: Boolean = dataOpt.isDefined
+    def message: String = msg
+    def data: A = if (dataOpt.isDefined) dataOpt.get else throw new Exception("data值不存在")
+  }
+  final case class SuccessResult[A](dataOpt: Option[A]) extends Result[A](true, "成功", dataOpt)
+  final case class FailResult[A](msg: String, dataOpt: Option[A]) extends Result[A](false, msg, dataOpt)
 }

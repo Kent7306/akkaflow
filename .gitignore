@@ -8,13 +8,15 @@
 dist/*
 target/universal/
 target/resolution-cache/
-target/scala-2.11/
+target/scala-2.12/
 target/streams/
 project/target/
 project/project/
 lib_managed/
 bin/
+.DS_Store
 .classpath
+.idea
 .project
 src_managed/
 project/boot/

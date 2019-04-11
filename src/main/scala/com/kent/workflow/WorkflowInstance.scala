@@ -1,38 +1,41 @@
 package com.kent.workflow
 
-import com.kent.workflow.WorkflowInfo.WStatus._
-import com.kent.workflow.node.NodeInfo.Status._
+import com.kent.workflow.Workflow.WStatus._
+import com.kent.workflow.node.Node.Status._
 import com.kent.pub.DeepCloneable
 import com.kent.workflow.node.NodeInstance
 import java.util.Date
+
 import com.kent.workflow.node.NodeInstance
-import com.kent.workflow.controlnode.StartNodeInstance
-import com.kent.util.Util
+import com.kent.workflow.node.control.StartNodeInstance
+import com.kent.util.{ParamHandler, Util}
 import com.kent.pub.Daoable
 import java.sql.Connection
 import java.sql.ResultSet
+
 import org.json4s.jackson.JsonMethods
 import org.json4s.JsonAST.JObject
 import org.json4s.JsonAST.JString
 import java.sql.SQLException
-import com.kent.workflow.WorkflowInfo.WStatus
+
+import com.kent.workflow.Workflow.WStatus
 import akka.actor.ActorRef
-import com.kent.db.PersistManager
-import com.kent.pub.Directory
-import com.kent.coordinate.ParamHandler
 import com.kent.pub.Event._
 import com.kent.main.Master
-import akka.pattern.{ ask, pipe }
+import akka.pattern.{ask, pipe}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import akka.util.Timeout
+import com.kent.daemon.PersistManager
+
 import scala.concurrent.duration._
 import com.kent.pub.Persistable
 import com.kent.workflow.Coor.TriggerType
 import com.kent.workflow.Coor.TriggerType._
 
 
-class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[WorkflowInstance] with Persistable[WorkflowInstance] {
+class WorkflowInstance(val workflow: Workflow) extends DeepCloneable[WorkflowInstance] with Persistable[WorkflowInstance] {
   var id: String = _
   def actorName = s"${id}"
   var paramMap:Map[String, String] = Map()
@@ -73,7 +76,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
   /**
    * 拼接工作流完成后的信息邮件
    */
-  def htmlMail(relateWfs: List[WorkflowInfo])(implicit timeout:Timeout): Future[String] = {
+  def htmlMail(relateWfs: List[Workflow])(implicit timeout:Timeout): Future[String] = {
     val part1 = s"""
 <style> 
   .table-n {text-align: center; border-collapse: collapse;border:1px solid black}
@@ -122,7 +125,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
 	
 	
 	
-	import com.kent.workflow.node.NodeInfo.Status
+	import com.kent.workflow.node.Node.Status
 	val nodesStr = this.nodeInstanceList.map { x => s"""
 	  <tr>
 	    <td>${x.nodeInfo.name}</td>
@@ -174,18 +177,18 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     val levelStr = compact(workflow.mailLevel.map { _.toString()})
     val receiversStr = compact(workflow.mailReceivers)
 	  val insertSql = s"""
-	     insert into workflow_instance values(${withQuate(id)},${withQuate(workflow.name)},${withQuate(workflow.creator)},${withQuate(workflow.dir.dirname)},
-	                                          ${withQuate(paramStr)},'${status.id}',${withQuate(workflow.desc)},
-	                                          ${withQuate(levelStr)},${withQuate(receiversStr)},${workflow.instanceLimit},
-	                                          ${withQuate(formatStandarTime(startTime))},${withQuate(formatStandarTime(endTime))},
-	                                          ${withQuate(formatStandarTime(workflow.createTime))},${withQuate(formatStandarTime(workflow.createTime))},
-	                                          ${withQuate(transformXmlStr(workflow.xmlStr))})
+	     insert into workflow_instance values(${wq(id)},${wq(workflow.name)},${wq(workflow.creator)},${wq(workflow.dir.dirname)},
+	                                          ${wq(paramStr)},'${status.id}',${wq(workflow.desc)},
+	                                          ${wq(levelStr)},${wq(receiversStr)},${workflow.instanceLimit},
+	                                          ${wq(formatStandarTime(startTime))},${wq(formatStandarTime(endTime))},
+	                                          ${wq(formatStandarTime(workflow.createTime))},${wq(formatStandarTime(workflow.createTime))},
+	                                          ${wq(transformXmlStr(workflow.xmlStr))})
 	    """
 	  val updateSql = s"""
 	    update workflow_instance set
 	                        status = '${status.id}',
-	                        stime = ${withQuate(formatStandarTime(startTime))}, 
-	                        etime = ${withQuate(formatStandarTime(endTime))}
+	                        stime = ${wq(formatStandarTime(startTime))}, 
+	                        etime = ${wq(formatStandarTime(endTime))}
 	    where id = '${id}'
 	    """
 	    
@@ -218,21 +221,21 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     
     //工作流实例查询sql
     val queryStr = s"""
-         select * from workflow_instance where id=${withQuate(id)}
+         select * from workflow_instance where id=${wq(id)}
                     """
     //节点实例查询sql
     val queryNodesStr = s"""
-         select * from node_instance where workflow_instance_id = ${withQuate(id)}
+         select * from node_instance where workflow_instance_id = ${wq(id)}
       """
     
     val wfiOpt = querySql(queryStr, (rs: ResultSet) => {
       if(rs.next()){
         val xmlStr = rs.getString("xml_str")
         val json = JsonMethods.parse(rs.getString("param"))
-        val list = for{ JObject(ele) <- json; (k, JString(v)) <- ele} yield (k->v)
+        val list = for{ JObject(ele) <- json; (k, JString(v)) <- ele} yield (k -> v)
         val parsedParams = list.map(x => x).toMap
         
-        val wf = WorkflowInfo(xmlStr)
+        val wf = Workflow(xmlStr)
         val wfi = WorkflowInstance(wf, parsedParams)
         wfi.id = id
         wfi.status = WStatus.getWstatusWithId(rs.getInt("status"))
@@ -245,7 +248,7 @@ class WorkflowInstance(val workflow: WorkflowInfo) extends DeepCloneable[Workflo
     })
     //关联查询节点实例
     if(isWithNodeInstance && !wfiOpt.isEmpty){
-      import com.kent.workflow.node.NodeInfo.Status
+      import com.kent.workflow.node.Node.Status
       querySql(queryNodesStr, (rs: ResultSet) => {
         var newNIList = List[NodeInstance]()
         while(rs.next()) {
@@ -296,7 +299,7 @@ object WorkflowInstance {
   def apply(id: String,xmlStr: String, paramMap: Map[String, String]): WorkflowInstance = {
     if(xmlStr != null && xmlStr.trim() != ""){
       val parseXmlStr = ParamHandler(Util.nowDate).getValue(xmlStr, paramMap)
-      val parseWf = WorkflowInfo(parseXmlStr)
+      val parseWf = Workflow(parseXmlStr)
     	val wfi = new WorkflowInstance(parseWf)
       wfi.id = if(id == null || id.trim() == "") Util.produce8UUID else id
       wfi.paramMap = paramMap
@@ -312,8 +315,8 @@ object WorkflowInstance {
   /**
    * 由一个workflow对象产生一个实例
    */
-  def apply(wf: WorkflowInfo, parseParams: Map[String, String]): WorkflowInstance = WorkflowInstance(null, wf.xmlStr, parseParams)
-  def apply(id: String, wf: WorkflowInfo, parseParams: Map[String, String]): WorkflowInstance = WorkflowInstance(id, wf.xmlStr, parseParams)
+  def apply(wf: Workflow, parseParams: Map[String, String]): WorkflowInstance = WorkflowInstance(null, wf.xmlStr, parseParams)
+  def apply(id: String, wf: Workflow, parseParams: Map[String, String]): WorkflowInstance = WorkflowInstance(id, wf.xmlStr, parseParams)
   /**
    * 由wfiid生成一个空壳的实例
    */

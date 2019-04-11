@@ -4,23 +4,9 @@
 用户提交的xml工作流定义文件，满足触发条件后，系统会触发执行工作流；实例运行产生的各类数据将被记录并提供用户查看与进一步操作，其中
 
 
-* 简单的前端操作页面详见[演示地址](http://148.70.11.221:8080/akkaflow-ui/home/login)，演示账号密码分别为admin/admin，机器配置为（公网集群，3台机器，1内核,1G内存）
-* 工作流定义文档详见[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md) ，目前支持行动节点类型有以下，可进一步扩展功能  
-
-行动节点类型 | 节点功能简述
---------- | -------------
-`<sql/>` | sql执行节点，目前支持Hive、Mysql、Oracle、Impala数据库。
-`<transfer/>` | 数据传输节点，目前支持Mysql、Oracle、Hive、本地文件、hdfs文件之间的数据行传输。
-`<metadata/>` | 元数据配置节点（库表注释配置），可通过血缘表自动配置目标表元数据，亦可显式配置。
-`<script/>` | 脚本代码执行节点，支持各类型脚本，bash、python、perl、scala等。
-`<file-executor/>` | 脚本文件远程执行节点，把master机器上的脚本文件及附件分发到目标worker机器上执行。
-`<file-monitor/>` | 文件监控节点，监控本地或hdfs文件数量及大小。
-`<data-monitor/>` | 数据监控节点，可监控数据库记录数，文件行数，文件大小等不同类型数据。
-`<email/>` | 自定义邮件节点，可以以html形式自定义邮件内容，发送目标邮箱。
-
-  
+* 简单的前端操作页面详见[演示地址](http://148.70.11.221:8080/login)，演示账号密码分别为admin/123，机器配置为（公网集群，3台机器，1内核,1G内存）
+* 工作流定义文档详见[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)   
 * 使用示例文档点击[这里](https://github.com/Kent7306/akkaflow/blob/master/usage.md)
-* 基于shell命令集操作文档详见下面使用章节
 
 整个`akkaflow`架构目前包含有四个节点角色：Master、Master-Standby、Worker、Http-Server，每个角色可以独立部署于不同机器上，支持高可用。
 
@@ -28,8 +14,8 @@
 
 * `Master` 活动主节点，调度触发工作流实例，分发子任务
 * `Master-Standby` 热备份主节点，当主节点宕机，立刻切换为活动主节点
-* `Worker` 任务节点，可部署在多个机器上，运行主节点分发过来的任务，并反馈运行结果。
-* `Http-Server` http服务节点，提供http API查看操作当前akkaflow系统。  
+* `Worker` 任务节点，可部署在多个机器上，运行节点任务
+* `Http-Server` http服务节点，接受请求
 ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E8%8A%82%E7%82%B9%E8%A7%92%E8%89%B2%E5%85%B3%E7%B3%BB%E5%9B%BE.png)    
 
 ### 部署
@@ -122,39 +108,6 @@
  * http_server节点启动：`sbin/httpserver-startup`  
  * master-standby节点启动：`sbin/master-standby-startup`  
  * 关闭集群：`sbin/stop-cluster`
-
-#### 2、akkaflow操作命令集
-##### 命令集入口
-  ```shell
-  kentdeMacBook-Pro:sbin kent$ ./akka
-     _     _     _            __  _
-    / \   | | __| | __ __ _  / _|| |  ___ __      __
-   / _ \  | |/ /| |/ // _` || |_ | | / _ \\ \ /\ / /
-  / ___ \ |   < |   <| (_| ||  _|| || (_) |\ V  V /
- /_/   \_\|_|\_\|_|\_\\__,_||_|  |_| \___/  \_/\_/
-
-【使用】
-	akka [ front| instance| workflow| util]
-【说明】
-	akkaflow调度系统命令入口。
-	1、akka front 调度系统首页
-	2、akka instance 工作流实例操作命令集，详见该命令
-	3、akka workflow 工作流操作命令集，详见该命令
-	4、akka util 辅助操作命令集，详见该命令
-【示例】
-	akka front
-	akka instance -info -log 574de284 (查看某实例)
-	akka workflow -kill 574de284 (杀死某运行中的实例) 
-  ```
-	
-##### 命令集合列表
-   ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%91%BD%E4%BB%A4%E9%9B%86%E5%90%88.jpg)
-  
-
-**注意:** 除了节点启动命令，把工作流定义的xml文件放在xmlconfig目录下，可自动扫描添加对应工作流或调度器，也可以用命令提交. 
-
-#### 任务实例告警邮件
-![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E5%91%8A%E8%AD%A6%E9%82%AE%E4%BB%B6.png) 
 
 ### 版本计划
 1. 界面集成一个可视化拖拉配置工作流与调度器的开发功能模块（这一块感觉自己做不来,有兴趣的前端开发同学可以联系我，共同合作开发），目前的工作流以及调度器主要还是要自己编写xml文件，不够简便。

@@ -66,8 +66,8 @@ object Test extends App{
   val paramStr = compact(render(m))
   println(paramStr+"******")
   println(compact(render(arr)))
-  import com.kent.workflow.WorkflowInfo.WStatus
-  import com.kent.workflow.WorkflowInfo.WStatus._
+  import com.kent.workflow.Workflow.WStatus
+  import com.kent.workflow.Workflow.WStatus._
   val a = WStatus.W_FAILED
   println(a.id)
   println(WStatus.getWstatusWithId(a.id))

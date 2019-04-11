@@ -29,5 +29,5 @@ trait DeepCloneable[A] extends Serializable{
       }
       outer.asInstanceOf[B]
   }
-  def deepClone():A = deepCloneAs[A]
+  def deepClone():A = deepCloneAs[A]()
 }

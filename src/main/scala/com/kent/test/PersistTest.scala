@@ -3,11 +3,12 @@ package com.kent.test
 import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
 import akka.actor.Props
-import com.kent.db.PersistManager
 import com.kent.util.Util
-import com.kent.workflow.WorkflowInfo
+import com.kent.workflow.Workflow
 import com.kent.workflow.WorkflowInstance
 import java.util.Date
+
+import com.kent.daemon.PersistManager
 import com.kent.pub.Event._
 
 object PersistTest extends App{
@@ -56,14 +57,14 @@ object PersistTest extends App{
       </work-flow>
       """
     
-  import com.kent.workflow.WorkFlowManager._
+  import com.kent.daemon.WorkFlowManager._
   val config = ConfigFactory.parseString(conf)
   val system = ActorSystem("akkaflow", config)
   
   //
   val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root", true)),"pm")
   
-  //val wf = WorkflowInfo(wfStr_mac)
+  //val wf = Workflow(wfStr_mac)
   //pm ! Save(wfi)
   //pm ! Save(wfi)
   
@@ -72,9 +73,9 @@ object PersistTest extends App{
  // wfi.startTime = new Date()
  // wfi.endTime = new Date()
  // pm ! Save(wfi)
-  //val wf = WorkflowInfo(wfStr_mac)
+  //val wf = Workflow(wfStr_mac)
   //val wfi = WorkflowInstance(wf)
-  val wf = new WorkflowInfo(null)
+  val wf = new Workflow(null)
   //val wfi = wf.createInstance(null)
   //wfi.id = "b2bdfe0c"
   //pm ! Get(wfi)

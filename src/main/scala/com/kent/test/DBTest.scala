@@ -1,12 +1,12 @@
 package com.kent.test
 
 import java.sql.DriverManager
-import com.kent.workflow.actionnode.transfer.source.Source._
+import com.kent.workflow.node.action.transfer.source.Source._
 import java.sql.ResultSetMetaData
 import com.kent.pub.db.OracleOpera
 import com.kent.pub.db.DBLink
 import com.kent.pub.db.DBLink.DatabaseType
-import com.kent.workflow.actionnode.MetadataNode.SelfColumn
+import com.kent.workflow.node.action.MetadataNode.SelfColumn
 
 object DBTest extends App{
   val dblink = DBLink(DatabaseType.ORACLE,"111","jdbc:oracle:thin:@//192.168.31.246:1521/XE","etl","root")
