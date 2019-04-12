@@ -34,7 +34,7 @@ class EmailSender(hostName: String, portOpt: Option[Int], auth:Boolean, account:
     val email = new HtmlEmail
     email.setHostName(hostName)
     email.setSslSmtpPort(portOpt.get.toString);
-    email.setSSLOnConnect(true);
+    email.setSSLOnConnect(false);
     email.setAuthentication(account, pwd)
     email.setCharset("UTF-8")
     emailMessage.toUsers.foreach { email.addTo(_) }

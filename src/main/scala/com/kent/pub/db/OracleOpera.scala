@@ -42,7 +42,7 @@ object OracleOpera extends JdbcOpera {
       conn = getConnection(dbLink)
       conn.setAutoCommit(false)
       stat = conn.createStatement()
-      stateRecorder(conn, stat)
+      if(stateRecorder != null)stateRecorder(conn, stat)
       val results = sqls.map { stat.execute(_) }.toList
       conn.commit()
       results
@@ -76,7 +76,7 @@ object OracleOpera extends JdbcOpera {
     try {
       conn = this.getConnection(dbLink)
       stat = conn.createStatement()
-      stateRecorder(conn, stat)
+      if(stateRecorder != null)stateRecorder(conn, stat)
       rs = stat.executeQuery(sql)
       val obj = rsHandler(rs)
       Option(obj)

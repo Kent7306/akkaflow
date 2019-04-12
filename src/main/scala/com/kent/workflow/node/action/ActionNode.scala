@@ -87,7 +87,7 @@ object ActionNode {
     }
     
     actionNode.retryTimes = if(!retryOpt.isEmpty) retryOpt.get.text.toInt else actionNode.retryTimes 
-    	actionNode.isIgnore = if(!isIgnoreOpt.isEmpty) isIgnoreOpt.get.text.toBoolean else actionNode.isIgnore 
+    actionNode.isIgnore = if(!isIgnoreOpt.isEmpty) isIgnoreOpt.get.text.toBoolean else actionNode.isIgnore
     actionNode.interval = if(!intervalOpt.isEmpty) intervalOpt.get.text.toInt else actionNode.interval
     actionNode.timeout = if(!timeoutOpt.isEmpty) timeoutOpt.get.text.toInt else actionNode.timeout
     actionNode.host = if(!hostOpt.isEmpty) hostOpt.get.text else actionNode.host

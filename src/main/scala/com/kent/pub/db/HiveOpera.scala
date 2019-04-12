@@ -49,7 +49,7 @@ object HiveOpera extends JdbcOpera {
     try{
       conn = this.getConnection(dbLink)
       stat = conn.createStatement()
-      stateRecorder(conn,stat)
+      if(stateRecorder != null)stateRecorder(conn, stat)
       //打印hive日志
       val logThread = new Thread(() => {
         val hiveStat = stat.asInstanceOf[HiveStatement]
@@ -58,8 +58,10 @@ object HiveOpera extends JdbcOpera {
           Thread.sleep(500)
         }
       });
-      logThread.setDaemon(true)
-      logThread.start()
+      if (infoLogHandler != null){
+        logThread.setDaemon(true)
+        logThread.start()
+      }
       //执行
       val results = sqls.map { sql => stat.execute(sql) }
       results
@@ -96,7 +98,7 @@ object HiveOpera extends JdbcOpera {
     try {
       conn = this.getConnection(dbLink)
       stat = conn.createStatement()
-      stateRecorder(conn, stat)
+      if(stateRecorder != null)stateRecorder(conn, stat)
       //打印hive日志
       val logThread = new Thread(() => {
         val hiveStat = stat.asInstanceOf[HiveStatement]
@@ -105,8 +107,10 @@ object HiveOpera extends JdbcOpera {
           Thread.sleep(500)
         }
       });
-      logThread.setDaemon(true)
-      logThread.start()
+      if (infoLogHandler != null){
+        logThread.setDaemon(true)
+        logThread.start()
+      }
       val rs = stat.executeQuery(sql)
       val obj = rsHandler(rs)
       Option(obj)

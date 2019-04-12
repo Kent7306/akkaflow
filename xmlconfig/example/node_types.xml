@@ -1,4 +1,6 @@
-<work-flow name="node_types" creator="Kent" dir="/example" desc="各个节点的使用示例">
+<work-flow name="node_types" creator="Kent" dir="/example" desc="各个节点的使用示例"
+           mail-level = "成功,失败,杀死"
+           mail-receivers="15018735011@163.com,492005267@qq.com">
   <!-- 调度配置 -->
   <coordinator is-enabled="false">
       <depend-list cron="*/1 * * * *"></depend-list>
@@ -53,7 +55,7 @@
       </transfer>
       <ok to="join2"/>
   </action>
-  <action name="数据库到数据库" desc = "可以是多种JDBC数据库传输到RMDB上">
+  <action name="数据库到数据库" is-ignore="true" desc = "可以是多种JDBC数据库传输到RMDB上">
       <transfer>
         <source type="DB" db-link="local_mysql">wf.log_record</source>
         <target type="DB" db-link="local_mysql" table="wf.bbb">

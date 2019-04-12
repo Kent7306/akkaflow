@@ -42,6 +42,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends BaseActor {
         result = actionNodeInstance.execute()
       }catch{
         case e: Exception =>
+          //e.printStackTrace()
           val eMsg = if(actionNodeInstance.executedMsg == null) "" else s"\n${actionNodeInstance.executedMsg}"
           actionNodeInstance.executedMsg = s"${e.getMessage}" + eMsg
           result = false
