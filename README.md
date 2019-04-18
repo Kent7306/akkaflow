@@ -4,7 +4,7 @@
 用户提交的xml工作流定义文件，满足触发条件后，系统会触发执行工作流；实例运行产生的各类数据将被记录并提供用户查看与进一步操作，其中
 
 
-* 简单的前端操作页面详见[演示地址](http://148.70.11.221:8080/login)，演示账号密码分别为admin/123，机器配置为（公网集群，3台机器，1内核,1G内存）
+* 简单的前端操作页面详见[演示地址](http://148.70.11.221:8080/login)，演示账号密码分别为admin/123，配置为（3台公网机器，1内核，1G内存）
 * 工作流定义文档详见[这里](https://github.com/Kent7306/akkaflow/blob/master/workflow_definition.md)   
 * 使用示例文档点击[这里](https://github.com/Kent7306/akkaflow/blob/master/usage.md)
 
@@ -20,8 +20,8 @@
 
 ### 部署
 #### 1、打包
-* 可以直接在[这里](https://pan.baidu.com/s/1Tja46lBXJ2OmupsocXoo0Q)下载`akkaflow-x.x.zip`，这是已经打包好的程序包
-* 可以把工程check out下来，用sbt-native-packager进行编译打包(直接运行`sbt dist`)
+* 可以直接在[这里](https://pan.baidu.com/s/1K7CeCLW8D6qW62r5qbCYug)下载`akkaflow-x.x.zip`，这是已经打包好的程序包
+* 可以把工程拉下来，用sbt-native-packager进行编译打包(直接运行`sbt dist`)
 
 #### 2、安装
 * 安装环境：Linux系统（UTF8编码环境）或MacOS、jdk1.8或以上、MySQL5.7或以上(UTF8编码)
@@ -43,7 +43,7 @@
   workflow {
   node {
     master {    		//主节点，所部署机器端口，目前只支持单主节点
-      hostname = "127.0.0.1"  	//若内网，则为内网IP，若公网部署，则为公网IP，一个集群中，这个是固定的
+      hostname = "127.0.0.1"  	//若内网，则为内网IP，若公网部署，则为公网IP，整个集群中，master ip是固定的
       port = 2751
       standby {  	//备份主节点
         port = 2752
@@ -68,7 +68,7 @@
   }
   email {	//告警邮箱设置
   	hostname = "smtp.163.com"
-  	smtp-port = 465 	  //smtp端口，可选
+  	smtp-port = 25 	  //smtp端口，可选
   	auth = true
   	account = "15018735011@163.com"
   	password = "******"   //这里改成自己的邮箱密码哈
@@ -95,7 +95,7 @@
 2124 Master
 ```
 
-**注意**：akkaflow工作流定义可以存放于xmlconfig下，akkaflow启动时，会自动并一直扫描xmlconfig下面的文件，生成对应的worflow提交给Master，所以工作流文件，也可以放到该目录中，安装包下的xmlconfig/example下有工作流定义示例。
+**注意**：akkaflow工作流定义可以存放于xmlconfig下，akkaflow启动时，会自动并一直扫描xmlconfig下面的文件，生成对应的worflow，目录xmlconfig/example下有工作流定义示例。
 
 #### 5、关闭集群  
 执行`./sbin/stop-cluster`, 关闭集群系统
@@ -105,7 +105,7 @@
   * standalone模式启动：`sbin/standalone-startup`(该模式下会启动master、worker、http-server)  
  * master节点启动：`sbin/master-startup`  
  * worker节点启动：`sbin/worker-startup`  
- * http_server节点启动：`sbin/httpserver-startup`  
+ * http-server节点启动：`sbin/httpserver-startup`  
  * master-standby节点启动：`sbin/master-standby-startup`  
  * 关闭集群：`sbin/stop-cluster`
 

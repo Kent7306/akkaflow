@@ -19,9 +19,9 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     init()
   }
   override def postRestart(reason: Throwable){
+    super.postRestart(reason)
     this.isInitSqlNeeded = false
     log.info(s"${reason.getMessage},pm管理器即将重启...")
-    super.postRestart(reason)
   }
   
   /**

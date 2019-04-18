@@ -74,7 +74,7 @@
       </sql>
       <ok to="脚本执行节点"/>
   </action>
-  <action name="脚本执行节点" desc = "执行脚本，支持各种类型脚本，bash,python,perl等">
+  <action name="脚本执行节点" is-ignore="true" desc = "执行脚本，支持各种类型脚本，bash,python,perl等">
       <script>
           <code><![CDATA[
           #!/usr/bin/perl

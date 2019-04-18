@@ -67,8 +67,6 @@ printf "\t4、akka util 辅助操作命令集，详见该命令\n"
 printf "【示例】\n\takka front\n"
 printf "\takka instance -info 574de284 --log (查看某实例日志)\n"
 printf "\takka instance -kill 574de284 (杀死某运行中的实例)\n"
-printf "【使用文档】\n"
-printf "\t详见: https://wiki.mail.netease.com/pages/viewpage.action?pageId=22988628\n"
 exit 1
 fi
 

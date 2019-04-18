@@ -24,20 +24,24 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
   implicit var connection: Connection = null
   
   def individualReceive = print2Console
-  
+
   override def preStart(){
-    if(isEnabled){
-  	  //注册Driver
-  	  Class.forName("com.mysql.jdbc.Driver")
-  	  //得到连接
-  	  connection = DriverManager.getConnection(url, username, pwd)
-      context.become(print2DB orElse commonReceice)
-    }
+    init()
   }
   
   override def postRestart(reason: Throwable){
     log.info(s"${reason.getMessage},log-recorder即将重启...")
     super.postRestart(reason)
+  }
+
+  def init(): Unit ={
+    if(isEnabled){
+      //注册Driver
+      Class.forName("com.mysql.jdbc.Driver")
+      //得到连接
+      connection = DriverManager.getConnection(url, username, pwd)
+      context.become(print2DB orElse commonReceice)
+    }
   }
   
   /**
