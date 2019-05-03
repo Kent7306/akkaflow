@@ -1,15 +1,8 @@
 package com.kent.test
 
-import com.typesafe.config.ConfigFactory
 import akka.actor.ActorSystem
-import akka.actor.Props
-import com.kent.util.Util
 import com.kent.workflow.Workflow
-import com.kent.workflow.WorkflowInstance
-import java.util.Date
-
-import com.kent.daemon.PersistManager
-import com.kent.pub.Event._
+import com.typesafe.config.ConfigFactory
 
 object PersistTest extends App{
     val conf = """
@@ -56,13 +49,11 @@ object PersistTest extends App{
           <end name="end_node"/>
       </work-flow>
       """
-    
-  import com.kent.daemon.WorkFlowManager._
   val config = ConfigFactory.parseString(conf)
   val system = ActorSystem("akkaflow", config)
   
   //
-  val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root", true)),"pm")
+  //val pm = system.actorOf(Props(PersistManager("jdbc:mysql://localhost:3306/wf","root","root")),"pm")
   
   //val wf = Workflow(wfStr_mac)
   //pm ! Save(wfi)

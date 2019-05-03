@@ -29,8 +29,6 @@ class HaDataStorager extends Daemon{
   val WorkflowDK = LWWMapKey[String, Workflow]("workflows")
   //以等待队列中的工作流实例id作为key
   val RWFIDK = LWWMapKey[String, WorkflowInstance]("RWFIids")
-  //以等待队列中的工作流实例id作为key
-  val WWFIDK = LWWMapKey[String, WorkflowInstance]("WWFIids")
   //xml文件信息
   val XmlFileDK = LWWMapKey[String, Long]("xmlFiles")
   //master actor信息
@@ -42,8 +40,7 @@ class HaDataStorager extends Daemon{
   }*/
   
   def individualReceive: Actor.Receive = operaWorkflow orElse
-                               operaRWFI orElse 
-                               operaWWFI orElse
+                               operaRWFI orElse
                                operaXmlFile orElse
                                operareRole
 
@@ -83,25 +80,6 @@ class HaDataStorager extends Daemon{
       replyTo ! wfis
     case NotFound(RWFIDK, Some(replyTo: ActorRef)) => // key workflows does not exist
       //println("NotFound RWFIDK")
-      replyTo ! List[WorkflowInstance]()
-  }
-  /**
-   * 等待中的工作流实例存储操作
-   */
-  def operaWWFI:Receive = {
-    case AddWWFI(wfi) =>
-      replicator ! Update(WWFIDK, LWWMap.empty[String, WorkflowInstance], writeMajority, request = Some(sender)) ( _ + (wfi.id -> wfi))
-    case RemoveWWFI(wfiId) =>
-      replicator ! Update(WWFIDK, LWWMap.empty[String, WorkflowInstance], writeMajority, request = Some(sender)) ( _ - wfiId)
-    case UpdateSuccess(WWFIDK, Some(replyTo: ActorRef)) => 
-      //println("update success WWFI")
-    case GetWWFIs() =>
-      replicator ! Get(WWFIDK, readMajority, request = Some(sender))
-    case g @ GetSuccess(WWFIDK, Some(replyTo: ActorRef)) =>
-      val wfis = g.get(WWFIDK).getEntries().asScala.map(_._2).toList
-      replyTo ! wfis
-    case NotFound(WWFIDK, Some(replyTo: ActorRef)) => // key workflows does not exist
-      //println("NotFound WWFIDK")
       replyTo ! List[WorkflowInstance]()
   }
   /**
@@ -159,10 +137,6 @@ object HaDataStorager extends App{
   case class RemoveRWFI(wfiId: String)
   case class GetRWFIs()
   
-  case class AddWWFI(wfi: WorkflowInstance)
-  case class RemoveWWFI(wfIid: String)
-  case class GetWWFIs() 
-  
   case class AddXmlFile(filename: String, lastModTime: Long)
   case class RemoveXmlFile(filename: String)
   case class GetXmlFiles()
@@ -171,7 +145,6 @@ object HaDataStorager extends App{
   case class DistributeData(
       workflows: List[Workflow],
       runningWfis: List[WorkflowInstance],
-      wattingWfis: List[WorkflowInstance],
       xmlFiles: Map[String, Long]
   )
   

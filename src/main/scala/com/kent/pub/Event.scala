@@ -1,9 +1,9 @@
 package com.kent.pub
 
+import java.sql.ResultSet
 import java.util.Date
 
 import akka.actor.ActorRef
-import com.kent.daemon.LineageRecorder.LineageRecord
 import com.kent.daemon.LogRecorder.LogType._
 import com.kent.pub.db._
 import com.kent.workflow.Coor.TriggerType._
@@ -19,6 +19,7 @@ object Event {
   case class GetWorker(workerOpt: Option[ActorRef])
   case class AskWorker(host: String)
   case class ShutdownCluster()
+  case class NotifyActive(masterRef: ActorRef)
   //cm
   case class StartIfActive(isActve: Boolean)
   case class Start()
@@ -36,13 +37,18 @@ object Event {
   //xml-loader
   case class AddDBLink(dbl: DBLink)
   case class GetDBLink(name: String)
+  case class DBLinkRequst(action: String, name: String, dbtype: String, jdbcUrl: String, username: String, password: String, desc: String)
   
   //persist-manager
-  case class Save[A](obj: Persistable[A])
-  case class Delete[A](obj: Persistable[A])
-  case class Get[A](obj: Persistable[A])
-  case class Query(query: String)
-  case class ExecuteSql(sql: String)
+  //case class Save[A](obj: Persistable[A])
+  //case class Delete[A](obj: Persistable[A])
+  //case class Get[A](obj: Persistable[A])
+  //case class Query(query: String)
+  //case class ExecuteSql(sql: String)
+
+  case class ExecuteSqls(sqls: List[String])
+  case class QuerySql[A](sql: String, rsHandler:ResultSet => A)
+
   //email-sender
   case class EmailMessage(toUsers: List[String],subject: String,htmlText: String, attachFiles: List[String])
   //wfm
@@ -78,12 +84,12 @@ object Event {
   case class InstanceShortInfo(id: String, name: String, desc: String, dir: String, owner: String, dependWfNames: List[String])
   
   //lineage-record
-  case class SaveLineageRecord(lr: LineageRecord)
+  //case class SaveLineageRecord(lr: LineageRecord)
   case class DelLineageTable(tableName: String)
   
   //http-server
   case class ResponseData(result:String, msg: String, data: Any)
-  case class SwitchActiveMaster()
+  //case class SwitchActiveMaster()
   //收集集群信息
   case class CollectClusterActorInfo()
   case class CollectActorInfo()
@@ -93,13 +99,11 @@ object Event {
 
 
   //后面ask的返回最好都采用这种好一点
-  sealed class Result[A](isSuccess: Boolean, msg: String, dataOpt: Option[A] = None) extends Serializable{
-    def isFailed = !isSuccess
-    def isSuccessed = isSuccess
-    def isDataDefined: Boolean = dataOpt.isDefined
-    def message: String = msg
-    def data: A = if (dataOpt.isDefined) dataOpt.get else throw new Exception("data值不存在")
+  case class Result(isSuccess: Boolean, msg: String, dataOpt: Option[Any]) extends Serializable{
+    def isFail = !isSuccess
+    def isHasData: Boolean = dataOpt.isDefined
+    def toDataOpt[A]: Option[A] = if (dataOpt.isDefined) Some(dataOpt.get.asInstanceOf[A]) else None
+    def isSuccessAndHasData = if(isSuccess && dataOpt.isDefined) true else false
+    def data[A]: A = if (dataOpt.isDefined) dataOpt.get.asInstanceOf[A] else throw new Exception("data值不存在")
   }
-  final case class SuccessResult[A](dataOpt: Option[A]) extends Result[A](true, "成功", dataOpt)
-  final case class FailResult[A](msg: String, dataOpt: Option[A]) extends Result[A](false, msg, dataOpt)
 }

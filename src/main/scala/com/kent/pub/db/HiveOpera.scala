@@ -3,7 +3,6 @@ package com.kent.pub.db
 import com.kent.pub.Event._
 import java.sql._
 
-import com.kent.daemon.LineageRecorder.LineageRecord
 import com.kent.lineage.HiveLineageInfo
 import org.apache.hive.jdbc.HiveStatement
 
@@ -125,7 +124,7 @@ object HiveOpera extends JdbcOpera {
   /**
     * 通过sqls得到有血缘关系的集合
     */
-  def getLineageRecords(queries: List[String], defaultDb: String): List[LineageRecord] = {
+ /* def getLineageRecords(queries: List[String], defaultDb: String): List[LineageRecord] = {
     var useDb = defaultDb
     var lineages = scala.collection.mutable.ListBuffer[SqlLineage]()
     queries.foreach{ sql =>
@@ -143,7 +142,7 @@ object HiveOpera extends JdbcOpera {
         LineageRecord(t, relate)
       }
     }.toList
-  }
+  }*/
   /**
     * 解析sql，得到该sql的输入输出表格（如果有的话）
     * 如果切换数据库，则switchDbName不为None

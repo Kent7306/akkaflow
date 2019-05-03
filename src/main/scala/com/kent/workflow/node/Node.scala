@@ -7,7 +7,7 @@ import com.kent.workflow.Workflow
 import com.kent.workflow.node.action._
 import com.kent.workflow.node.control._
 
-abstract class Node(var name: String) extends Persistable[Node] with DeepCloneable[Node] {
+abstract class Node(var name: String) extends DeepCloneable[Node] {
   var workflowName: String = _
   var desc: String = _
   /**
@@ -31,45 +31,7 @@ abstract class Node(var name: String) extends Persistable[Node] with DeepCloneab
   /**
    * 检查完整性，不通过直接抛出异常
    */
-  def checkIntegrity(wf: Workflow) 
-  
-  /**
-   * merge
-   */
-  def save(implicit conn: Connection): Boolean = {
-    import com.kent.util.Util._
-    val isAction = if (this.isInstanceOf[ActionNode]) 1 else 0
-    val insertSql = s"""
-      insert into node 
-      values(${wq(name)},${isAction},${wq(this.getClass.getName.split("\\.").last)},
-      ${wq(toJson())},${wq(workflowName)},${wq(desc)})
-      """
-    val updateSql = s"""
-      update node set is_action = ${isAction},
-                      type = ${wq(this.getClass.getName.split("\\.").last)},
-                      content = ${wq(toJson())},
-                      description = ${wq(desc)})
-      where name = values(${wq(name)} and workflow_name = ${wq(workflowName)}
-      """
-      
-    val isExistSql = s"select name from node where name = ${wq(name)} and workflow_name = ${wq(workflowName)}"
-    val isExist = querySql(isExistSql, rs =>
-      if(rs.next()) true else false
-    )
-    if(!isExist.get) executeSql(insertSql) else executeSql(updateSql)
-  }
-
-  /**
-   * 删除
-   */
-  def delete(implicit conn: Connection): Boolean = {
-    import com.kent.util.Util._
-    executeSql(s"delete from node where name = ${wq(name)} and workflow_name = ${wq(workflowName)}")
-  }
-  /**
-   * 获取对象（不用实现）
-   */
-  def getEntity(implicit conn: Connection): Option[Node] = ???
+  def checkIntegrity(wf: Workflow)
 }
 
 object Node {

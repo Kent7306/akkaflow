@@ -1,7 +1,9 @@
 package com.kent.pub.actor
 
+import com.kent.daemon.WorkFlowManager
 import com.kent.pub.actor.BaseActor.{ActorInfo, ActorType}
 import com.kent.pub.actor.BaseActor.ActorType._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -24,4 +26,13 @@ abstract class Daemon extends BaseActor{
 		ai.subActors = cais
 		Future{ai}
   }
+}
+
+object Daemon {
+	val HA_DATA_STORAGE = "ha-data"
+	val DB_CONNECTOR = "db-connector"
+	val MAIL_SENDER = "mail-sender"
+	val XML_LOADER = "xml-loader"
+	val WORKFLOW_MANAGER  = "wfm"
+	val LOG_RECORDER = "log-recorder"
 }

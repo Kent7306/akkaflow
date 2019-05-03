@@ -1,28 +1,14 @@
 package com.kent.workflow.node
 
-import com.kent.workflow.node.Node.Status._
-import com.kent.workflow.WorkflowActor
-import com.kent.workflow.WorkflowInstance
 import java.util.Date
 
 import com.kent.pub.DeepCloneable
-import com.kent.pub.Daoable
-import java.sql.Connection
-
+import com.kent.pub.dao.NodeInstanceDao
 import com.kent.util.Util
-import java.sql.ResultSet
+import com.kent.workflow.{WorkflowActor, WorkflowInstance}
+import com.kent.workflow.node.Node.Status._
 
-import com.kent.daemon.PersistManager
-import com.kent.pub.Event._
-import com.kent.workflow.node.control._
-import com.kent.workflow.node.action._
-import com.kent.workflow.node.control._
-import com.kent.main.Master
-
-import scala.concurrent.Future
-import com.kent.pub.Persistable
-
-abstract class NodeInstance(val nodeInfo: Node) extends Persistable[NodeInstance] with DeepCloneable[NodeInstance]{
+abstract class NodeInstance(val nodeInfo: Node) extends DeepCloneable[NodeInstance]{
   var id: String = _
   var status: Status = PREP
   var executedMsg: String = _
@@ -83,45 +69,9 @@ abstract class NodeInstance(val nodeInfo: Node) extends Persistable[NodeInstance
    */
   def changeStatus(status: Status){
     this.status = status
-    if(Master.persistManager != null) Master.persistManager ! Save(this.deepClone) 
+    NodeInstanceDao.update(this)
   }
   def getStatus():Status = this.status
-  /**
-   * 删除
-   */
-  def delete(implicit conn: Connection): Boolean = {
-    executeSql(s"delete from node_instance where name = '${nodeInfo.name}' and workflow_instance_id = '${id}'")
-  }
-  
-  /**
-   * merge
-   */
-  def save(implicit conn: Connection): Boolean = {
-	  import com.kent.util.Util._
-    val isAction = if(this.isInstanceOf[ActionNodeInstance]) 1 else 0
-    val insertStr = s"""
-    insert into node_instance
-    values(${wq(id)},${wq(nodeInfo.name)},${isAction},${wq(this.nodeInfo.getClass.getName.split("\\.").last)},
-          ${wq(nodeInfo.toJson())},${wq(nodeInfo.desc)},
-           ${status.id},${wq(formatStandarTime(startTime))},
-           ${wq(formatStandarTime(endTime))},${wq(executedMsg)})
-    """
-    val updateStr = s"""
-      update node_instance set status = ${status.id},
-                               stime = ${wq(formatStandarTime(startTime))},
-                               etime = ${wq(formatStandarTime(endTime))},
-                               msg = ${wq(executedMsg)}
-                      where name = ${wq(nodeInfo.name)} and workflow_instance_id = ${wq(id)}
-      """
-    val isExistsql = s"select name from node_instance where name = ${wq(nodeInfo.name)} and workflow_instance_id = ${wq(id)}"
-    querySql(isExistsql, (rs) => {
-      if(rs.next()) executeSql(updateStr) else executeSql(insertStr)
-    }).get
-  }
-  /**
-   * 获取对象(不用实现)
-   */
-  def getEntity(implicit conn: Connection): Option[NodeInstance] = ???
 }
 
 object NodeInstance {

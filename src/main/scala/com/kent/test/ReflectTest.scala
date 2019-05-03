@@ -10,7 +10,5 @@ object ReflectTest extends App{
   implicit val connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/wf?useSSL=false", "root", "root")
 
   val wfi = WorkflowInstance("79ff74bd")
-  val wfii = wfi.getEntity
-  println(wfii)
   
 }

@@ -7,6 +7,7 @@ import com.kent.daemon.LogRecorder.LogType._
 import com.kent.main.Master
 import com.kent.pub.Event._
 import com.kent.pub.actor.Daemon
+import com.kent.pub.dao.{WorkflowDao, WorkflowInstanceDao}
 import com.kent.workflow.Coor.TriggerType
 import com.kent.workflow.Coor.TriggerType._
 import com.kent.workflow.Workflow.WStatus
@@ -45,17 +46,21 @@ class WorkFlowManager extends Daemon {
    * 启动
    */
   def start(): Boolean = {
-    //初始化(从数据库中读取工作流xml，同步阻塞方法)
-    val rsF = (Master.persistManager ? Query("select xml_str,file_path from workflow")).mapTo[List[List[String]]]
-    val listF = rsF.map{ list =>
-      list.filter { _.size > 0 }.map { l => this.add(l(0), l(1), true) }.toList
-    }
-    val list = Await.result(listF, 20 second)
-    list.foreach {
+    //初始化(从数据库中读取工作流)
+    val xmls = WorkflowDao.findAllXml()
+    val respones = xmls.map { case (xml,filePath) => this.add(xml, filePath) }
+    respones.foreach {
       case x if x.result == "success" =>  log.info(s"解析数据库的工作流: ${x.msg}")
-      case x if x.result == "error" => log.error(s"解析数据库的工作流: ${x.msg}")
+      case x if x.result == "fail" => log.error(s"解析数据库的工作流: ${x.msg}")
     }
-    infoLog(null, null, s"启动扫描...")
+    infoLog(null, null, s"工作流管理器启动...")
+    //重跑上次中断的工作流
+    val ids = WorkflowInstanceDao.getPrepareAndRunningWFIds()
+    ids.map(reRunFormer(_)).foreach{
+      case resp if resp.result == "success" => log.info(resp.msg)
+      case resp if resp.result == "fail" => log.error(resp.msg)
+    }
+    //扫描
     this.scheduler = context.system.scheduler.schedule(2000 millis, 300 millis) {
       self ! Tick()
     }
@@ -74,7 +79,6 @@ class WorkFlowManager extends Daemon {
           .count(_.workflow.name == wfi.workflow.name)
         if (runningInstanceNum < wfi.workflow.instanceLimit) {
           waittingWorkflowInstance -= wfi
-          Master.haDataStorager ! RemoveWWFI(wfi.id)
           return Some(wfi)
         }
       }
@@ -87,7 +91,6 @@ class WorkFlowManager extends Daemon {
         wf.resetCoor()
       }
     }
-    
     //开始运行实例
     val wfiOpt = getSatisfiedWFIfromWaitingWFIs()
     if (!wfiOpt.isEmpty) {
@@ -95,114 +98,102 @@ class WorkFlowManager extends Daemon {
       val wfActorRef = context.actorOf(Props(WorkflowActor(wfi)), wfi.actorName)
       infoLog(wfi.id, wfi.workflow.name, s"生成工作流实例：${wfi.actorName}")
       workflowActors = workflowActors + (wfi.id -> (wfi, wfActorRef))
-      Master.persistManager ! Save(wfi)
+      WorkflowInstanceDao.update(wfi)
       Master.haDataStorager ! AddRWFI(wfi)
       wfActorRef ! Start()
     }
   }
 
-  def stop(): Boolean = {
-    if (scheduler == null || scheduler.isCancelled) true else scheduler.cancel()
+  override def postStop(): Unit = {
+    if (scheduler != null && !scheduler.isCancelled) scheduler.cancel()
+    super.postStop()
   }
 
   /**
     * 增
     * @param xmlStr
     * @param path
-    * @param isSaved
     * @return
     */
-  def add(xmlStr: String, path: String, isSaved: Boolean): ResponseData = {
-    var wf: Workflow = null
-    try {
-      wf = Workflow(xmlStr)
-      wf.nodeList.foreach{x => x.checkIntegrity(wf)}
-      if(!wf.checkDependDAG(workflows.values.toList)) throw new Exception("任务依赖存在回环")
+  def add(xmlStr: String, path: String): ResponseData = {
+    Try {
+      val wf = Workflow(xmlStr)
       wf.filePath = path
-    } catch {
-      case e: Exception =>
-        //e.printStackTrace()
-        return ResponseData("fail", "xml解析错误", e.getMessage)
-    }
-    add(wf, isSaved)
-  }
-  private def add(wf: Workflow, isSaved: Boolean): ResponseData = {
-    if (isSaved) {
-      (Master.persistManager ? Delete(wf.deepClone())).mapTo[Boolean].map { x => 
-        Master.persistManager ! Save(wf.deepClone())        
+      wf.nodeList.foreach { x => x.checkIntegrity(wf) }
+      if (!wf.checkDependDAG(workflows.values.toList)) throw new Exception("任务依赖存在回环")
+      WorkflowDao.merge(wf)
+      Master.haDataStorager ! AddWorkflow(wf.deepClone())
+      if (workflows.get(wf.name).isEmpty) {
+        workflows = workflows + (wf.name -> wf)
+        infoLog(null, wf.name, s"新增工作流")
+        ResponseData("success", s"成功添加工作流${wf.name}", wf.name)
+      } else {
+        workflows = workflows + (wf.name -> wf)
+        infoLog(null, wf.name, s"更新工作流")
+        ResponseData("success", s"成功更新工作流${wf.name}", wf.name)
       }
-    }
-    Master.haDataStorager ! AddWorkflow(wf.deepClone())
-
-    if (workflows.get(wf.name).isEmpty) {
-      	infoLog(null, wf.name, s"新增工作流")
-      workflows = workflows + (wf.name -> wf)
-      ResponseData("success", s"成功添加工作流${wf.name}", wf.name)
-    } else {
-      	infoLog(null, wf.name, s"更新工作流")
-      workflows = workflows + (wf.name -> wf)
-      ResponseData("success", s"成功更新工作流${wf.name}", wf.name)
-    }
+    }.recover{
+      case e: Exception =>
+        e.printStackTrace()
+        ResponseData("fail", s"出错：${e.getMessage}", null)
+    }.get
   }
   /**
    * 测试xml合法性
    */
   def checkXml(xmlStr: String): ResponseData = {
-    var wf: Workflow = null
-    try {
-      wf = Workflow(xmlStr)
-      val result = wf.checkIfAllDependExists(workflows.map(_._2).toList)
-      if(result.isFailed) throw new Exception(s"""不存在前置工作流: ${result.data.mkString(",")}""")
+    Try {
+      val wf = Workflow(xmlStr)
+      val result = wf.checkIfAllDependExists(workflows.values.toList)
+      if(result.isFail) throw new Exception(s"""不存在前置工作流: ${result.data[List[String]].mkString(",")}""")
       if(!wf.checkDependDAG(workflows.values.toList)) throw new Exception("任务依赖存在回环")
-    } catch {
-      case e: Exception =>
-        e.printStackTrace()
-        return ResponseData("fail", "xml解析出错", e.getMessage)
-    }
-    ResponseData("success", "xml解析成功", null)
+      ResponseData("success", "xml解析成功", null)
+    }.recover{
+      case e: Exception => ResponseData("fail", s"出错信息: ${e.getMessage}", null)
+    }.get
   }
   /**
    * 删
    */
-  def remove(name: String): Future[ResponseData] = {
-    if (workflows.get(name).isEmpty) {
-    	Future{ResponseData("fail", s"工作流${name}不存在", null)}
-    } else {
-      val depWfs = workflows(name).getDependedWfs(workflows.map(_._2).toList)
-      if(depWfs.size > 0){
-        Future{ResponseData("fail", s"该工作流被其他工作流所依赖: ${depWfs.map(_.name).mkString(",")}", null)}
-      }else{
-    	  val rsF = (Master.persistManager ? Delete(workflows(name).deepClone())).mapTo[Boolean]
-    			  rsF.map { 
-    			  case x if x == true =>
-    			  LogRecorder.info(WORKFLOW_MANAGER, null, name, s"删除工作流：${name}")
-    			  Master.haDataStorager ! RemoveWorkflow(name)
-    			  workflows = workflows.filterNot { x => x._1 == name }.toMap
-    			  ResponseData("success", s"成功删除工作流${name}", null)
-    			  case _ => 
-    			  ResponseData("fail", s"删除工作流${name}出错(数据库删除失败)", null)
-    	  }
+  def remove(name: String): ResponseData = {
+    Try {
+      if (workflows.get(name).isEmpty) {
+          ResponseData("fail", s"工作流${name}不存在", null)
+      } else {
+        val depWfs = workflows(name).getDependedWfs(workflows.values.toList)
+        if (depWfs.size > 0) {
+          ResponseData("fail", s"该工作流被其他工作流所依赖: ${depWfs.map(_.name).mkString(",")}", null)
+        } else {
+          //数据库删除
+          WorkflowDao.delete(name)
+          LogRecorder.info(WORKFLOW_MANAGER, null, name, s"删除工作流：${name}")
+          Master.haDataStorager ! RemoveWorkflow(name)
+          workflows = workflows.filterNot { x => x._1 == name }
+          ResponseData("success", s"成功删除工作流${name}", null)
+        }
       }
-    }
+    }.recover{
+      case e: Exception => ResponseData("fail", s"出错信息：${e.getMessage}", null)
+    }.get
   }
   /**
    * 删除实例
    */
-  def removeInstance(id: String): Future[ResponseData] = {
-    if(id == null || id.trim() == ""){
-      Future{ResponseData("fail", s"无效实例id", null)}
-    }else{
-    	val rsF1 = (Master.persistManager ? ExecuteSql(s"delete from workflow_instance where id = '${id}'")).mapTo[Boolean]     
-    	val rsF2 = (Master.persistManager ? ExecuteSql(s"delete from node_instance where workflow_instance_id = '${id}'")).mapTo[Boolean]     
-			val rsF3 = (Master.persistManager ? ExecuteSql(s"delete from log_record where sid = '${id}'")).mapTo[Boolean]     
-      val listF = List(rsF1, rsF2, rsF3)
-    	Future.sequence(listF).map {
-    	  case l if l.contains(false) =>
-    	    ResponseData("fail", s"删除工作流${id}失败（数据库问题）", null)
-    	  case _ =>
-    	    ResponseData("success", s"成功删除工作流${id}", null)
-    	}
-    }
+  def removeInstance(id: String): ResponseData = {
+    Try {
+      if (id == null || id.trim() == "") {
+        ResponseData("fail", s"无效实例id", null)
+      } else if (waittingWorkflowInstance.exists(_.id == id)){
+        ResponseData("fail", s"工作流${id}在等待队列，无法删除，请先移除", null)
+      } else if (workflowActors.exists(_._1 == id)){
+        ResponseData("fail", s"工作流${id}运行中，无法删除，请先杀死", null)
+      } else {
+        WorkflowInstanceDao.delete(id)
+        ResponseData("success", s"成功删除工作流${id}", null)
+      }
+    }.recover{case e: Exception =>
+        ResponseData("fail", s"删除工作流${id}失败，${e.getMessage}", null)
+    }.get
   }
   /**
    * 生成工作流实例并添加到等待队列中
@@ -219,7 +210,6 @@ class WorkFlowManager extends Daemon {
       	wfi.triggerType = triggerType
         //把工作流实例加入到等待队列中
         addWaittingWorkflowInstance(wfi)
-        Master.haDataStorager ! AddWWFI(wfi)
         wfi.id
       }
     }
@@ -227,7 +217,7 @@ class WorkFlowManager extends Daemon {
   private def addWaittingWorkflowInstance(wfi: WorkflowInstance) = {
     wfi.reset()
     this.waittingWorkflowInstance += wfi
-    Master.persistManager ! Save(wfi)
+    WorkflowInstanceDao.merge(wfi)
   }
   /**
    * 手动执行某工作流，并带入参数
@@ -244,7 +234,7 @@ class WorkFlowManager extends Daemon {
    */
   def handleWorkFlowInstanceReply(wfInstance: WorkflowInstance): Boolean = {
     //剔除该完成的工作流实例
-    val (_, af) = this.workflowActors.get(wfInstance.id).get
+    val (_, af) = this.workflowActors(wfInstance.id)
     this.workflowActors = this.workflowActors.filterKeys { _ != wfInstance.id }
     Master.haDataStorager ! RemoveRWFI(wfInstance.id)
     
@@ -322,19 +312,23 @@ class WorkFlowManager extends Daemon {
    * kill掉指定工作流实例
    */
   def killWorkFlowInstance(id: String): Future[ResponseData] = {
-    if (!workflowActors.get(id).isEmpty) {
+    val respF = if (!workflowActors.get(id).isEmpty) {
       val (wfi, wfaRef) = workflowActors(id)
       val resultF = (wfaRef ? Kill()).mapTo[WorkFlowInstanceExecuteResult]
-      this.workflowActors = this.workflowActors.filterKeys { _ != id }.toMap
+      this.workflowActors = this.workflowActors.filterKeys {_ != id }
       Master.haDataStorager ! RemoveRWFI(id)
       val resultF2 = resultF.map {
         case WorkFlowInstanceExecuteResult(x) =>
-          if(wfi.triggerType == BLOOD_EXCUTE) bloodWaitExecuteWfNames = List()
+          if (wfi.triggerType == BLOOD_EXCUTE) bloodWaitExecuteWfNames = List()
           ResponseData("success", s"工作流[${id}]已被杀死", x.getStatus())
       }
       resultF2
     } else {
       Future(ResponseData("fail", s"[工作流实例：${id}]不存在，不能kill掉", null))
+    }
+
+    respF.recover{case e: Exception =>
+      ResponseData("fail", s"[工作流实例杀死失败，${e.getMessage}", null)
     }
   }
   /**
@@ -361,94 +355,104 @@ class WorkFlowManager extends Daemon {
   /**
    * 重跑指定的工作流实例（以最早生成的xml为原型）
    */
-  def reRunFormer(wfiId: String): Future[ResponseData] = {
-    val wfi = WorkflowInstance(wfiId)
-    val wfiF = (Master.persistManager ? Get(wfi.deepClone())).mapTo[Option[WorkflowInstance]]
-    wfiF.map { wfiOpt =>
+  def reRunFormer(wfiId: String): ResponseData = {
+    Try {
+      val wfiOpt = WorkflowInstanceDao.get(wfiId)
+
       if (wfiOpt.isEmpty) {
         ResponseData("fail", s"工作流实例[${wfiId}]不存在", null)
-      }else if(!workflowActors.get(wfiId).isEmpty){
+      } else if (workflowActors.get(wfiId).isDefined) {
         ResponseData("fail", s"工作流实例[${wfiId}]已经在重跑", null)
-      }else if(waittingWorkflowInstance.filter { _.id == wfiOpt.get.id }.size >= 1){
+      } else if (waittingWorkflowInstance.exists(_.id == wfiOpt.get.id)) {
         ResponseData("fail", s"工作流实例[${wfiId}]已经存在等待队列中", null)
-      }else {
-        //重置
-        val wfi2 = wfiOpt.get
-        addWaittingWorkflowInstance(wfi2)
-        Master.haDataStorager ! AddWWFI(wfi)
+      } else {
+        val wfi = wfiOpt.get
+        addWaittingWorkflowInstance(wfi)
         ResponseData("success", s"工作流实例[${wfiId}]放在等待队列，准备开始重跑", wfiId)
       }
-    }
+    }.recover{
+      case e:Exception => ResponseData("fail", s"工作流实例重跑出错, ${e.getMessage}", null)
+    }.get
   }
+
   /**
-   * 重跑指定的工作流实例（以最新生成的xml为原型）
-   */
-  def reRunNewest(wfiId: String): Future[ResponseData] = {
-    val wfi = WorkflowInstance(wfiId)
-    val wfiOptF = (Master.persistManager ? Get(wfi.deepClone())).mapTo[Option[WorkflowInstance]]
-    wfiOptF.map{ wfiOpt =>
-      if (wfiOpt.isEmpty) {
+    * 重跑指定的工作流实例（以最新生成的xml为原型）
+    * @param wfiId
+    * @return
+    */
+  def reRunNewest(wfiId: String): ResponseData = {
+    Try {
+      val shortWfiOpt = WorkflowInstanceDao.getWithoutNodes(wfiId)
+      if (shortWfiOpt.isEmpty) {
         ResponseData("fail", s"工作流实例[${wfiId}]不存在", null)
-      }else if(workflowActors.get(wfiId).isDefined) {
+      } else if (workflowActors.get(wfiId).isDefined) {
         ResponseData("fail", s"工作流实例[${wfiId}]已经在重跑", null)
-      }else if(this.workflows.get(wfiOpt.get.workflow.name).isEmpty){
-        ResponseData("fail", s"找不到该工作流实例[${wfiId}]中的工作流[${wfiOpt.get.workflow.name}]", null)
-      }else{
-        val xmlStr = this.workflows.get(wfiOpt.get.workflow.name).get.xmlStr
-        val wfi2 = WorkflowInstance(wfiId, xmlStr, wfiOpt.get.paramMap)
-        wfi2.reset()
-        //把工作流实例加入到等待队列中
-        if (waittingWorkflowInstance.filter { _.id == wfi2.id }.size >= 1) {
-          ResponseData("fail", s"工作流实例[${wfiId}]已经存在等待队列中", null)
-        }else{
-          addWaittingWorkflowInstance(wfi2)
-          Master.haDataStorager ! AddWWFI(wfi.deepClone())
-          ResponseData("success", s"工作流实例[${wfiId}]开始重跑", wfiId)
-        }
+      } else if (this.workflows.get(shortWfiOpt.get.workflow.name).isEmpty) {
+        ResponseData("fail", s"找不到该工作流实例[${wfiId}]中的工作流[${shortWfiOpt.get.workflow.name}]", null)
+      } else if (waittingWorkflowInstance.exists(_.id == wfiId)) {
+        ResponseData("fail", s"工作流实例[${wfiId}]已经存在等待队列中", null)
+      } else {
+        val xmlStr = this.workflows(shortWfiOpt.get.workflow.name).xmlStr
+        val wfi = WorkflowInstance(wfiId, xmlStr, shortWfiOpt.get.paramMap)
+        //放入等待队列
+        addWaittingWorkflowInstance(wfi)
+        ResponseData("success", s"工作流实例[${wfiId}]放在等待队列，准备开始重跑", wfiId)
       }
-    }
+    }.recover{
+      case e:Exception => ResponseData("fail", s"工作流实例重跑出错, ${e.getMessage}", null)
+    }.get
   }
   /**
    * （调用）重置指定调度器
    */
   def resetCoor(wfName: String): ResponseData = {
-    if(!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isDefined){
-      workflows(wfName).resetCoor()
-      ResponseData("success",s"成功重置工作流[${wfName}]的调度器状态", null)
-    }else if(!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isEmpty){
-      ResponseData("fail",s"工作流[${wfName}]未配置调度", null)
-    }else{
-      ResponseData("fail",s"工作流[${wfName}]不存在", null)
-    }
+    Try {
+      if (!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isDefined) {
+        workflows(wfName).resetCoor()
+        ResponseData("success", s"成功重置工作流[${wfName}]的调度器状态", null)
+      } else if (!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isEmpty) {
+        ResponseData("fail", s"工作流[${wfName}]未配置调度", null)
+      } else {
+        ResponseData("fail", s"工作流[${wfName}]不存在", null)
+      }
+    }.recover{ case e: Exception =>
+      ResponseData("fail", s"工作流[${wfName}]重置失败，${e.getMessage}", null)
+    }.get
   }
     /**
    * （调用）触发指定工作流的调度器
    */
   def trigger(wfName: String, triggerType: TriggerType):ResponseData = {
-    if(!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isDefined){
-      triggerType match {
-        case NEXT_SET => 
-          val idTry = addToWaittingInstances(wfName, workflows(wfName).coorOpt.get.translateParam(), triggerType)
-    	    workflows(wfName).resetCoor()
-    	    ResponseData("success",s"成功触发工作流[${wfName}: ${idTry.get}]执行", idTry.get)
-        case BLOOD_EXCUTE =>
-          if(bloodWaitExecuteWfNames.size == 0) {
-        	  val nextRelateWfs = getNextTriggerWfs(wfName, this.workflows, scala.collection.mutable.ArrayBuffer[Workflow]())
-    			  bloodWaitExecuteWfNames = nextRelateWfs.map { wf => wf.name }.toList
-    			  val nextBloodwfNames = nextRelateWfs.map { _.name }.toList
-    			  val idTry = addToWaittingInstances(wfName, workflows(wfName).coorOpt.get.translateParam(), triggerType)
-    			  ResponseData("success",s"成功触发工作流[${wfName}: ${idTry.get}]执行,后续依次关联的工作流: ${nextBloodwfNames.mkString(",")}", idTry.get)
-          }else{
-            ResponseData("fail",s"当前blood触发正在执行，剩余有: ${bloodWaitExecuteWfNames.mkString(",")}", null)
-          }
-        case _ => 
-          ResponseData("fail",s"工作流[${wfName}]触发类型出错", null)
-      } 
-    }else if(!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isEmpty){
-      ResponseData("fail",s"工作流[${wfName}]未配置调度", null)
-    }else{
-      ResponseData("fail",s"工作流[${wfName}]不存在", null)
-    }
+    Try {
+      if (!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isDefined) {
+        triggerType match {
+          case NEXT_SET =>
+            val idTry = addToWaittingInstances(wfName, workflows(wfName).coorOpt.get.translateParam(), triggerType)
+            workflows(wfName).resetCoor()
+            ResponseData("success", s"成功触发工作流[${wfName}: ${idTry.get}]执行", idTry.get)
+          case BLOOD_EXCUTE =>
+            if (bloodWaitExecuteWfNames.size == 0) {
+              val nextRelateWfs = getNextTriggerWfs(wfName, this.workflows, scala.collection.mutable.ArrayBuffer[Workflow]())
+              bloodWaitExecuteWfNames = nextRelateWfs.map { wf => wf.name }.toList
+              val nextBloodwfNames = nextRelateWfs.map {
+                _.name
+              }.toList
+              val idTry = addToWaittingInstances(wfName, workflows(wfName).coorOpt.get.translateParam(), triggerType)
+              ResponseData("success", s"成功触发工作流[${wfName}: ${idTry.get}]执行,后续依次关联的工作流: ${nextBloodwfNames.mkString(",")}", idTry.get)
+            } else {
+              ResponseData("fail", s"当前blood触发正在执行，剩余有: ${bloodWaitExecuteWfNames.mkString(",")}", null)
+            }
+          case _ =>
+            ResponseData("fail", s"工作流[${wfName}]触发类型出错", null)
+        }
+      } else if (!workflows.get(wfName).isEmpty && workflows(wfName).coorOpt.isEmpty) {
+        ResponseData("fail", s"工作流[${wfName}]未配置调度", null)
+      } else {
+        ResponseData("fail", s"工作流[${wfName}]不存在", null)
+      }
+    }.recover{ case e: Exception =>
+      ResponseData("fail", s"工作流[${wfName}]触发失败，${e.getMessage}", null)
+    }.get
   }
   /**
    * 重置所有工作流状态
@@ -475,19 +479,18 @@ class WorkFlowManager extends Daemon {
    */
   def individualReceive: Actor.Receive = {
     case Start() => this.start()
-    case Stop() => sender ! this.stop(); context.stop(self)
-    case AddWorkFlow(xmlStr, path) => sender ! this.add(xmlStr, path, true)
+    case AddWorkFlow(xmlStr, path) => sender ! this.add(xmlStr, path)
     case CheckWorkFlowXml(xmlStr) => sender ! this.checkXml(xmlStr)
-    case RemoveWorkFlow(name) => this.remove(name) pipeTo sender
-    case RemoveWorkFlowInstance(id) => this.removeInstance(id) pipeTo sender
+    case RemoveWorkFlow(name) => sender ! this.remove(name)
+    case RemoveWorkFlowInstance(id) => sender ! this.removeInstance(id)
     case ManualNewAndExecuteWorkFlowInstance(name, params) => sender ! this.manualNewAndExecute(name, params)
     case WorkFlowInstanceExecuteResult(wfi) => this.handleWorkFlowInstanceReply(wfi)
     case KillWorkFlowInstance(id) => this.killWorkFlowInstance(id) pipeTo sender
     case KllAllWorkFlow() => this.killAllWorkFlow() pipeTo sender
     case KillWorkFlow(wfName) => this.killWorkFlow(wfName) pipeTo sender
     case ReRunWorkflowInstance(wfiId: String, isFormer: Boolean) => 
-      val rsF = if(isFormer == true) this.reRunFormer(wfiId) else this.reRunNewest(wfiId)
-      rsF pipeTo sender
+      val response = if(isFormer) this.reRunFormer(wfiId) else this.reRunNewest(wfiId)
+      sender ! response
     //调度器操作
     case Reset(wfName) => sender ! this.resetCoor(wfName)
     case Trigger(wfName, triggerType) => sender ! this.trigger(wfName, triggerType)

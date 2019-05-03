@@ -1,18 +1,25 @@
-package com.kent.pub
+package com.kent.pub.dao
 
-import java.sql.Connection
-import java.sql.ResultSet
-import java.sql.Statement
-import scala.util.Try
-import scala.collection.JavaConverters._
-import java.sql.DriverManager
-import org.apache.hive.jdbc.HiveStatement
-import java.sql.PreparedStatement
+import java.sql.{Connection, DriverManager, ResultSet, Statement}
 
 /**
   * 数据操作特质
   */
 trait Daoable {
+  /**
+    * 获取数据库连接
+    * @param url
+    * @param username
+    * @param pwd
+    * @return
+    */
+  def getConnection(url: String, username: String, pwd: String): Connection ={
+    //注册Driver
+    Class.forName("com.mysql.jdbc.Driver")
+    //得到连接
+    return DriverManager.getConnection(url, username, pwd)
+  }
+
   /**
     * 查询sql
     * @param sql
@@ -63,7 +70,7 @@ trait Daoable {
       val results = sqls.map { stat.execute(_) }.toList
       if(isTransation) conn.commit()
     } catch {
-      case e: Exception => 
+      case e: Exception =>
         if(isTransation) {
           conn.rollback()
         }

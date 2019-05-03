@@ -76,11 +76,9 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends BaseActor {
       if(context != null) self ! Termination()
     }
     //起独立线程运行
-    val thread = new Thread(new Runnable() {
-    		def run() {
-    		  	asynExcute()
-    		}
-	  },s"action_${actionNodeInstance.id}_${actionNodeInstance.name}")
+    val thread = new Thread(() => {
+      asynExcute()
+    },s"action_${actionNodeInstance.id}_${actionNodeInstance.name}")
     thread.start()
   }
   def kill(sdr:ActorRef){

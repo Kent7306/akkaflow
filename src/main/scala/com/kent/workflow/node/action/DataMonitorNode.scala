@@ -1,20 +1,8 @@
 package com.kent.workflow.node.action
 
-import com.kent.workflow.node.NodeInstance
-import com.kent.workflow.node.Node
-import org.json4s.jackson.JsonMethods
-import com.kent.util.Util
-import com.kent.workflow.node.action.DataMonitorNode.SourceType
 import com.kent.workflow.node.action.DataMonitorNode._
-import java.sql.DriverManager
-import java.sql.Connection
-import java.sql.Statement
 
 class DataMonitorNode(name: String) extends ActionNode(name) {
-  //数据源分类
-  var category: String = _
-  //数据源名称
-  var sourceName: String = _
   //监控配置
   var source: Source = _
   //上限配置
@@ -23,37 +11,10 @@ class DataMonitorNode(name: String) extends ActionNode(name) {
   var minThre: MinThreshold = _
   //自定义告警消息
   var warnMsg: String = _
-  //是否持久化
-  var isSaved = false
   override def toJsonString(): String = {
-	  import org.json4s.JsonDSL._
-	  import com.kent.util.Util._
-	  var assembleStr = s"""{
-	      "category":${transJsonStr(category)},
-	      "source-name":${transJsonStr(sourceName)},
-	      "is-saved":${isSaved},
-	      "warn-msg":${transJsonStr(warnMsg)},
-	      "source":{
-	        "type":${transJsonStr(source.stype.toString())},
-	        "content":${transJsonStr(source.content)}
-	      }
+	  val assembleStr = s"""{
+	      "data":null
 	    }"""
-	  if(minThre != null){
-	    assembleStr += s"""
-	      ,"min-thredshold":{
-	        "type":${transJsonStr(minThre.stype.toString())},
-	        "content":${transJsonStr(minThre.content)}
-	      }
-	    """
-	  }
-	  if(maxThre != null){
-	    assembleStr += s"""
-	      ,"max-thredshold":{
-	        "type":${transJsonStr(maxThre.stype.toString())},
-	        "content":${transJsonStr(maxThre.content)}
-	      },
-	    """
-	  }
 	  assembleStr
   }
 }
@@ -74,26 +35,10 @@ object DataMonitorNode {
   def apply(name: String): DataMonitorNode = new DataMonitorNode(name)
   def apply(name:String, xmlNode: scala.xml.Node): DataMonitorNode = {
 	  val node = DataMonitorNode(name)
-	  //属性
-	  val scOpt = xmlNode.attribute("category")
-	  val snOpt = xmlNode.attribute("name")
-	  node.isSaved = if(xmlNode.attribute("is-saved").isDefined) 
-  	      xmlNode.attribute("is-saved").get.text.toBoolean
-  	  else
-  	    node.isSaved
-  	    
-	  if(node.isSaved && scOpt.isEmpty){
-	    throw new Exception(s"节点[data-monitor: ${name}] 未配置属性: category")
-	  }
-	  if(node.isSaved && snOpt.isEmpty){
-		  throw new Exception(s"节点[data-monitor: ${name}] 未配置属性: source-name")	    
-	  }
-	  if(scOpt.isDefined) node.category = scOpt.get.text
-	  if(snOpt.isDefined) node.sourceName = snOpt.get.text
-	  
+
 	  //source
-	  val sourceSeq = (xmlNode \ "source")
-	  if(sourceSeq.size == 0){
+	  val sourceSeq = xmlNode \ "source"
+	  if(sourceSeq.isEmpty){
 	    throw new Exception(s"节点[data-monitor: ${name}] 未配置<source>子标签")	    
 	  }
 	  val sType = SourceType.withName(sourceSeq(0).attribute("type").get.text)
@@ -102,31 +47,31 @@ object DataMonitorNode {
 		  throw new Exception(s"节点[data-monitor: ${name}] source的type为SQL时，须配置<db-link>子标签")	 
 		}
 	  val sContent = sourceSeq(0).text
-	  node.source = new Source(sType, sContent, sDBLinkNameOpt)
-	  //max-threshold
-	  val maxThrSeq = (xmlNode \ "max-threshold")
-	  if(maxThrSeq.size > 0){
+	  node.source = Source(sType, sContent, sDBLinkNameOpt)
+	  //max
+	  val maxThrSeq = xmlNode \ "max"
+	  if(maxThrSeq.nonEmpty){
 	    val tt = SourceType.withName(maxThrSeq(0).attribute("type").get.text)
 	    val maxDBLinkNameOpt = if(maxThrSeq(0).attribute("db-link").isDefined) Some(maxThrSeq(0).attribute("db-link").get.text) else None
   		if(tt == SQL && maxDBLinkNameOpt.isEmpty){
-  		  throw new Exception(s"节点[data-monitor: ${name}] max-threshold的type为SQL时，须配置<db-link>子标签")	 
+  		  throw new Exception(s"节点[data-monitor: ${name}] max的type为SQL时，须配置<db-link>子标签")
   		}
 	    val ct = maxThrSeq(0).text
-	    node.maxThre = new MaxThreshold(tt, ct, maxDBLinkNameOpt)
+	    node.maxThre = MaxThreshold(tt, ct, maxDBLinkNameOpt)
 	  }
-	  //min-threshold
-	  val minThrSeq = (xmlNode \ "min-threshold")
-	  if(minThrSeq.size > 0){
+	  //min
+	  val minThrSeq = xmlNode \ "min"
+	  if(minThrSeq.nonEmpty){
 	    val tt = SourceType.withName(minThrSeq(0).attribute("type").get.text)
 	    val minDBLinkNameOpt = if(minThrSeq(0).attribute("db-link").isDefined) Some(minThrSeq(0).attribute("db-link").get.text) else None
   		if(tt == SQL && minDBLinkNameOpt.isEmpty){
-  		  throw new Exception(s"节点[data-monitor: ${name}] min-threshold的type为SQL时，须配置<db-link>子标签")	 
+  		  throw new Exception(s"节点[data-monitor: ${name}] min的type为SQL时，须配置<db-link>子标签")
   		}
 	    val ct = minThrSeq(0).text
 	    node.minThre = new MinThreshold(tt, ct, minDBLinkNameOpt)
 	  }
 	  //warn-msg
-	  val warnMsgSeq = (xmlNode \ "warn-msg")
+	  val warnMsgSeq = xmlNode \ "warn-msg"
 	  if(warnMsgSeq.size > 0 && warnMsgSeq(0).text.trim() != ""){
 	    node.warnMsg = warnMsgSeq(0).text
 	  }

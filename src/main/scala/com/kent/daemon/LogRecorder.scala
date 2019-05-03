@@ -9,24 +9,32 @@ import com.kent.daemon.LogRecorder._
 import com.kent.pub.Event._
 import com.kent.pub._
 import com.kent.pub.actor.Daemon
+import com.kent.pub.dao.Daoable
 import com.kent.util.Util
 import com.kent.util.Util._
 
 /**
   * 日志记录器
-  * @param url
-  * @param username
-  * @param pwd
-  * @param isEnabled
+  * @param url: String
+  * @param username: String
+  * @param pwd: String
   */
-class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean) extends Daemon with Daoable {
+class LogRecorder(url: String, username: String, pwd: String) extends Daemon with Daoable {
   
-  implicit var connection: Connection = null
+  implicit var connection: Connection = _
   
-  def individualReceive = print2Console
+  def individualReceive: Actor.Receive = {
+    case Info(stime, ctype, sid, name, content) => logging("INFO", stime, ctype, sid, name, Util.escapeStr(content))
+    case Warn(stime, ctype, sid, name, content) => logging("WARN", stime, ctype, sid, name, Util.escapeStr(content))
+    case Error(stime, ctype, sid, name, content) => logging("ERROR", stime, ctype, sid, name, Util.escapeStr(content))
+    case GetLog(ctype,sid,name) => sender ! getLog(ctype, sid, name)
+  }
 
   override def preStart(){
-    init()
+    //注册Driver
+    Class.forName("com.mysql.jdbc.Driver")
+    //得到连接
+    connection = DriverManager.getConnection(url, username, pwd)
   }
   
   override def postRestart(reason: Throwable){
@@ -34,26 +42,6 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     super.postRestart(reason)
   }
 
-  def init(): Unit ={
-    if(isEnabled){
-      //注册Driver
-      Class.forName("com.mysql.jdbc.Driver")
-      //得到连接
-      connection = DriverManager.getConnection(url, username, pwd)
-      context.become(print2DB orElse commonReceice)
-    }
-  }
-  
-  /**
-   * 开启打印到数据库
-   */
-  def print2DB: Actor.Receive = {
-    case Info(stime, ctype, sid, name, content) => logging("INFO", stime, ctype, sid, name, Util.escapeStr(content))
-    case Warn(stime, ctype, sid, name, content) => logging("WARN", stime, ctype, sid, name, Util.escapeStr(content))
-    case Error(stime, ctype, sid, name, content) => logging("ERROR", stime, ctype, sid, name, Util.escapeStr(content))
-    case GetLog(ctype,sid,name) => sender ! getLog(ctype, sid, name)
-  }
-  
   var messageList:List[LogMsg] = List()
   var lastCommitTimeStamp = nowDate.getTime
   /**
@@ -61,9 +49,9 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
    */
   private def logging(level: String,stime: Date,ctype: LogType, sid: String, name: String, content: String):Boolean = {
     val st = formatStandarTime(stime)
-    messageList = messageList :+ LogMsg(level, ctype.toString(), sid,name, content, st)
+    messageList = messageList :+ LogMsg(level, ctype.toString, sid,name, content, st)
 
-    if(messageList.size > 0 || lastCommitTimeStamp - nowDate.getTime > 10000){
+    if(messageList.nonEmpty || lastCommitTimeStamp - nowDate.getTime > 10000){
       val executeList = messageList
       messageList = List()
       val sqls = executeList.map { x => s"""
@@ -74,20 +62,6 @@ class LogRecorder(url: String, username: String, pwd: String, isEnabled: Boolean
     }else {
       true
     }
-    
-  }
-  
-  private def loggingStr(stime: Date, ctype: LogType, sid: String, name: String, content: String): String = {
-    s"[${ctype}][${sid}][${name}] ${content}"
-  }
-  /**
-   * 打印到终端
-   */
-  def print2Console: Actor.Receive = {
-    case Info(stime, ctype, sid, name, content) => log.info(loggingStr(stime,ctype, sid, name, content))
-    case Warn(stime, ctype, sid, name, content) => log.warning(loggingStr(stime,ctype, sid, name, content))
-    case Error(stime, ctype, sid, name, content) => log.error(loggingStr(stime,ctype, sid, name, content))
-    case GetLog(ctype,sid,name) => sender ! List[List[String]]()
   }
   
   override def postStop(){
@@ -129,7 +103,7 @@ object LogRecorder {
   
   case class LogMsg(level: String,ctype: String, sid: String, name: String, content: String,time: String)
   
-  def apply(url: String, username: String, pwd: String, isEnabled: Boolean):LogRecorder = new LogRecorder(url, username, pwd, isEnabled)
+  def apply(url: String, username: String, pwd: String):LogRecorder = new LogRecorder(url, username, pwd)
   
   
   object LogType extends Enumeration {

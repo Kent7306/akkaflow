@@ -8,45 +8,39 @@ import com.kent.pub.actor.Daemon
 
 import scala.io.Source
 
-class PersistManager(url: String, username: String, pwd: String, isEnabled: Boolean) extends Daemon{
-  implicit var connection: Connection = null
+class PersistManager(url: String, username: String, pwd: String) extends Daemon{
+  implicit var connection: Connection = _
   //只需要第一次启动时初始化建表sql
   var isInitSqlNeeded = true 
   
-  def individualReceive = passive
+  override def individualReceive: Actor.Receive = {
+    //??? 后续改成future
+    case Save(obj) => obj.save
+    case Delete(obj) => sender ! obj.delete
+    case Get(obj) => sender ! obj.getEntity
+    case ExecuteSql(sql) => sender ! executeSql(sql)
+    case Query(str) => sender ! queryList(str)
+  }
 
   override def preStart(){
-    init()
+    try {
+      //注册Driver
+      Class.forName("com.mysql.jdbc.Driver")
+      //得到连接
+      connection = DriverManager.getConnection(url, username, pwd)
+    } catch {
+      case e: Exception =>
+        log.error("连接数据库失败，请检查数据库配置")
+        throw e
+    }
+    if(isInitSqlNeeded) initSql()
   }
   override def postRestart(reason: Throwable){
     super.postRestart(reason)
     this.isInitSqlNeeded = false
     log.info(s"${reason.getMessage},pm管理器即将重启...")
   }
-  
-  /**
-   * 初始化
-   */
-  def init() = {
-    if(isEnabled){
-      context.become(active orElse commonReceice)
-      try {
-        //注册Driver
-  	    Class.forName("com.mysql.jdbc.Driver")
-  	    //得到连接
-  	    connection = DriverManager.getConnection(url, username, pwd)
-      } catch {
-        case e: Exception => 
-          log.error("连接数据库失败，请检查数据库配置")
-          //context.become(passive orElse commonReceice)
-      } 
-    }else{
-      log.warning("数据库功能未开启...")
-    }
-    if(isInitSqlNeeded) initSql()
-  }
-  
-  @throws(classOf[SQLException])
+
   def initSql() = {
     var stat:Statement = null
     if(connection != null){
@@ -73,28 +67,6 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
     }
   }
   /**
-   * 开启持久化
-   */
-  def active: Actor.Receive = {
-    //??? 后续改成future
-    case Save(obj) => obj.save
-    case Delete(obj) => sender ! obj.delete
-    case Get(obj) => sender ! obj.getEntity
-    case ExecuteSql(sql) => sender ! executeSql(sql)
-    case Query(str) => sender ! queryList(str)
-  }
-  
-  /**
-   * 取消持久化
-   */
-  def passive: Actor.Receive = {
-    case Get(obj) => sender ! None
-    case Save(obj) => 
-    case ExecuteSql(sql) => sender ! true
-    case Delete(obj) => sender ! true
-    case Query(str) => sender ! List[List[String]]()
-  }
-  /**
    * 查询结果数组
    */
   def queryList(sql: String): List[List[String]] = {
@@ -112,7 +84,7 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
   /**
    * 查询sql
    */
-  private def querySql[A](sql: String, f:(ResultSet) => A)(implicit conn: Connection): Option[A] = {
+  private def querySql[A](sql: String, f: ResultSet => A)(implicit conn: Connection): Option[A] = {
     val stat = conn.createStatement()
     try{
     	val rs = stat.executeQuery(sql)
@@ -149,5 +121,5 @@ class PersistManager(url: String, username: String, pwd: String, isEnabled: Bool
 }
 
 object PersistManager {
-  def apply(url: String, username: String, pwd: String, isEnabled: Boolean):PersistManager = new PersistManager(url, username, pwd, isEnabled)
+  def apply(url: String, username: String, pwd: String):PersistManager = new PersistManager(url, username, pwd)
 }

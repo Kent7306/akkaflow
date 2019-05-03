@@ -28,19 +28,16 @@ import com.kent.main.Master
 import com.kent.pub.Event._
 
 import scala.util.Success
-import jnr.ffi.annotations.Synchronized
-import com.kent.daemon.LogRecorder.LogType
 import com.kent.daemon.LogRecorder.LogType._
 import java.io.File
 
-import com.kent.daemon.{LogRecorder, PersistManager}
+import com.kent.daemon.{LogRecorder}
 import com.kent.pub.actor.BaseActor
 import com.kent.util.FileUtil
 import com.kent.workflow.node.action.ActionNodeInstance
 
 class WorkflowActor(val workflowInstance: WorkflowInstance) extends BaseActor {
-	import com.kent.workflow.WorkflowActor._
-  
+
   var workflowManageActorRef:ActorRef = _
   //正在运行的节点actor
 	var runningActors: Map[ActorRef, ActionNodeInstance] = Map()

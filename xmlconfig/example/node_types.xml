@@ -18,22 +18,22 @@
   </fork>
   <action name="监控文件大小" desc = "可以监控文件大小和文件个数">
       <file-monitor>
-        <file size-threshold="1B">/etc/profile</file>
+        <file min-each-size="1B">/etc/profile</file>
     </file-monitor>
       <ok to="join1"/>
   </action>
   <action name="监控数据库" desc = "监控数据库">
-      <data-monitor category="示例-各节点类型" is-saved="true" name="workflow数量">
+      <data-monitor>
           <source type="SQL" db-link="local_mysql">select count(1) from workflow</source>
-          <min-threshold type="NUM">5</min-threshold>
-          <max-threshold type="SQL" db-link="local_mysql">select count(1)+30 from workflow</max-threshold>
+          <min type="NUM">5</min>
+          <max type="SQL" db-link="local_mysql">select count(1)+30 from workflow</max>
       </data-monitor>
       <ok to="join1"/>
   </action>
   <action name="监控文件行数" desc = "监控数据库">
       <data-monitor>
           <source type="COMMAND">cat /etc/profile | wc -l</source>
-          <min-threshold type="NUM">1</min-threshold>
+          <min type="NUM">1</min>
       </data-monitor>
       <ok to="join1"/>
   </action>
@@ -97,7 +97,7 @@
       <email>
            <table>
                <tr><td>标题1</td><td>标题2</td></tr>
-               <tr><td>112</td><td>223</td></tr>
+               <tr><td>new</td><td>new</td></tr>
                <tr><td>124</td><td>421</td></tr>
            </table>
       </email>

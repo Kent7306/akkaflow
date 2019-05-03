@@ -1,7 +1,8 @@
 package com.kent.workflow.node.action.transfer.target
 
 import java.sql.Connection
-import com.kent.pub.Daoable
+
+import com.kent.pub.dao.Daoable
 import com.kent.workflow.node.action.transfer.source.Source.Column
 import com.kent.pub.db._
 import com.kent.pub.db.DBLink.DatabaseType._

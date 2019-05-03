@@ -1,5 +1,5 @@
 name := "akkaflow"
-version := "2.9.8"
+version := "2.10.0"
 scalaVersion := "2.12.8"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 resolvers += "oracle" at "https://maven.atlassian.com/3rdparty/"

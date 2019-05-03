@@ -9,7 +9,7 @@ import com.kent.pub.db.DBLink.DatabaseType
 import com.kent.workflow.node.action.MetadataNode.SelfColumn
 
 object DBTest extends App{
-  val dblink = DBLink(DatabaseType.ORACLE,"111","jdbc:oracle:thin:@//192.168.31.246:1521/XE","etl","root")
+  val dblink = DBLink(DatabaseType.ORACLE,"111","jdbc:oracle:thin:@//192.168.31.246:1521/XE","etl","root", null)
   var sql = s"select column_name,comments from all_col_comments where table_name='${"USER_INFO".toUpperCase()}'"
   sql = sql + s" and owner = '${"DW".toUpperCase()}'"
   println(sql)

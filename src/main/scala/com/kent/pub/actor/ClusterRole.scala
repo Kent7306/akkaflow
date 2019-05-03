@@ -1,6 +1,6 @@
 package com.kent.pub.actor
 
-import akka.actor.{Actor, ActorRef, RootActorPath}
+import akka.actor.{Actor, ActorPath, ActorRef, RootActorPath}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member}
 import akka.pattern.ask
@@ -23,21 +23,43 @@ abstract class ClusterRole extends BaseActor {
   
   private def clusterReceice: Actor.Receive = {
     case MemberUp(member) => 
-      log.info("Member is Up: {}", member.address)
+     // log.info("Member is Up: {}", member.address)
+      onRoleMemberUp(member)
     case UnreachableMember(member) =>
       log.info("Member detected as Unreachable: {}", member)
+    case NotifyActive(self) => sender ! notifyActive(self)
     case MemberRemoved(member, previousStatus) =>
       log.info("Member is Removed: {} after {}", member.address, previousStatus)
+      onRoleMemberRemove(member)
     case state: CurrentClusterState =>
-    case _:MemberEvent => // ignore 
+    case _:MemberEvent => // ignore
     case ShutdownCluster() => context.system.terminate()
   }
-  
+
   override def preStart(): Unit = {
     // 订阅集群事件
     cluster.subscribe(self, initialStateMode = InitialStateAsEvents,
     classOf[MemberUp], classOf[UnreachableMember], classOf[MemberEvent])
   }
+
+  /**
+    * 有其他角色加入集群（包括自己）
+    * @param member
+    */
+  def onRoleMemberUp(member: Member): Unit
+
+  /**
+    * 有其他角色退出集群
+    * @param member
+    */
+  def onRoleMemberRemove(member: Member): Unit
+
+  /**
+    * 活动master通知
+    * @param masterRef
+    * @return
+    */
+  def notifyActive(masterRef: ActorRef): Result
   /**
    * 得到角色的ip与端口串
    */
@@ -47,19 +69,35 @@ abstract class ClusterRole extends BaseActor {
     (host,port)
   }
   /**
-   * 角色加入的操作
+   * 角色加入后回调
    */
-  def operaAfterRoleMemberUp(member: Member, roleType: String, f:(ActorRef,String) => Unit){
-    if(member.hasRole(roleType)){
-      val path = RootActorPath(member.address) /"user" / roleType
-        val resultF = context.actorSelection(path).resolveOne()
-        resultF.andThen{ case Success(x) => 
-          this.synchronized{
-            f(x,roleType)
-          }
+  protected def operaAfterRoleMemberUp(member: Member, roleType: String, roleActorHandler: ActorRef => Unit){
+    val pathOpt = getRoleActorPath(member, roleType)
+    if(pathOpt.isDefined){
+      val resultF = context.actorSelection(pathOpt.get).resolveOne()
+      resultF.andThen{ case Success(x) =>
+        this.synchronized{
+          roleActorHandler(x)
         }
+      }
     }
   }
+
+  /**
+    * 获取member的角色路径
+    * @param member
+    * @param roleType
+    * @return
+    */
+  protected def getRoleActorPath(member: Member, roleType: String): Option[ActorPath] = {
+    if(member.hasRole(roleType)){
+      Some(RootActorPath(member.address) / "user" / roleType)
+    }else{
+      None
+    }
+  }
+
+
   override def collectActorInfo():Future[ActorInfo] = {
     val ai = new ActorInfo()
     val(ip,port) = getHostPortKey()
@@ -82,17 +120,7 @@ abstract class ClusterRole extends BaseActor {
 
 object ClusterRole {
   val MASTER = "master"
-  val MASTER_ACTIVE = "master-active"
   val MASTER_STANDBY = "master-standby"
   val WORKER = "worker"
   val HTTP_SERVER = "http-server"
-
-  case class Registration() extends Serializable
-    /**
-   * MASTER 状态枚举
-   */
-	object RStatus extends Enumeration {
-		type RStatus = Value
-		val R_PREPARE, R_INITING, R_INITED, R_STARTED = Value
-	}
 }

@@ -7,6 +7,7 @@ import com.kent.lineage.{LineageTable, LineageTableRef}
 import com.kent.main.Master
 import com.kent.pub.Event._
 import com.kent.pub.actor.Daemon
+import com.kent.pub.dao.LineageTableDao
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -25,16 +26,13 @@ class LineageRecorder extends Daemon {
    */
   def saveRecord(lr: LineageRecord) =  {
     //保存目标表信息
-    Master.persistManager ! Save(lr.targetTable)
+    LineageTableDao.merge(lr.targetTable)
     //得到源表信息集合
     val sourceTableFs = lr.relate.sourceTableNames.map{ case st =>
-      val tableOptF = (Master.persistManager ? Get(LineageTable(st))).mapTo[Option[LineageTable]]
-      tableOptF.map{x => (x, st)}
+      (LineageTableDao.get(st), st)
     }
-    Future.sequence(sourceTableFs).onComplete{
-      case Success(sTableOpts) =>
         //源表访问+1(如果某源表信息在血缘表中不存在，则新建一条记录)
-        sTableOpts.map{
+      sourceTableFs.map{
           case (Some(x),_) => x
           case (None, y) => 
             val t = LineageTable(y)
@@ -43,11 +41,10 @@ class LineageRecorder extends Daemon {
             t
         }.foreach{ x =>
           x.accessNum = x.accessNum + 1
-          Master.persistManager ! Save(x)
+          LineageTableDao.merge(x)
         }
+
         Master.persistManager ! Save[LineageTableRef](lr.relate)
-      case Failure(e) => ???
-    }
   }
   /**
    * 删除血缘关系中某个表

@@ -23,26 +23,17 @@ class SqlNodeInstance(override val nodeInfo: SqlNode) extends ActionNodeInstance
     dbLinkOpt match {
       case None => 
         throw new Exception(s"[db-link:${nodeInfo.dbLinkName}]未配置")
-      case Some(dbLink) if dbLink.dbType == MYSQL =>
-        MysqlOpera.executeSqls(sqlArr, dbLink, (conn, stat) => {
-          this.conn = conn
-          this.stat = stat
-        })
-      case Some(dbLink) if dbLink.dbType == ORACLE =>
-        OracleOpera.executeSqls(sqlArr, dbLink)
-      case Some(dbLink) if dbLink.dbType == HIVE =>
-        HiveOpera.executeSqls(sqlArr, dbLink, (conn,stat) => {
+      case Some(dbLink) =>
+        dbLink.executeSqls(sqlArr, (conn,stat) => {
         	  this.conn = conn
         	  this.stat = stat
         	}, infoLine => infoLog(infoLine), errorLine => errorLog(errorLine))
-       
-      case Some(dbLink) =>
-        throw new Exception(s"db-link未配置${dbLink.dbType}类型")
     }
     
     //保存血缘关系
     val isLineageEnabled = actionActor.context.system.settings.config.getBoolean("workflow.extra.lineage-enabled")
     
+    /*
     if(isLineageEnabled){
       infoLog("开始保存血缘关系")
       val infoF = this.actionActor.getInstanceShortInfo()
@@ -80,7 +71,7 @@ class SqlNodeInstance(override val nodeInfo: SqlNode) extends ActionNodeInstance
       lineageRecords.map{ lr =>
         lineageRecorder ! SaveLineageRecord(lr)      
       }
-    }
+    }*/
     true
   }
 

@@ -11,17 +11,14 @@
       </param-list>
   </coordinator>
   <!-- 节点列表 -->
-  <start name="start" to="script" />
+  <start name="start" to="sql" />
 
-  <action name="script" desc = "执行脚本">
-      <script>
-          <code><![CDATA[ 
-            for i in `seq 0 20`;do
-                sleep 1
-                echo -e "$i****${param:stadate}***job_depend";
-            done
-          ]]></code>
-      </script>
+  <action name="sql">
+      <sql db-link="local_mysql">
+          select sleep(10);
+          drop table if exists test_1;
+          create table test_1 as select * from db_link;
+      </sql>
       <ok to="end"></ok>
   </action>
 

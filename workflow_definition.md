@@ -33,7 +33,7 @@
           <source type="SQL" db-link="local_oracle">
               select count(1) from dual
           </source>
-          <min-threshold type="NUM">1</min-threshold>
+          <min type="NUM">1</min>
           <warn-msg>填写检测异常信息</warn-msg>
       </data-monitor>
       <ok to="script"/>
@@ -305,20 +305,20 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
 #### &lt;file-monitor/&gt;
 文件监控节点，监控某个文件系统中的某目录下的特定文件是否符合要求，包括文件数量与文件大小，若超出阈值，则可邮件告警，并且节点执行失败。
 ##### * 子标签
-* `<file>`：必填，文件系统类型可为`本地文件系统`，`hdfs`，`ftp`，当前只支持本地文件系统，属性`num-threshold`，可选，文件个数阈值，默认为1，要高于阈值才通过;属性`size-threshold`，必填，文件大小阈值，可用1GB，2.3M，1.1kb直观的写法，若存在文件大小低于阈值，则告警处理
+* `<file>`：必填，文件系统类型可为`本地文件系统`，`hdfs`，`ftp`，当前只支持本地文件系统，属性`min-num`，可选，文件个数阈值，默认为1，要高于阈值才通过;属性`min-each-size`，必填，文件大小阈值，可用1GB，2.3M，1.1kb直观的写法，若存在文件大小低于阈值，则告警处理
 * `<warn-msg>`：`标签内容`可选，告警邮件补充内容。
 
 ##### * 示例
 ```xml
 <!-- example 1 监控本地文件-->
 <file-monitor>
-    <file num-threshold="1" size-threshold="2MB">/home/you/app/dir/*.sh</file>
+    <file min-num="1" min-each-size="2MB">/home/you/app/dir/*.sh</file>
     <warn-msg>请填写异常告警信息</warn-msg>
 </file-monitor>
 
 <!-- example 2 监控hdfs-->
 <file-monitor>
-    <file num-threshold="10" size-threshold="2G">hdfs:///home/you/app/dir/*.sh</file>
+    <file min-num="10" min-each-size="2G">hdfs:///home/you/app/dir/*.sh</file>
     <warn-msg>请填写异常告警信息</warn-msg>
 </file-monitor>
 ```
@@ -332,27 +332,27 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
 
 ##### * 子标签
 * `<source>`，子标签，必填，监控数据源，`type`属性，指定数据源类型，当前可选项为`SQL`,`COMMAND`,`NUM`,其中，当选择为SQL数据源时，要补充填写`db-link`属性配置；当选择`COMMAND`与`NUM`时，则不需要；标签内容，当选择SQL时，标签内容填写SQL，查询结果只有单值；当选择`COMMAND`时，则可填写shell命令，返回也只能是单数据值；当选择`NUM`	时，可直接填写单数据值。
-*  `<min-threshold>`：子标签，可选，最小阈值配置，配置项与上面`source`一样
-*  `<max-threshold>`：子标签，可选，最大阈值配置，配置项与上面`source`一样
+*  `<min>`：子标签，可选，最小阈值配置，配置项与上面`source`一样
+*  `<max>`：子标签，可选，最大阈值配置，配置项与上面`source`一样
 
 ##### * 示例
 ```xml
 <!-- example 1 监测数据库记录-->
 <data-monitor>
      <source type="COMMAND">ORACLE -e "select count(1) from dual"</source>
-     <min-threshold type="NUM">1</min-threshold>
+     <min type="NUM">1</min>
      <warn-msg>填写检测异常信息</warn-msg>
 </data-monitor>
 
 <!-- example 2 监测日志文件-->
-<data-monitor>
+<data-monitor is-saved="true" category="ods" source-name="">
    <source type="SQL" db-link="local_mysql">
        select count(1) from example_item where ds = '${param:stime}'
    </source>
-   <min-threshold type="NUM">2</min-threshold>
-   <max-threshold type="SQL" db-link="local_mysql">
+   <min type="NUM">2</min>
+   <max type="SQL" db-link="local_mysql">
        select count(1)+10 from example_item where ds = '${param:stime}'
-   </max-threshold>
+   </max>
 </data-monitor>
 ```
 #### &lt;transfer/&gt;

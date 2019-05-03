@@ -36,7 +36,7 @@ class CronComponent(private var _cronStr: String, private var _sdate: Date, priv
 
   /**
     * 计算指定时间情况下，下一次执行时间
-    * @param fromTime
+    * @param
     * @return
     */
   def calculateNextTime(date: Date): Date = {

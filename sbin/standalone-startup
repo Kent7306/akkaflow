@@ -2,7 +2,9 @@
 cd `dirname $0`
 source ./head.sh
 sh ./master-startup
-sleep 5
+sleep 3
+sh ./master-standby-startup
+sleep 3
 sh ./httpserver-startup
 sleep 3
 sh ./worker-startup

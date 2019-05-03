@@ -3,7 +3,7 @@ package com.kent.workflow.node.action
 import com.kent.workflow.node.NodeInstance
 
 import scala.sys.process.ProcessLogger
-import com.kent.main.Worker
+import com.kent.main.{Master, Worker}
 import com.kent.pub.Event._
 
 import scala.sys.process._
@@ -35,6 +35,9 @@ import com.kent.pub.db.OracleOpera
 import com.kent.pub.db.HiveOpera
 import com.kent.pub.db.DBLink
 import java.text.SimpleDateFormat
+
+import com.kent.pub.actor.Daemon
+import com.kent.pub.dao.DataMonitorDao
 
 class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends ActionNodeInstance(nodeInfo)  {
   val DATA_CHECK_INTERVAL = 10000
@@ -76,17 +79,22 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
       true
     }
     infoLog(s"检测通过，检测值: ${monitorData}，下限: ${min}，上限: ${max}")
-    
+
+    val instanceInfo =  Await.result(this.actionActor.getInstanceShortInfo(), 10 second)
     
     //保存数据
-    if(nodeInfo.isSaved){
-      val df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      val timeMark = df.format(Util.nowDate);
-      val dmr = DataMonitorRecord(timeMark, nodeInfo.category, nodeInfo.sourceName, monitorData, minDataOpt,maxDataOpt, detectMsg, this.id)
-      val persistManagerPath = this.actionActor.workflowActorRef.path / ".." / ".." / "pm"
-      val persistManager = this.actionActor.context.actorSelection(persistManagerPath)
-      persistManager ! Save(dmr)
+    val df = new SimpleDateFormat("yyyy-MM-dd");
+    val sdate = df.format(Util.nowDate)
+    val dmr = DataMonitorRecord(sdate, instanceInfo.name, nodeInfo.name, monitorData, minDataOpt,maxDataOpt, detectMsg, this.id)
+
+    if(Master.dbConnector == null) {
+      val dbConnectorPath = Worker.activeMasterOpt.get.path / Daemon.DB_CONNECTOR
+      val aPath = this.actionActor.context.actorSelection(dbConnectorPath)
+      val afF = aPath.resolveOne()
+      Master.dbConnector = Await.result(afF, 20 second)
     }
+    DataMonitorDao.merge(dmr)
+
     result
   }
   /**
@@ -116,13 +124,8 @@ class DataMonitorNodeInstance(override val nodeInfo: DataMonitorNode) extends Ac
      * 获取rmdb数据
      */
     private def getRmdbData(sql: String, dbLink: DBLink):Double = {
-      def toNum(rs: ResultSet): Double = if(rs.next()) rs.getString(1).trim().toDouble else throw new Exception("无查询结果") 
-      dbLink.dbType match {
-        case MYSQL => MysqlOpera.querySql(sql, dbLink, toNum, null).get
-        case ORACLE => OracleOpera.querySql(sql, dbLink, toNum).get
-        case HIVE => HiveOpera.querySql(sql, dbLink, toNum).get
-        case _ => throw new Exception(s"不存在db-link类型未${dbLink.dbType}")
-      }
+      def toNum(rs: ResultSet): Double = if(rs.next()) rs.getString(1).trim().toDouble else throw new Exception("无查询结果")
+      dbLink.shortQuery[Double](sql, toNum).get
     }
     
     /**

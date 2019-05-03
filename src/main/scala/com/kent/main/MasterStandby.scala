@@ -17,7 +17,7 @@ object MasterStandby extends App{
   var logRecorder: ActorRef = _
   
   val defaultConf = ConfigFactory.load()
-  val port = defaultConf.getInt("workflow.nodes.master-standby-port")
+  val port = defaultConf.getInt("workflow.node.master.standby.port")
   val portConf = "akka.remote.artery.canonical.port=" + port
   val portBindConf = "akka.remote.artery.bind.port=" + port
   

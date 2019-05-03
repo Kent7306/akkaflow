@@ -12,7 +12,7 @@ create table if not exists workflow(
     xml_str text comment 'xml的内容',
     create_time datetime comment '创建时间',
     last_update_time datetime,
-	  file_path varchar(128),
+	file_path varchar(128),
     coor_enable int(1) comment '调度器是否可用',
     coor_param JSON comment '调度器参数列表,例：[{"name":"stadate","value":"{time.yestoday|yyyy-mm-dd}"}]',
     coor_cron varchar(128) comment '前置触发时间',
@@ -37,7 +37,7 @@ create table if not exists workflow_instance(
     creator varchar(128),
     dir varchar(128),
     param JSON comment '实例参数',
-    status int(1) comment "0:就绪，1:运行中，2:挂起，3:执行成功，4:执行失败，5:杀死",
+    status int(1) comment '0:就绪，1:运行中，2:挂起，3:执行成功，4:执行失败，5:杀死',
     description varchar(1024),
     mail_level JSON,
     mail_receivers JSON,
@@ -55,8 +55,8 @@ create table if not exists node_instance (
     is_action int(1) comment '是否为action节点',
     type varchar(100) comment '节点类型',
     content JSON comment '节点存放内容',
-    description varchar(1024),
-    status int(1) comment "0:就绪，1:运行中，2:挂起，3:执行成功，4:执行失败，5:杀死",
+    description varchar(1024) comment '描述',
+    status int(1) comment '0:就绪，1:运行中，2:挂起，3:执行成功，4:执行失败，5:杀死',
     stime datetime,
     etime datetime,
     msg varchar(1024),
@@ -81,16 +81,29 @@ create table if not exists directory(
     description varchar(1024)
 ) comment = '工作流目录存放表';
 
-create table if not exists data_monitor(
-    time_mark varchar(64) not null comment '时间字段，格式自定义',
-    category varchar(64) not null comment '数据源分类',
-    source_name varchar(64) not null comment '数据源名称',
-    num double not null comment '监测值',
-    min double comment '下限',
-    max double comment '上限',
-    workflow_instance_id varchar(8) not null, 
-    remark varchar(1024) comment '备注'
-) comment = '数据监控保存表';
+create table if not exists data_monitor (
+      sdate varchar(10) not null comment '时间字段，yyy-mm-dd',
+      category varchar(64) not null comment '数据源分类',
+      name varchar(64) not null comment '数据源名称',
+      num double not null comment '监测值',
+      min double default null comment '下限',
+      max double default null comment '上限',
+      workflow_instance_id varchar(8) not null,
+      remark varchar(1024) default null comment '备注'
+) comment='数据监控表';
+
+
+create table if not exists db_link (
+   name varchar(128) primary key,
+   dbType varchar(32) not null comment '数据库类型，枚举：HIVE MYSQL ORACLE',
+   description varchar(256) comment '描述',
+   jdbc_url varchar(128) not null comment 'jdbc连接串',
+   username varchar(128) not null comment '用户名',
+   password varchar(128) not null comment '密码',
+   create_time datetime comment '创建时间',
+   last_update_time datetime comment '更新时间'
+) comment = '数据库连接配置表';
+
 
 create table if not exists lineage_table(
 	name varchar(128) primary key comment '数据集名称：库.表',
@@ -110,6 +123,4 @@ create table if not exists lineage_table_ref(
 	foreign KEY (pname) references lineage_table(name) on delete cascade
 )comment = '血缘关系table关系表';
 
-delete from node_instance where workflow_instance_id in (select id from workflow_instance where status = 1);
-delete from workflow_instance where status = 1;
-delete from node where 1 = 1;
+delete from workflow_instance where status = '0';

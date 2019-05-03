@@ -5,16 +5,17 @@
       <depend-list cron="*/20 * * * *"></depend-list>
       <param-list>
           <param name="stadate" value="${time.today|yyyy-MM-dd|-1 day}"/>
+          <param name="cnt" value="150"/>
       </param-list>
   </coordinator>
   <!-- 节点列表 -->
   <start name="start" to="data_monitor" />
 
-  <action name="data_monitor" retry-times="5" interval="1" desc = "监测源数据">
-      <data-monitor category="示例-依赖" is-saved="true" name="job2监控">
-          <source type="COMMAND">echo -e "111\n22\n3" | wc -l</source>
-          <min-threshold type="NUM">2</min-threshold>
-          <warn-msg>填写检测异常信息</warn-msg>
+  <action name="data_monitor" desc = "监测">
+      <data-monitor>
+          <source type="SQL" db-link="local_mysql">select count(1) from workflow</source>
+          <min type="NUM">3</min>
+          <max type="SQL" db-link="local_mysql">select count(1)+3 from workflow</max>
       </data-monitor>
       <ok to="script"/>
   </action>
@@ -22,9 +23,9 @@
   <action name="script" desc = "执行脚本">
       <script>
           <code><![CDATA[
-            for i in `seq 0 10`;do
-                sleep 1
-                echo -e "$i****${param:stadate}***job2";
+            for i in `seq 0 ${param:cnt}`;do
+                sleep 3
+                echo -e "$i  -> ${param:stadate} -> job_2";
             done
           ]]></code>
       </script>

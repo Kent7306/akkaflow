@@ -1,47 +1,35 @@
 package com.kent.workflow
 
-import com.kent.workflow.Workflow.WStatus._
-import com.kent.workflow.node.Node.Status._
-import com.kent.pub.DeepCloneable
-import com.kent.workflow.node.NodeInstance
 import java.util.Date
 
+import akka.pattern.ask
+import akka.util.Timeout
+import com.kent.main.Master
+import com.kent.pub.DeepCloneable
+import com.kent.pub.Event._
+import com.kent.pub.dao.WorkflowInstanceDao
+import com.kent.util.{ParamHandler, Util}
+import com.kent.workflow.Coor.TriggerType
+import com.kent.workflow.Coor.TriggerType._
+import com.kent.workflow.Workflow.WStatus
+import com.kent.workflow.Workflow.WStatus._
 import com.kent.workflow.node.NodeInstance
 import com.kent.workflow.node.control.StartNodeInstance
-import com.kent.util.{ParamHandler, Util}
-import com.kent.pub.Daoable
-import java.sql.Connection
-import java.sql.ResultSet
-
-import org.json4s.jackson.JsonMethods
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JString
-import java.sql.SQLException
-
-import com.kent.workflow.Workflow.WStatus
-import akka.actor.ActorRef
-import com.kent.pub.Event._
-import com.kent.main.Master
-import akka.pattern.{ask, pipe}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import akka.util.Timeout
-import com.kent.daemon.PersistManager
 
-import scala.concurrent.duration._
-import com.kent.pub.Persistable
-import com.kent.workflow.Coor.TriggerType
-import com.kent.workflow.Coor.TriggerType._
-
-
-class WorkflowInstance(val workflow: Workflow) extends DeepCloneable[WorkflowInstance] with Persistable[WorkflowInstance] {
+/**
+  * 工作流实例类
+  * @param workflow
+  */
+class WorkflowInstance(val workflow: Workflow) extends DeepCloneable[WorkflowInstance] {
   var id: String = _
   def actorName = s"${id}"
   var paramMap:Map[String, String] = Map()
   var startTime: Date = _
   var endTime: Date = _
-  private var status: WStatus = W_PREP     
+  var status: WStatus = W_PREP
   var nodeInstanceList:List[NodeInstance] = List()
   //是否完成时，自动触发下个依赖
   //var isAutoTrigger = true
@@ -54,7 +42,7 @@ class WorkflowInstance(val workflow: Workflow) extends DeepCloneable[WorkflowIns
    */
   def changeStatus(status: WStatus) = {
     this.status = status
-    if(Master.persistManager!=null) Master.persistManager ! Save(this.deepClone())
+    WorkflowInstanceDao.update(this)
   }
   def getStatus():WStatus = this.status
    /**
@@ -166,129 +154,6 @@ class WorkflowInstance(val workflow: Workflow) extends DeepCloneable[WorkflowIns
 	     val html = part1 + part2 + part3 + part5 + part4
 	     html
 	  }
-  }
-  
-  def save(implicit conn: Connection): Boolean = {
-    var result = false;
-    import org.json4s.JsonDSL._
-    import org.json4s.jackson.JsonMethods._
-    import com.kent.util.Util._
-    val paramStr = compact(render(paramMap))
-    val levelStr = compact(workflow.mailLevel.map { _.toString()})
-    val receiversStr = compact(workflow.mailReceivers)
-	  val insertSql = s"""
-	     insert into workflow_instance values(${wq(id)},${wq(workflow.name)},${wq(workflow.creator)},${wq(workflow.dir.dirname)},
-	                                          ${wq(paramStr)},'${status.id}',${wq(workflow.desc)},
-	                                          ${wq(levelStr)},${wq(receiversStr)},${workflow.instanceLimit},
-	                                          ${wq(formatStandarTime(startTime))},${wq(formatStandarTime(endTime))},
-	                                          ${wq(formatStandarTime(workflow.createTime))},${wq(formatStandarTime(workflow.createTime))},
-	                                          ${wq(transformXmlStr(workflow.xmlStr))})
-	    """
-	  val updateSql = s"""
-	    update workflow_instance set
-	                        status = '${status.id}',
-	                        stime = ${wq(formatStandarTime(startTime))}, 
-	                        etime = ${wq(formatStandarTime(endTime))}
-	    where id = '${id}'
-	    """
-	    
-  	try{
-      conn.setAutoCommit(false)
-  	  if(this.getEntityWithNodeInstance(false).isEmpty){
-      	result = executeSql(insertSql)     
-      }else{
-        result = executeSql(updateSql)
-      }
-  	  //覆盖实例的节点
-  		this.nodeInstanceList.foreach { _.save }
-  	  conn.commit()
-    }catch{
-      case e: SQLException => e.printStackTrace(); conn.rollback();false
-    }finally{
-    	conn.setAutoCommit(true) 
-    }
-	  result
-  }
-  /**
-   * 
-   */
-  def getEntity(implicit conn: Connection): Option[WorkflowInstance] = {
-    getEntityWithNodeInstance(true)
-  }
-  @throws(classOf[Exception])
-  def getEntityWithNodeInstance(isWithNodeInstance: Boolean)(implicit conn: Connection): Option[WorkflowInstance] = {
-    import com.kent.util.Util._
-    
-    //工作流实例查询sql
-    val queryStr = s"""
-         select * from workflow_instance where id=${wq(id)}
-                    """
-    //节点实例查询sql
-    val queryNodesStr = s"""
-         select * from node_instance where workflow_instance_id = ${wq(id)}
-      """
-    
-    val wfiOpt = querySql(queryStr, (rs: ResultSet) => {
-      if(rs.next()){
-        val xmlStr = rs.getString("xml_str")
-        val json = JsonMethods.parse(rs.getString("param"))
-        val list = for{ JObject(ele) <- json; (k, JString(v)) <- ele} yield (k -> v)
-        val parsedParams = list.map(x => x).toMap
-        
-        val wf = Workflow(xmlStr)
-        val wfi = WorkflowInstance(wf, parsedParams)
-        wfi.id = id
-        wfi.status = WStatus.getWstatusWithId(rs.getInt("status"))
-        wfi.startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
-        wfi.endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
-        wfi
-      }else{
-        null
-      }
-    })
-    //关联查询节点实例
-    if(isWithNodeInstance && !wfiOpt.isEmpty){
-      import com.kent.workflow.node.Node.Status
-      querySql(queryNodesStr, (rs: ResultSet) => {
-        var newNIList = List[NodeInstance]()
-        while(rs.next()) {
-        	val name = rs.getString("name")
-        	val executeMsg = rs.getString("msg")
-        	val startTime = Util.getStandarTimeWithStr(rs.getString("stime"))
-        	val endTime = Util.getStandarTimeWithStr(rs.getString("etime"))
-        	val status = Status.getStatusWithId(rs.getInt("status")) 
-        	
-         wfiOpt.get.workflow.nodeList.filter { x => x.name == rs.getString("name") }.foreach { x => 
-            val ni = x.createInstance(this.id)
-            ni.executedMsg = executeMsg
-            ni.startTime = startTime
-            ni.endTime = endTime
-            ni.changeStatus(status)
-            newNIList = newNIList :+ ni
-          }
-        }
-        wfiOpt.get.nodeInstanceList = newNIList
-        wfiOpt.get
-      })
-      wfiOpt
-    }else{
-      wfiOpt
-    }
-  }
-  def delete(implicit conn: Connection): Boolean = {
-    var result = false
-    try{
-      conn.setAutoCommit(false)
-      executeSql(s"delete from log_record where id = '${id}'")
-	    result = executeSql(s"delete from workflow_instance where id='${id}'")
-	    executeSql(s"delete from node_instance where workflow_instance_id='${id}'")
-	    conn.commit()
-    }catch{
-      case e: SQLException => e.printStackTrace();conn.rollback()
-    }finally{
-    	conn.setAutoCommit(true)
-    }
-    result
   }
 }
 

@@ -7,28 +7,25 @@
       </param-list>
   </coordinator>
   <!-- 节点列表 -->
-  <start name="start" to="script" />  
-  
-  <action name="script" desc = "监控数据库" retry-times="5" interval="1" >
-      <data-monitor category="示例-各节点类型" is-saved="true" name="workflow数量">
-          <source type="SQL" db-link="local_mysql">select count(1) from workflow</source>
-          <min-threshold type="NUM">2</min-threshold> 
-          <max-threshold type="COMMAND">wc -l /tmp/1111 | awk '{print $1}'</max-threshold>
-      </data-monitor> 
-      <ok to="end"/>
-  </action>
-<!--   <action name="文本到数据" desc = "文件类型可以是本地文件、HDFS文件、ftp文件">
-	  <transfer> 
-	    <source type="FILE" delimited="aaaaaa">/etc/profile</source>
-	    <target type="DB" db-link="local_mysql" table="aaa">
-	    	<pre>
-	    	  create table if not exists aaa(col varchar(1024));
-	    	  delete from aaa where 1 = 1
-	    	</pre>
-	    </target>
-	  </transfer>
-      <ok to="end"/>
-  </action> -->
+  <start name="start" to="script1" />
+
+    <action name="script1" desc = "执行sql">
+        <sql db-link="local_mysql">
+            select sleep(1);
+            delete from workflow where 2 > 3;
+            sdfdf
+        </sql>
+        <ok to="script2"/>
+        <error to="end"/>
+    </action>
+
+    <action name="script2" desc = "执行sql">
+        <sql db-link="local_mysql">
+            select sleep(1);
+            delete from workflow where 2 > 3;
+        </sql>
+        <ok to="end"/>
+    </action>
 
   <end name="end"/>
 </work-flow>
