@@ -4,6 +4,7 @@ import akka.actor.Actor
 import com.kent.pub.Event._
 import com.kent.pub.actor.Daemon
 import javax.activation.{DataHandler, FileDataSource}
+import javax.annotation.meta.TypeQualifierNickname
 import javax.mail.internet.{InternetAddress, MimeBodyPart, MimeMessage, MimeMultipart}
 import javax.mail.{Message, Session, Transport}
 import org.apache.commons.mail.HtmlEmail
@@ -11,7 +12,7 @@ import org.apache.commons.mail.HtmlEmail
 /**
  * Email发送actor
  */
-class EmailSender(hostName: String, portOpt: Option[Int], auth:Boolean, account: String, pwd: String, charset: String, isEnabled: Boolean) extends Daemon {
+class EmailSender(hostName: String, portOpt: Option[Int], auth:Boolean, account: String, nickName: String, pwd: String, charset: String, isEnabled: Boolean) extends Daemon {
   def individualReceive = passive
   if(isEnabled) context.become(active orElse commonReceice)
   /**
@@ -33,19 +34,19 @@ class EmailSender(hostName: String, portOpt: Option[Int], auth:Boolean, account:
   private def sendEmailSync(emailMessage: EmailMessage) {
     val email = new HtmlEmail
     email.setHostName(hostName)
-    email.setSslSmtpPort(portOpt.get.toString);
-    email.setSSLOnConnect(false);
+    email.setSslSmtpPort(portOpt.get.toString)
+    email.setSSLOnConnect(false)
     email.setAuthentication(account, pwd)
     email.setCharset("UTF-8")
     emailMessage.toUsers.foreach { email.addTo(_) }
-    email.setFrom(account)
+    email.setFrom(account, nickName)
     email.setSubject(emailMessage.subject)
     email.setHtmlMsg(emailMessage.htmlText)
     try {
       email.send()
     } catch{
       case e: Exception => 
-        log.error(s"发送邮件失败:+${e.getMessage}");
+        log.error(s"发送邮件失败:+${e.getMessage}")
         e.printStackTrace()
     }
   }
@@ -60,7 +61,7 @@ class EmailSender(hostName: String, portOpt: Option[Int], auth:Boolean, account:
   def sendMail(host: String, portOpt: Option[Int],auth: Boolean, username: String, password: String, 
             from: String, to: List[String],
             subject: String, content: String, contentType: String, attachFiles: List[String]){
-        val fake_from = from
+        val fake_from = nickName
         val props = System.getProperties();
         //存储发送邮件服务器的信息, 使用smtp：简单邮件传输协议
 				props.put("mail.smtp.host", host);
@@ -122,7 +123,7 @@ class EmailSender(hostName: String, portOpt: Option[Int], auth:Boolean, account:
 }
 
 object EmailSender {
-  def apply(hostName: String, portOpt: Option[Int], auth: Boolean, account: String, pwd: String,charset: String, isEnabled: Boolean):EmailSender = {
-    new EmailSender(hostName, portOpt, auth, account, pwd, charset, isEnabled)
+  def apply(hostName: String, portOpt: Option[Int], auth: Boolean, account: String,nickName: String, pwd: String,charset: String, isEnabled: Boolean):EmailSender = {
+    new EmailSender(hostName, portOpt, auth, account,nickName, pwd, charset, isEnabled)
   }
 }

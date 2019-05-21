@@ -205,10 +205,16 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         )
         //Email参数配置
         val isHasPort = config.hasPath("workflow.email.smtp-port")
-        val emailConfig = (config.getString("workflow.email.hostname"),
-          if(isHasPort) Some(config.getInt("workflow.email.smtp-port")) else None,
+        val isHasNickName = config.hasPath("workflow.email.nickname")
+        val account = config.getString("workflow.email.account")
+        val mailPortOpt = if(isHasPort) Some(config.getInt("workflow.email.smtp-port")) else None
+        val nickName = if (isHasNickName) config.getString("workflow.email.nickname") else account
+        val emailConfig = (
+          config.getString("workflow.email.hostname"),
+          mailPortOpt,
           config.getBoolean("workflow.email.auth"),
-          config.getString("workflow.email.account"),
+          account,
+          nickName,
           config.getString("workflow.email.password"),
           config.getString("workflow.email.charset"),
           config.getBoolean("workflow.email.is-enabled")
@@ -221,7 +227,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         Master.dbConnector = context.actorOf(Props(DbConnector(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2)),Daemon.DB_CONNECTOR)
 
         //创建邮件发送器
-        Master.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5,emailConfig._6,emailConfig._7)),Daemon.MAIL_SENDER)
+        Master.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5,emailConfig._6,emailConfig._7,emailConfig._8)),Daemon.MAIL_SENDER)
         //创建日志记录器
         Master.logRecorder = context.actorOf(Props(LogRecorder(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2)),Daemon.LOG_RECORDER)
         LogRecorder.actor = Master.logRecorder

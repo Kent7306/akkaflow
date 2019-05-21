@@ -117,7 +117,13 @@ class DbConnector(url: String, username: String, pwd: String) extends Daemon wit
   }
 
   override def postStop() {
-    if (connection != null) connection.close()
+    if (connection != null) {
+      Try{
+      connection.close()
+      }.recover{
+        case e: SQLException => e.printStackTrace()
+      }
+    }
   }
 }
 

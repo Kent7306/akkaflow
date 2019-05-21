@@ -69,7 +69,7 @@ class Workflow(var name: String) extends DeepCloneable[Workflow] {
   }
 
   /**
-    * 检查调度器的依赖工作流是否存在,是否合法
+    * 检查调度器的前置依赖工作流是否存在,是否合法
     */
   def checkIfAllDependExists(workflows: List[Workflow]): Result = {
     if (this.coorOpt.isDefined) {
@@ -93,38 +93,44 @@ class Workflow(var name: String) extends DeepCloneable[Workflow] {
     * @param workflows
     * @return
     */
-  def checkDependDAG(workflows: List[Workflow]): Boolean = {
+  def checkDependDAG(workflows: List[Workflow]): Result = {
     val wfs = workflows :+ this
+    //标记矩阵,0为当前结点未访问,1为访问过,-1表示当前结点后边的结点都被访问过。
     val markMap = new scala.collection.mutable.HashMap[String, Int]()
     wfs.foreach(x => markMap += (x.name -> 0))
     var isDag = true
     //采用深度遍历
     def dfs(wf: Workflow): Unit ={
+      if (!isDag) return
       markMap(wf.name) = 1
-      if (wf.coorOpt.isDefined){
-        wf.coorOpt.get.depends.foreach{d =>
-          val nextWfName = d.workFlowName
-          markMap(nextWfName) match {
-            case 1 => isDag = false
-            case -1 =>
-            case _ => dfs(wfs.find(_.name == nextWfName).get)
-          }
-          markMap(wf.name) = 1
+
+      //后置触发工作流集合
+      wf.getTriggerWfs(wfs).foreach{ nextWf =>
+        markMap(nextWf.name) match {
+          case 1 => isDag = false;
+          case -1 =>
+          case 0 => dfs(wfs.find(_.name == nextWf.name).get)
         }
       }
+      if(isDag) markMap(wf.name) = -1
     }
     dfs(this)
-    isDag
+    if (isDag){
+      Result(isDag, "成功", None)
+    } else{
+      val ringWfs = markMap.filter { case (_, mark) => mark == 1 }.keys.toList
+      Result(isDag, "失败，工作流依赖中存在有向环", Some(ringWfs))
+    }
   }
 
   /**
-    * 得到前置依赖的工作流集合
+    * 得到后置触发的工作流集合
     * @param workflows
     * @return
     */
-  def  getDependedWfs(workflows: List[Workflow]): List[Workflow] = {
-    workflows.filter {
-      wf => wf.coorOpt.isDefined
+  def  getTriggerWfs(workflows: List[Workflow]): List[Workflow] = {
+    workflows.filter { wf =>
+      wf.coorOpt.isDefined
     }.filter { wf =>
       wf.coorOpt.get.depends.exists { d => d.workFlowName == this.name }
     }

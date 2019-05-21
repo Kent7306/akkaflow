@@ -120,7 +120,7 @@ class WorkFlowManager extends Daemon {
       val wf = Workflow(xmlStr)
       wf.filePath = path
       wf.nodeList.foreach { x => x.checkIntegrity(wf) }
-      if (!wf.checkDependDAG(workflows.values.toList)) throw new Exception("任务依赖存在回环")
+
       WorkflowDao.merge(wf)
       Master.haDataStorager ! AddWorkflow(wf.deepClone())
       if (workflows.get(wf.name).isEmpty) {
@@ -146,7 +146,10 @@ class WorkFlowManager extends Daemon {
       val wf = Workflow(xmlStr)
       val result = wf.checkIfAllDependExists(workflows.values.toList)
       if(result.isFail) throw new Exception(s"""不存在前置工作流: ${result.data[List[String]].mkString(",")}""")
-      if(!wf.checkDependDAG(workflows.values.toList)) throw new Exception("任务依赖存在回环")
+      val checkRingRs = wf.checkDependDAG(workflows.values.toList)
+      if (!checkRingRs.isSuccess){
+        throw new Exception(s"${checkRingRs.msg}, 分别为：${checkRingRs.data[List[String]].mkString(",")}")
+      }
       ResponseData("success", "xml解析成功", null)
     }.recover{
       case e: Exception => ResponseData("fail", s"出错信息: ${e.getMessage}", null)
@@ -160,7 +163,7 @@ class WorkFlowManager extends Daemon {
       if (workflows.get(name).isEmpty) {
           ResponseData("fail", s"工作流${name}不存在", null)
       } else {
-        val depWfs = workflows(name).getDependedWfs(workflows.values.toList)
+        val depWfs = workflows(name).getTriggerWfs(workflows.values.toList)
         if (depWfs.size > 0) {
           ResponseData("fail", s"该工作流被其他工作流所依赖: ${depWfs.map(_.name).mkString(",")}", null)
         } else {

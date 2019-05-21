@@ -1,5 +1,4 @@
-<work-flow name="node_types" creator="Kent" dir="/example" desc="各个节点的使用示例"
-           mail-level = "成功,失败,杀死"
+<work-flow name="node_types" creator="Kent" dir="/example" desc="各个节点的使用示例" mail-level = "成功,失败,杀死"
            mail-receivers="15018735011@163.com,492005267@qq.com">
   <!-- 调度配置 -->
   <coordinator is-enabled="false">

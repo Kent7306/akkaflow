@@ -70,7 +70,8 @@ object WorkflowDao {
   def delete(wfName: String): Boolean = {
     val delSql1 = s"delete from node where workflow_name=${wq(wfName)}"
     val delSql2 = s"delete from workflow where name=${wq(wfName)}"
-    val sqls = delSql1 +: delSql2 +: Nil
+    val delSql3= s"delete from directory where is_leaf = '1' and name = ${wq(wfName)}"
+    val sqls = delSql1 +: delSql2 +: delSql3 +: Nil
     DbConnector.executeSyn(sqls)
   }
 

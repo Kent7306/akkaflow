@@ -49,7 +49,16 @@ class LogRecorder(url: String, username: String, pwd: String) extends Daemon wit
    */
   private def logging(level: String,stime: Date,ctype: LogType, sid: String, name: String, content: String):Boolean = {
     val st = formatStandarTime(stime)
-    messageList = messageList :+ LogMsg(level, ctype.toString, sid,name, content, st)
+    //内容过长进行截取
+    val newContent = if (content.getBytes.length >= 1024){
+      val byteLen = content.getBytes("UTF-8")
+      val bytes = byteLen.take(1010)
+      val contentTmp = new String(bytes, "UTF-8")
+      contentTmp.substring(0, contentTmp.length - 3)+"..."
+    } else {
+      content
+    }
+    messageList = messageList :+ LogMsg(level, ctype.toString, sid,name, newContent, st)
 
     if(messageList.nonEmpty || lastCommitTimeStamp - nowDate.getTime > 10000){
       val executeList = messageList
