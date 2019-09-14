@@ -20,8 +20,8 @@
 ### 安装配置
 #### 1、从docker开始
 目前已制作一份docker服务编排配置文件，通过docker直接快速初始化系统环境，体验系统的使用。
+从百度网盘下载 https://pan.baidu.com/s/1erZbngufjK5dw6vPYJuAaQ
 ```shell
-
 #解压
 tar -xvf docker-akkalfow-2.12.1.tar.gz
 #进入目录
