@@ -104,7 +104,7 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNode) extends Nod
     FileUtil.writeFile(executeFilePath,transLines)(false)
     
     FileUtil.setExecutable(executeFilePath, true)
-    Process(s"${runFilePath}")
+    Process(s"/bin/bash -c ${runFilePath}")
   }
   
   
@@ -137,15 +137,32 @@ abstract class ActionNodeInstance(override val nodeInfo: ActionNode) extends Nod
    */
   def infoLog(line: String) = {
     logIdx += 1
-    if(logIdx < logLimiteNum) LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line)
-    else if(logIdx == logLimiteNum) errorLog(line)
+    if(logIdx < logLimiteNum) {
+      line.split("\n").foreach { l =>
+        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, l)
+      }
+    }
+    else if(logIdx == logLimiteNum) {
+      line.split("\n").foreach { l =>
+        LogRecorder.info(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, l)
+      }
+      warnLog("打印日志过长，超过1000行，将被截断....")
+    }
   }
   /**
    * ERROR日志级别
    */
-  def errorLog(line: String) = LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line) 
+  def errorLog(line: String) = {
+    line.split("\n").foreach { l =>
+      LogRecorder.error(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, l)
+    }
+  }
   /**
    * WARN日志级别
    */
-  def warnLog(line: String) = LogRecorder.warn(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, line) 
+  def warnLog(line: String) = {
+    line.split("\n").foreach { l =>
+      LogRecorder.warn(ACTION_NODE_INSTANCE, this.id, this.nodeInfo.name, l)
+    }
+  }
 }

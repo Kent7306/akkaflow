@@ -5,10 +5,12 @@ import java.util.Date
 
 import akka.actor.ActorRef
 import com.kent.daemon.LogRecorder.LogType._
+import com.kent.main.HttpServer.Action.Action
 import com.kent.pub.db._
+import com.kent.pub.io.FileLink
 import com.kent.workflow.Coor.TriggerType._
 import com.kent.workflow.Workflow.WStatus._
-import com.kent.workflow.WorkflowInstance
+import com.kent.workflow.{Workflow, WorkflowInstance}
 import com.kent.workflow.node.Node.Status._
 import com.kent.workflow.node.action.ActionNodeInstance
 
@@ -19,6 +21,7 @@ object Event {
   case class GetWorker(workerOpt: Option[ActorRef])
   case class AskWorker(host: String)
   case class ShutdownCluster()
+  case class ShutdownHttpServer()
   case class NotifyActive(masterRef: ActorRef)
   //cm
   case class StartIfActive(isActve: Boolean)
@@ -33,12 +36,13 @@ object Event {
   case class Info(stime: Date,ctype: LogType, sid: String,name: String, content: String)
   case class Warn(stime: Date,ctype: LogType, sid: String,name: String, content: String)
   case class Error(stime: Date,ctype: LogType, sid: String,name: String, content: String)
-  case class GetLog(ctype: LogType, sid: String,name: String)
+  case class GetLog(wfiId: String)
   //xml-loader
-  case class AddDBLink(dbl: DBLink)
   case class GetDBLink(name: String)
-  case class DBLinkRequst(action: String, name: String, dbtype: String, jdbcUrl: String, username: String, password: String, desc: String)
-  
+  case class GetFileLink(name: String)
+  case class GetAllFileLink()
+  case class DBLinkRequest(action: Action, dbl: DBLink)
+  case class FileLinkRequest(action: Action, fl: FileLink)
   //persist-manager
   //case class Save[A](obj: Persistable[A])
   //case class Delete[A](obj: Persistable[A])
@@ -52,7 +56,7 @@ object Event {
   //email-sender
   case class EmailMessage(toUsers: List[String],subject: String,htmlText: String, attachFiles: List[String])
   //wfm
-  case class Trigger(name: String, triggerType: TriggerType)
+  case class Trigger(name: String, ignoreNodeNames: Option[List[String]], triggerType: TriggerType)
   case class Reset(wfName: String)
   case class ResetAllWorkflow()
   case class ManualNewAndExecuteWorkFlowInstance(wfName: String, params: Map[String, String])
@@ -62,8 +66,9 @@ object Event {
   case class AddWorkFlow(xmlStr: String, filePath: String)
   case class CheckWorkFlowXml(xmlStr: String)
   case class RemoveWorkFlow(wfName: String)
+  case class DelWorklowDir(id: Int)
   case class RemoveWorkFlowInstance(id: String)
-  case class ReRunWorkflowInstance(worflowInstanceId: String, isFormer: Boolean)
+  case class ReRunWorkflowInstance(worflowInstanceId: String, isFormer: Boolean, isRecover: Boolean)
   case class WorkFlowInstanceExecuteResult(workflowInstance: WorkflowInstance)
   case class WorkFlowExecuteResult(wfName: String, status: WStatus)
   //读取文件内容
@@ -88,7 +93,7 @@ object Event {
   case class DelLineageTable(tableName: String)
   
   //http-server
-  case class ResponseData(result:String, msg: String, data: Any)
+  //case class ResponseData(result:String, msg: String, data: Any)
   //case class SwitchActiveMaster()
   //收集集群信息
   case class CollectClusterActorInfo()
@@ -96,14 +101,4 @@ object Event {
   //今天剩余触发的次数
   case class GetTodayLeftTriggerCnt(wfName: String)
   case class GetTodayAllLeftTriggerCnt()
-
-
-  //后面ask的返回最好都采用这种好一点
-  case class Result(isSuccess: Boolean, msg: String, dataOpt: Option[Any]) extends Serializable{
-    def isFail = !isSuccess
-    def isHasData: Boolean = dataOpt.isDefined
-    def toDataOpt[A]: Option[A] = if (dataOpt.isDefined) Some(dataOpt.get.asInstanceOf[A]) else None
-    def isSuccessAndHasData = if(isSuccess && dataOpt.isDefined) true else false
-    def data[A]: A = if (dataOpt.isDefined) dataOpt.get.asInstanceOf[A] else throw new Exception("data值不存在")
-  }
 }

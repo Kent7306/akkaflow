@@ -6,7 +6,7 @@
 行动节点类型 | 节点功能简述
 --------- | -------------
 `<sql/>` | sql执行节点，目前支持Hive、Mysql、Oracle、Impala数据库。
-`<transfer/>` | 数据传输节点，目前支持Mysql、Oracle、Hive、本地文件、hdfs文件之间的数据行传输。
+`<transfer/>` | 数据传输节点，目前支持Mysql、Oracle、Hive、本地文件、hdfs文件、sftp之间的数据行传输。
 `<metadata/>` | 元数据配置节点（库表注释配置），可通过血缘表自动配置目标表元数据，亦可显式配置。
 `<script/>` | 脚本代码执行节点，支持各类型脚本，bash、python、perl、scala等。
 `<file-executor/>` | 脚本文件远程执行节点，把master机器上的脚本文件及附件分发到目标worker机器上执行。
@@ -305,7 +305,7 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
 #### &lt;file-monitor/&gt;
 文件监控节点，监控某个文件系统中的某目录下的特定文件是否符合要求，包括文件数量与文件大小，若超出阈值，则可邮件告警，并且节点执行失败。
 ##### * 子标签
-* `<file>`：必填，文件系统类型可为`本地文件系统`，`hdfs`，`ftp`，当前只支持本地文件系统，属性`min-num`，可选，文件个数阈值，默认为1，要高于阈值才通过;属性`min-each-size`，必填，文件大小阈值，可用1GB，2.3M，1.1kb直观的写法，若存在文件大小低于阈值，则告警处理
+* `<file>`：必填，文件系统类型可为`本地文件系统`，`hdfs`，`sftp`，当前只支持本地文件系统，属性`file-link`，可选，指定接入的文件系统，默认为local，可从数据接入/文件系统接入中选取指定文件系统，属性`min-num`，可选，文件个数阈值，默认为1，要高于阈值才通过;属性`min-each-size`，必填，文件大小阈值，可用1GB，2.3M，1.1kb直观的写法，若存在文件大小低于阈值，则告警处理
 * `<warn-msg>`：`标签内容`可选，告警邮件补充内容。
 
 ##### * 示例
@@ -318,17 +318,13 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
 
 <!-- example 2 监控hdfs-->
 <file-monitor>
-    <file min-num="10" min-each-size="2G">hdfs:///home/you/app/dir/*.sh</file>
+    <file min-num="10" min-each-size="2G" file-link="hdfs">/home/you/app/dir/*.sh</file>
     <warn-msg>请填写异常告警信息</warn-msg>
 </file-monitor>
 ```
 
 #### &lt;data-monitor/&gt;
 数据监控节点，可以监控数据库的记录，文件行数，文件大小等不同数据类型的指标，并设置该数据点的上下限，具有双重检测机制，在指定时间间隔内（默认10s），再次检测源数据及上下限的数据，如果发生变化，则检测不通过。
-##### * 属性
-* `category`，属性，必填，监控层级，任意有意义字符串即可
-* `name`，属性，必填，监控命名，任意有意义字符串即可
-* `is-saved`，属性，可选，默认为false，是否对监控数据进行保存，当为true时，要设置`category`，`source-name`与`time-mark`属性。
 
 ##### * 子标签
 * `<source>`，子标签，必填，监控数据源，`type`属性，指定数据源类型，当前可选项为`SQL`,`COMMAND`,`NUM`,其中，当选择为SQL数据源时，要补充填写`db-link`属性配置；当选择`COMMAND`与`NUM`时，则不需要；标签内容，当选择SQL时，标签内容填写SQL，查询结果只有单值；当选择`COMMAND`时，则可填写shell命令，返回也只能是单数据值；当选择`NUM`	时，可直接填写单数据值。
@@ -345,8 +341,7 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
 </data-monitor>
 
 <!-- example 2 监测日志文件-->
-<data-monitor is-saved="true" category="ods" source-name="">
-   <source type="SQL" db-link="local_mysql">
+<data-monitor>
        select count(1) from example_item where ds = '${param:stime}'
    </source>
    <min type="NUM">2</min>
@@ -356,10 +351,10 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
 </data-monitor>
 ```
 #### &lt;transfer/&gt;
-数据传输节点，支持通用jdbc连接的数据库,本地文件系统，HDFS之间的数据记录互传，hive相关的数据传输采用sqoop，但是并没有进一步封装（后续有时间调整），所以只是提供了写脚本命令的方式（需要指定到有按照sqoop的机器上执行）
+数据传输节点，支持通用jdbc连接的数据库,本地文件系统、SFTP、HDFS之间的数据记录互传，hive相关的数据传输采用sqoop，但是并没有进一步封装（后续有时间调整），所以只是提供了写脚本命令的方式（需要指定到有按照sqoop的机器上执行）
 ##### * 子标签
-* `<source>`：可选，导入的数据源配置，与下面的`<script/>`标签二选一，数据来源支持jdbc数据源与各类型文件。属性`type` ,可选值有`DB`,`FILE`,其中FILE是各类型文件。在FILE类型下，属性`delimited`是文件分隔符,标签内容填写文件路径；在DB情况下，需填进属性`db-link`,标签内容填写表名或查询sql。
-* `<target>`: 可选，导出的目标源配置，与source标签一起使用，属性`type`，可选值有`DB`,`FILE`。在FILE类型下，属性`path`与`delimited`默认是本地文件路径与文件分隔符,属性`is-pre-del`,可选，是否在导入数据前删除文件，默认为false；在DB情况下，需填进属性`db-link`，属性`is-pre-truncate`,可选，是否在导入数据前清空表，默认为false,标签`<pre>`与`<after>`，前置执行的sql与后置执行的sql，若无，可不添加。
+* `<source>`：可选，导入的数据源配置，与下面的`<script/>`标签二选一，数据来源支持jdbc数据源与各类型文件。属性`type` ,可选值有`DB`,`FILE`,其中FILE是各类型文件。在FILE类型下，属性`delimited`是文件分隔符,标签内容填写文件路径；在DB情况下，需填进属性`db-link`，标签内容填写表名或查询sql;在FILE情况下，需填入属性`file-link`，默认为local，标签内容填写指定文件名路径。
+* `<target>`: 可选，导出的目标源配置，与source标签一起使用，属性`type`，可选值有`DB`,`FILE`。在FILE类型下，属性`file-link`可选，默认为local，，属性`path`必填，目标路径，属性`delimited`可选，默认为tab,属性`is-pre-del`,可选，是否在导入数据前删除文件，默认为false；在DB情况下，需填进属性`db-link`，属性`is-pre-truncate`,可选，是否在导入数据前清空表，默认为false,标签`<pre>`与`<after>`，前置执行的sql与后置执行的sql，若无，可不添加。
 * `<script>`: 由于sqoop还没封装，所以提供以脚本命令的方式来进行数据传输。
 
 #### * 示例
@@ -382,8 +377,8 @@ sql执行节点，支持多种数据库sql执行，目前支持的数据库有�
 
 <!-- 完整示例1 -->
 <transfer> 
-	    <source type="FILE" delimited=",">hdfs://quickstart.cloudera:8022/tmp/1111.txt</source>
-	    <target type="FILE" path="/tmp/2222.txt">
+	    <source type="FILE" file-link="local" delimited=",">hdfs://quickstart.cloudera:8022/tmp/1111.txt</source>
+	    <target type="FILE" file-link="hdfs" path="/tmp/2222.txt">
 	    	  <pre>echo "begin"</pre>
 	    	  <after>echo "end"</after>
 	    </target>

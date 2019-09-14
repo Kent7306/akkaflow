@@ -1,0 +1,13 @@
+#!/bin/bash
+cd `dirname $0`
+source ./head.sh
+sleep 30
+sh ./master-startup
+sleep 2
+sh ./master-standby-startup
+sleep 2
+sh ./httpserver-startup
+sleep 2
+sh ./worker-startup
+sleep 2
+tail -1000f ../logs/run.log

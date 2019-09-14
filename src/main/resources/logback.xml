@@ -3,7 +3,8 @@
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>[%level][%date] %msg%n</pattern>
+            <!--<pattern>%date{ISO8601} %-5level %X{akkaSource} ||- %msg%n</pattern>-->
+            <pattern>%date{ISO8601} %-5level ||- %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -12,7 +13,7 @@
             <FileNamePattern>logs/akka.%d{yyyy-MM-dd}.log</FileNamePattern>
         </rollingPolicy>
         <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
-            <pattern>[%level][%date] %msg%n</pattern>
+            <pattern>%date{ISO8601} %-5level %X{akkaSource} ||- %msg%n</pattern>
         </encoder>
     </appender>
 

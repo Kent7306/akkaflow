@@ -20,7 +20,7 @@ class KillNodeInstance (override val nodeInfo: KillNode) extends ControlNodeInst
   }
 
   override def replaceParam(param: Map[String, String]): Boolean = {
-    this.nodeInfo.msg = ParamHandler(new Date()).getValue(nodeInfo.msg)
+    this.nodeInfo.msg = ParamHandler(new Date()).translate(nodeInfo.msg)
     true
   }
 }

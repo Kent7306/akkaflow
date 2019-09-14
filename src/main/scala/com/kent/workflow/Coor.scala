@@ -13,10 +13,13 @@ import com.kent.util.{ParamHandler, Util}
 import com.kent.pub.Event._
 import com.kent.main.Master
 
+/**
+  * 工作流调度器
+  */
 class Coor() extends DeepCloneable[Coor] {
 	//存放参数原始信息
-  var paramList: List[Tuple2[String, String]] = List()
-  var cron: CronComponent = _
+  var paramList: List[(String, String)] = List()
+  var cronOpt: Option[CronComponent] = None
   var cronStr: String = _
   var startDate: Date = _
   var isEnabled: Boolean = true
@@ -30,7 +33,7 @@ class Coor() extends DeepCloneable[Coor] {
         && this.endDate.getTime >= Util.nowTime 
         && isEnabled) {
     	if(this.depends.filterNot { _.isReady }.size == 0 
-    	    && ((this.cron == null && this.depends.size > 0) || (this.cron != null && this.cron.isAfterExecuteTime))) 
+    	    && ((this.cronOpt.isEmpty && this.depends.size > 0) || (this.cronOpt.isDefined && this.cronOpt.get.isAfterExecuteTime)))
     	  true else false      
     }else false
   }
@@ -44,13 +47,13 @@ class Coor() extends DeepCloneable[Coor] {
     //paramMap += ("x" -> "y")
     
     //内置变量
-    paramList.foreach(x => paramMap += (x._1 -> paramHandler.getValue(x._2, paramMap)))
+    paramList.foreach(x => paramMap += (x._1 -> paramHandler.translate(x._2, paramMap)))
      paramMap
   }
 
   override def deepClone(): Coor = {
      val newCoor = super.deepClone();
-     newCoor.cron = if(this.cron != null) this.cron.deepClone() else null;
+     newCoor.cronOpt = if(this.cronOpt.isDefined) Some(this.cronOpt.get.deepClone()) else None;
      newCoor
   }
   
@@ -63,7 +66,7 @@ object Coor{
                     else isEnabledOpt.get.text.toBoolean
     val startDateOpt = node.attribute("start-time")
     val endDateOpt = node.attribute("end-time")
-    var cronConfig:String = null;
+    var cronConfig:String = null
     if((node \ "depend-list" \ "@cron").size > 0){
     	cronConfig = (node \ "depend-list" \ "@cron").text
     }
@@ -79,7 +82,7 @@ object Coor{
     val coor = new Coor()
     coor.startDate = sdate
     coor.endDate = edate
-    coor.cron = cron
+    coor.cronOpt = Option(cron)
     coor.isEnabled = isEnabled
     coor.paramList = paramList
     coor.depends = depends

@@ -9,6 +9,6 @@ object ParamReplaceTest extends App{
 		${param:stime}
     """
   
-  val para = ParamHandler().getValue(str, Map("stime" -> "2016-04-03"))
+  val para = ParamHandler().translate(str, Map("stime" -> "2016-04-03"))
   println(para)
 }

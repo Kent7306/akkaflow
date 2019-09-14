@@ -7,4 +7,4 @@ cd $script_dir/..
 printf "开始启动Worker节点...\n"
 printf "启动日志请查看[根目录]/logs/run.log\n"
 mkdir -p logs
-nohup sh bin/worker 1>>logs/run.log 2>&1 &
+nohup bin/worker 1>>logs/run.log 2>&1 &

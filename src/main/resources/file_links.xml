@@ -1,0 +1,5 @@
+<file-links>
+	<link name="local" type="LOCAL" host="local" port="-1" username="root" password="root" desc="本地文件系统"/>
+	<link name="s1" type="SFTP" host="s1" port="22" username="root" password="iflytek_south@123" desc="s1上hdfs"/>
+	<link name="hdfs" type="HDFS" host="s1" port="8020" username="hive" password="hive" desc="s1上hdfs"/>
+</file-links>

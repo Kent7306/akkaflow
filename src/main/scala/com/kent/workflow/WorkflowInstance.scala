@@ -25,7 +25,7 @@ import scala.concurrent.Future
   */
 class WorkflowInstance(val workflow: Workflow) extends DeepCloneable[WorkflowInstance] {
   var id: String = _
-  def actorName = s"${id}"
+  def actorName = s"${workflow.name}:$id"
   var paramMap:Map[String, String] = Map()
   var startTime: Date = _
   var endTime: Date = _
@@ -86,7 +86,7 @@ class WorkflowInstance(val workflow: Workflow) extends DeepCloneable[WorkflowIns
 	<tr><td width="100">实例ID</td><td>${this.id}</td></tr>
 	<tr><td>工作流</td><td>${this.workflow.name}</td></tr>
 	<tr><td>运行状态</td><td>${WStatus.getStatusName(this.getStatus())}</td></tr>
-	<tr><td>开始时间</td><td>${Util.formatStandarTime(this.startTime)}</td></tr>
+	<tr><td>开始时间</td><td>${Util.formatStandardTime(this.startTime)}</td></tr>
 	<tr><td>运行时长</td><td>${((this.endTime.getTime-this.startTime.getTime)/1000).toInt}</td></tr>
 	<tr><td>目录</td><td>${this.workflow.dir.dirname}</td></tr>
 	<tr><td>参数</td><td>${this.paramMap.map{case(k,v) => s"$k:$v"}.mkString(", ")}</td></tr>
@@ -119,7 +119,7 @@ class WorkflowInstance(val workflow: Workflow) extends DeepCloneable[WorkflowIns
 	    <td>${x.nodeInfo.name}</td>
 	    <td>${x.nodeInfo.getType}</td>
 	    <td>${Status.getStatusName(x.status)}</td>
-	    <td>${Util.formatStandarTime(x.startTime)}</td>
+	    <td>${Util.formatStandardTime(x.startTime)}</td>
 	    <td>${if(x.startTime == null || x.endTime == null) "--" 
 	      else ((x.endTime.getTime-x.startTime.getTime)/1000).toInt}</td>
 	    <td>${x.executedMsg}</td>
@@ -136,7 +136,7 @@ class WorkflowInstance(val workflow: Workflow) extends DeepCloneable[WorkflowIns
 	${nodesStr}
 </table>
         """
-	  val logListF = (Master.logRecorder ? GetLog(null,this.id, null)).mapTo[List[List[String]]]
+	  val logListF = (Master.logRecorder ? GetLog(this.id)).mapTo[List[List[String]]]
 	  logListF.map { rows => 
 	     val logLines = rows.map { cols => 
 	       val aDom = cols(0).toUpperCase() match {
@@ -161,9 +161,9 @@ object WorkflowInstance {
   /**
    * 由一个xml和转换前参数产生一个实例
    */
-  def apply(id: String,xmlStr: String, paramMap: Map[String, String]): WorkflowInstance = {
+  def apply(id: String, xmlStr: String, paramMap: Map[String, String]): WorkflowInstance = {
     if(xmlStr != null && xmlStr.trim() != ""){
-      val parseXmlStr = ParamHandler(Util.nowDate).getValue(xmlStr, paramMap)
+      val parseXmlStr = ParamHandler(Util.nowDate).translate(xmlStr, paramMap)
       val parseWf = Workflow(parseXmlStr)
     	val wfi = new WorkflowInstance(parseWf)
       wfi.id = if(id == null || id.trim() == "") Util.produce8UUID else id

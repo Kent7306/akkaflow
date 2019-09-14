@@ -2,14 +2,14 @@
 cd `dirname $0`
 source ./head.sh
 sh ./master-startup
-sleep 3
+sleep 2
 sh ./master-standby-startup
-sleep 3
+sleep 2
 sh ./httpserver-startup
-sleep 3
+sleep 2
 sh ./worker-startup
 sleep 2
 tail -1000f ../logs/run.log &
-sleep 10
+sleep 30
 ps -ef | grep tail | grep "tail -1000" | awk '{print $2}' | xargs kill -9 1>/dev/null 2>&1
 exit 0

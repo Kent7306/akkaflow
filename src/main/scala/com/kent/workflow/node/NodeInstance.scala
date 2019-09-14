@@ -10,8 +10,8 @@ import com.kent.workflow.node.Node.Status._
 
 abstract class NodeInstance(val nodeInfo: Node) extends DeepCloneable[NodeInstance]{
   var id: String = _
-  var status: Status = PREP
-  var executedMsg: String = _
+  @volatile var status: Status = PREP
+  @volatile var executedMsg: String = _
   var startTime: Date= _
   var endTime: Date = _
   

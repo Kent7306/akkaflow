@@ -8,6 +8,7 @@ import akka.util.Timeout
 import com.kent.pub.Event._
 import com.kent.pub.actor.BaseActor
 import com.kent.pub.db.DBLink
+import com.kent.pub.io.FileLink
 import com.kent.util.FileUtil
 import com.kent.workflow.node.Node.Status._
 import com.kent.workflow.node.action.ActionNodeInstance
@@ -42,9 +43,9 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends BaseActor {
         result = actionNodeInstance.execute()
       }catch{
         case e: Exception =>
-          //e.printStackTrace()
-          val eMsg = if(actionNodeInstance.executedMsg == null) "" else s"\n${actionNodeInstance.executedMsg}"
-          actionNodeInstance.executedMsg = s"${e.getMessage}" + eMsg
+          actionNodeInstance.errorLog(e.getStackTraceString)
+          val eMsg = if(actionNodeInstance.executedMsg == null) "" else s"${actionNodeInstance.executedMsg}\n"
+          actionNodeInstance.executedMsg = s"$eMsg${e.getMessage}"
           result = false
       }
       val executedStatus = if(result) SUCCESSED else FAILED
@@ -64,13 +65,13 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends BaseActor {
     		//发送邮件
     		//重试次数参数>0，并且当前重试次数=设定的阈值，并且执行失败，就发送节点执行失败邮件
       //（即使重试多次，只发送一次）
-    		val config = context.system.settings.config
-    		val reTryFailAlamMin = Try(config.getInt("workflow.email.node-retry-fail-times")).getOrElse(0)
-    		if(actionNodeInstance.nodeInfo.retryTimes > 0  && actionNodeInstance.hasRetryTimes == reTryFailAlamMin && executedStatus == FAILED){
-    		  sendNodeRetryMail(false, actionNodeInstance.executedMsg)
-    		}else if(actionNodeInstance.hasRetryTimes > reTryFailAlamMin && executedStatus == SUCCESSED) {  //有重试过并且如果执行成功
-    		  sendNodeRetryMail(true, actionNodeInstance.executedMsg)
-    		}
+      val config = context.system.settings.config
+      val reTryFailAlamMin = Try(config.getInt("workflow.email.node-retry-fail-times")).getOrElse(0)
+      if(actionNodeInstance.nodeInfo.retryTimes > 0  && actionNodeInstance.hasRetryTimes == reTryFailAlamMin && executedStatus == FAILED){
+        sendNodeRetryMail(false, actionNodeInstance.executedMsg)
+      }else if(actionNodeInstance.hasRetryTimes > reTryFailAlamMin && executedStatus == SUCCESSED) {  //有重试过并且如果执行成功
+        sendNodeRetryMail(true, actionNodeInstance.executedMsg)
+      }
     		
   		  //线程执行后，节点执行成功或失败
       if(context != null) self ! Termination()
@@ -83,8 +84,8 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends BaseActor {
   }
   def kill(sdr:ActorRef){
     actionNodeInstance.status = KILLED
-    actionNodeInstance.executedMsg = "手工杀死节点"
-    actionNodeInstance.kill();
+    actionNodeInstance.executedMsg = "手动杀死节点"
+    actionNodeInstance.kill()
     terminate(sdr)
   }
   /**
@@ -120,18 +121,37 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends BaseActor {
        actionNodeInstance.infoLog(s"节点执行${resultTmp},发送告警邮件")
        this.sendMailMsg(null, mailTitle, mailHtml)
   }
-  
+
   /**
-   * 发送邮件
-   * 如果toUsers = null，则取工作流中配置的收件人列表
-   */
+    * 发送邮件
+    * 如果toUsers = null，则取工作流中配置的收件人列表
+    * @param toUsers
+    * @param subject
+    * @param htmlText
+    */
   def sendMailMsg(toUsers: List[String],subject: String,htmlText: String){
     workflowActorRef ! EmailMessage(toUsers, subject, htmlText, List())
   }
+
   /**
-   * 获取指定名称的DBLink
-   */
+    * 获取指定名称的DBLink
+    * @param name
+    * @return
+    */
   def getDBLink(name: String): Future[Option[DBLink]] = (workflowActorRef ? GetDBLink(name)).mapTo[Option[DBLink]]
+
+  /**
+    * 获取指定名称的FileLink
+    * @param name
+    * @return
+    */
+  def getFileLink(name: String): Future[Option[FileLink]] = (workflowActorRef ? GetFileLink(name)).mapTo[Option[FileLink]]
+
+  /**
+    * 获取所有的FileLink
+    * @return
+    */
+  def getAllFileLink(): Future[List[FileLink]] = (workflowActorRef ? GetAllFileLink()).mapTo[List[FileLink]]
   /**
    * 获取工作流实例的简单信息（一般用来发邮件）
    */
@@ -150,7 +170,7 @@ class ActionActor(actionNodeInstance: ActionNodeInstance) extends BaseActor {
 		if(actionNodeInstance.getStatus() == SUCCESSED){
 		  actionNodeInstance.infoLog("节点执行成功")
 		}else {
-		  (s"执行失败，出错信息:"+actionNodeInstance.executedMsg).split("\n").foreach { actionNodeInstance.errorLog(_)}
+		  (s"执行失败，信息:"+actionNodeInstance.executedMsg).split("\n").foreach { actionNodeInstance.errorLog }
 		}
 		//结束
     ar ! ActionExecuteResult(actionNodeInstance.getStatus(),actionNodeInstance.executedMsg) 

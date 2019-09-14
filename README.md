@@ -17,9 +17,25 @@
 * `Http-Server` http服务节点，接受请求
 ![Aaron Swartz](https://raw.githubusercontent.com/Kent7306/akkaflow/master/resources/img/%E8%8A%82%E7%82%B9%E8%A7%92%E8%89%B2%E5%85%B3%E7%B3%BB%E5%9B%BE.png)    
 
-### 部署
-#### 1、打包
-* 可以直接在[这里](https://pan.baidu.com/s/1RAiyP-0p1l4qOIRY-mbIWA)下载`akkaflow-x.x.zip`，这是已编译的安装包，只包括后端调度系统。
+### 安装配置
+#### 1、从docker开始
+目前已制作一份docker服务编排配置文件，通过docker直接快速初始化系统环境，体验系统的使用。
+```shell
+
+#解压
+tar -xvf docker-akkalfow-2.12.1.tar.gz
+#进入目录
+cd docker
+#构建镜像
+docker-compose build
+# 执行启动系统
+docker-compose up
+```
+等系统启动完毕后，过程大概30s，打开浏览器，输入：http://localhost:8080/login, 管理员用户密码分别为: admin/123，点击“登录”，enjoin it！
+
+
+#### 2、打包
+* 也可以直接在[这里](https://pan.baidu.com/s/1RAiyP-0p1l4qOIRY-mbIWA)下载`akkaflow-x.x.zip`，这是已编译的安装包，只包括后端调度系统。
 * 或把代码拉下来，用sbt-native-packager进行编译打包(目录下直接运行`sbt dist`)
 
 #### 2、安装
@@ -39,44 +55,60 @@
 * 修改配置文件 `config/application.conf`中以下部分（基本修改数据库以及邮件配置项就可以了）
 
 ```scala
-  workflow {
+  //配置
+workflow {
   node {
-    master {    		//主节点，所部署机器端口，目前只支持单主节点
-      hostname = "127.0.0.1"  	//若内网，则为内网IP，若公网部署，则为公网IP，整个集群中，master ip是固定的
+    master {        //主节点，所部署机器端口，目前只支持单主节点
+      hostname = "127.0.0.1"    //若内网，则为内网IP，若公网部署，则为公网IP，一个集群中，这个是固定的
       port = 2751
-      standby {  	//备份主节点
-        port = 2752
-      }
     }
-    worker {  		//工作节点，所部署机器端口，支持单个机器上多个工作节点 
+    standby { //备份主节点
+      port = 2752
+    }
+    worker {      //工作节点，所部署机器端口，支持单个机器上多个工作节点
       ports = [2851, 2852, 2853]
     }
-    http-server{		//http-server节点
+    http-server {    //http-server节点
       port = 2951
-      connector-port = 8090  //http访问端口
+      http-port = 8090  //http访问端口
     }
   }
-  current.inner.hostname = "127.0.0.1"  //当前机器内网IP
-  current.public.hostname = "127.0.0.1"  //当前机器公网IP，若部署在内网，则与内网IP一致
-  
+  current.inner.hostname = "127.0.0.1"      //当前机器内网IP
+  current.public.hostname = "127.0.0.1"          //当前机器公网IP，若部署在内网，则与内网IP一致
+
   mysql {   //用mysql来持久化数据
-  	user = "root"
-  	password = "root"
-  	jdbc-url = "jdbc:mysql://localhost:3306/wf?useSSL=false&autoReconnect=true&failOverReadOnly=false"
+    user = "root"
+    password = "root"
+    jdbc-url = "jdbc:mysql://localhost:3306/wf?useSSL=false&autoReconnect=true&failOverReadOnly=false"
+    max-active = 10
+    init-size = 5
+    min-idle = 5
+    max-wait = 6000
+    validation-query = "select 1"
+    min-evictable-idle-time-millis = 300000
+
   }
-  email {	//告警邮箱设置
-  	hostname = "smtp.163.com"
-  	smtp-port = 25 	  //smtp端口，可选
-  	auth = true
-  	account = "15018735011@163.com"
-  	password = "******"   //这里改成自己的邮箱密码哈
-  	charset = "utf8"
-  	is-enabled = true
-  	node-retry-fail-times = 1	//节点执行n次失败才发出重试失败告警
+  email {  //告警邮箱设置
+    hostname = "smtp.126.com"
+    smtp-port = 25    //smtp端口，可选
+    auth = true
+    account = "akkaflow@126.com"
+    nickname = "测试任务告警"
+    password = "******"
+    charset = "utf8"
+    is-enabled = true
+    node-retry-fail-times = 1  //节点执行n次失败才发出重试失败告警
   }
-  extra {
-  	hdfs-uri = "hdfs://quickstart.cloudera:8020"
+  xml-loader {  //xml装载器配置
+    workflow-dir = "xmlconfig"
+    scan-interval = 5   //单位：秒
   }
+  cron-runner { //定时器配置
+    reset = "59 23 * * *"   //定期重置所有工作流状态
+    plan = "1 0 * * *"
+  }
+}
+
 ```
   
 * 启动角色（独立部署模式）  

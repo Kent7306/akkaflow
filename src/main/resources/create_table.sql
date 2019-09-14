@@ -28,7 +28,9 @@ create table if not exists node (
     type varchar(100) comment '节点类型',
     content JSON comment '节点存放内容',
     workflow_name varchar(128) comment '外键->workflow_info:name',
-    description varchar(1024)
+    description varchar(1024),
+    primary key (name, workflow_name),
+    foreign key (workflow_name) references workflow(name) on delete cascade on update cascade
 ) comment = '工作流节点信息表';
 
 create table if not exists workflow_instance(
@@ -46,7 +48,8 @@ create table if not exists workflow_instance(
     etime datetime,
     create_time datetime,
     last_update_time datetime,
-    xml_str text comment 'xml的内容'
+    xml_str text comment 'xml的内容',
+    foreign key (name) references workflow(name) on delete cascade on update cascade
 ) comment = '工作流实例表';
 
 create table if not exists node_instance (
@@ -60,7 +63,8 @@ create table if not exists node_instance (
     stime datetime,
     etime datetime,
     msg varchar(1024),
-    index(workflow_instance_id)
+    index(workflow_instance_id),
+    foreign key (workflow_instance_id) references workflow_instance(id) on delete cascade on update cascade
 ) comment = '工作流实例节点表';
 
 create table if not exists log_record (
@@ -89,7 +93,8 @@ create table if not exists data_monitor (
       min double default null comment '下限',
       max double default null comment '上限',
       workflow_instance_id varchar(8) not null,
-      remark varchar(1024) default null comment '备注'
+      remark varchar(1024) default null comment '备注',
+      foreign key (workflow_instance_id) references workflow_instance(id) on delete cascade on update cascade
 ) comment='数据监控表';
 
 
@@ -97,13 +102,32 @@ create table if not exists db_link (
    name varchar(128) primary key,
    dbType varchar(32) not null comment '数据库类型，枚举：HIVE MYSQL ORACLE',
    description varchar(256) comment '描述',
-   jdbc_url varchar(128) not null comment 'jdbc连接串',
+   properties json comment '连接属性',
+   jdbc_url varchar(256) not null comment 'jdbc连接串',
    username varchar(128) not null comment '用户名',
    password varchar(128) not null comment '密码',
    create_time datetime comment '创建时间',
    last_update_time datetime comment '更新时间'
 ) comment = '数据库连接配置表';
 
+create table if not exists file_link (
+   name varchar(128) primary key,
+   fsType varchar(32) not null comment '文件系统类型，枚举: HDFS, LOCAL, SFTP',
+   host varchar(64) comment '文件访问主机名称',
+   port int comment '文件访问端口',
+   username varchar(128) not null comment '用户名',
+   password varchar(128) not null comment '密码',
+   description varchar(256) comment '描述'
+) comment '文件访问链接配置表';
+
+    create table if not exists workflow_plan(
+    id int primary key auto_increment comment '自增主键',
+    workflow_name varchar(128) comment '工作流名称',
+    plan_date varchar(10) comment '计划日期，yyyy-MM-dd',
+    num int comment '计划执行次数',
+    create_time datetime comment '生成时间',
+    foreign key (workflow_name) references workflow(name) on delete cascade on update cascade
+) comment = '工作流生成计划';
 
 create table if not exists lineage_table(
 	name varchar(128) primary key comment '数据集名称：库.表',
@@ -121,6 +145,4 @@ create table if not exists lineage_table_ref(
 	pname varchar(128) not null comment '父数据集名称',
 	foreign KEY (name) references lineage_table(name) on delete cascade,
 	foreign KEY (pname) references lineage_table(name) on delete cascade
-)comment = '血缘关系table关系表';
-
-delete from workflow_instance where status = '0';
+)comment = '血缘关系table关系表'

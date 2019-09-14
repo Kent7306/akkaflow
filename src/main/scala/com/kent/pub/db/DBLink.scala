@@ -3,8 +3,7 @@ package com.kent.pub.db
 import java.sql.{Connection, ResultSet, Statement}
 
 import com.kent.pub.db.DBLink.DatabaseType.{DatabaseType, HIVE, MYSQL, ORACLE}
-import com.kent.pub.DeepCloneable
-import com.kent.pub.Event.Result
+import com.kent.pub._
 
 import scala.util.Try
 
@@ -18,6 +17,8 @@ class DBLink() extends DeepCloneable[DBLink]{
   var username: String = _
   var password: String = _
   var description: String = _
+  var properties: Map[String, String] = Map()
+
 
   /**
     * 获取当前连接串的数据库或shcema
@@ -50,7 +51,7 @@ class DBLink() extends DeepCloneable[DBLink]{
     */
   def shortQuery[A](sql: String, rsHandler:ResultSet => A): Option[A] = {
     val jo = getJdbcOpera()
-    jo.querySql[A](sql, this, rsHandler)
+    jo.query[A](sql, this, rsHandler)
   }
   /**
     * 判断是否可用连通
@@ -60,9 +61,9 @@ class DBLink() extends DeepCloneable[DBLink]{
     var conn: Connection = null;
     val result = Try {
       conn = getJdbcOpera().getConnection(this)
-      Result(true, "测试连通", None)
+      SucceedResult("测试连通")
     }.recover{
-      case e: Exception => Result(false, e.getMessage, None)
+      case e: Exception => FailedResult(e.getMessage)
     }.get
     if (conn != null) conn.close()
     result
@@ -72,18 +73,18 @@ class DBLink() extends DeepCloneable[DBLink]{
     * 获取jdbc操作器
     * @return
     */
-  private def getJdbcOpera(): JdbcOpera = {
+  def getJdbcOpera(): JdbcOperator = {
     dbType match {
-      case HIVE => HiveOpera
-      case ORACLE => OracleOpera
-      case MYSQL => MysqlOpera
+      case HIVE => HiveOperator
+      case ORACLE => OracleOperator
+      case MYSQL => MysqlOperator
       case _ => ???
     }
   }
 }
 
 object DBLink{
-  def apply(dbType: DatabaseType, name: String, jdbcUrl: String, username: String, password: String, description: String): DBLink = {
+  def apply(dbType: DatabaseType, name: String, jdbcUrl: String, username: String, password: String, description: String, properties: Map[String, String]): DBLink = {
     val dbLink = new DBLink()
     dbLink.dbType = dbType
     dbLink.name = name
@@ -91,11 +92,38 @@ object DBLink{
     dbLink.username = username
     dbLink.password = password
     dbLink.description = description
+    dbLink.properties = properties
     dbLink
+  }
+
+  def apply(dbType: DatabaseType, name: String, jdbcUrl: String, username: String, password: String, description: String, propertiesStr: String): DBLink = {
+    val pp = if (propertiesStr != null && propertiesStr.trim != "") {
+      propertiesStr.split("&").map{ kvStr =>
+        val kvs = kvStr.split("=")
+        if (kvs.length != 2) throw new Exception(s"${kvStr}的配置出错")
+        if (kvs(0).trim == "") throw new Exception(s"${kvStr}的配置出错")
+        (kvs(0),kvs(1))
+      }.filter{ case (k,v) =>
+        v.trim != ""
+      }.toMap
+
+    } else {
+      Map[String, String]()
+    }
+    DBLink(dbType, name, jdbcUrl, username, password, description, pp)
+
+  }
+
+  def apply(name: String): DBLink = {
+    val dbl = new DBLink()
+    dbl.name = name
+    dbl
   }
   
   object DatabaseType extends Enumeration {
     type DatabaseType = Value
     val HIVE, ORACLE, MYSQL = Value
+
+
   }
 }

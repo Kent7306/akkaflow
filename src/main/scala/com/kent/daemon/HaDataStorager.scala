@@ -6,12 +6,14 @@ import akka.cluster.ddata.{DistributedData, LWWMap, LWWMapKey}
 import akka.cluster.ddata.Replicator._
 import akka.pattern.ask
 import akka.util.Timeout
+import com.kent.pub.actor.BaseActor.{ActorInfo, ActorType}
 import com.kent.pub.actor.Daemon
 import com.kent.workflow.{Workflow, WorkflowInstance}
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Success
 
@@ -119,6 +121,20 @@ class HaDataStorager extends Daemon{
       replyTo ! roles
     case NotFound(RoleDK, Some(replyTo: ActorRef)) => // key workflows does not exist
       replyTo ! Map[String, RoleContent]()
+  }
+
+  override def collectActorInfo():Future[ActorInfo] = {
+    val ai = new ActorInfo()
+    ai.name = s"${self.path.name}(${self.hashCode()})"
+    ai.atype = this.actorType
+    val cais = context.children.map{child =>
+      val cai = new ActorInfo()
+      cai.name = s"${child.path.name}(${self.hashCode()})"
+      cai.atype = ActorType.BASE
+      cai
+    }.toList
+    ai.subActors = cais
+    Future{ai}
   }
   
 }

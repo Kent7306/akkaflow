@@ -4,9 +4,15 @@ import java.util.Date
 import java.util.UUID
 import java.text.DateFormat
 import java.text.SimpleDateFormat
+
 import org.json4s.jackson.JsonMethods
 import java.util.regex.Pattern
 import java.text.DecimalFormat
+
+import org.json4s.JsonAST.JValue
+import org.json4s.jackson.JsonMethods
+
+import scala.util.Try
 
 /**
  * 辅助对象
@@ -34,15 +40,26 @@ object Util {
     val str3 = str2.replaceFirst(rmStr, "")
     str3.reverse
   }
+
   /**
-   * 格式化时间
-   */
-  def formatStandarTime(date: Date): String = {
+    * 格式化时间为yyyy-MM-dd HH:mm:ss.SSS
+    * @param date
+    * @return
+    */
+  def formatStandardTime(date: Date): String = formatTime(date, "yyyy-MM-dd HH:mm:ss.SSS")
+
+  /**
+    * 格式化时间
+    * @param date
+    * @param format
+    * @return
+    */
+  def formatTime(date: Date, format: String): String = {
     if(date == null){
       null
     }else{
-    	val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
-    	s"${dateFormat.format(date)}"  
+      val dateFormat = new SimpleDateFormat(format)
+      s"${dateFormat.format(date)}"
     }
   }
   /**
@@ -74,10 +91,10 @@ object Util {
    * 把可读容量标识转换byte
    */
   def convertHumen2Byte(sizeStr: String): Long = {
-    var kbRegx = "\\s*(.*?)\\s*([Kk]|[Kk][Bb])".r
-    var mbRegx = "\\s*(.*?)\\s*([Mm]|[Mm][Bb])".r
-    var gbRegx = "\\s*(.*?)\\s*([Gg]|[Gg][Bb])".r
-    var bRegx = "\\s*(.*?)\\s*[Bb]".r
+    val kbRegx = "\\s*(.*?)\\s*([Kk]|[Kk][Bb])".r
+    val mbRegx = "\\s*(.*?)\\s*([Mm]|[Mm][Bb])".r
+    val gbRegx = "\\s*(.*?)\\s*([Gg]|[Gg][Bb])".r
+    val bRegx = "\\s*(.*?)\\s*[Bb]".r
     sizeStr match {
       case gbRegx(n,b) => (n.toDouble*1024*1024*1024).toLong
       case mbRegx(n,b) => (n.toDouble*1024*1024).toLong
@@ -158,10 +175,26 @@ object Util {
         sb.toString()
     }else null
   }
+
+  /**
+    * 判断是否是数字
+    * @param str
+    * @return
+    */
+  def isNumber(str: String): Boolean = {
+    Try{
+      str.toInt
+      true
+    }.getOrElse(false)
+  }
+
+  def str2Json(str: String): JValue = {
+    JsonMethods.parse(str)
+  }
+
   def main(args: Array[String]): Unit = {
-    val a = Util.convertHumen2Byte("23.927 KB")
-    println(a)
-    println(Util.convertByte2Humen(a))
+    val a = """{"key":"value","k2":"v2"}"""
+    println(str2Json(a))
   }
   
 }

@@ -3,10 +3,11 @@ package com.kent.pub.actor
 import akka.actor.{Actor, ActorPath, ActorRef, RootActorPath}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member}
-import akka.pattern.ask
 import com.kent.pub.actor.BaseActor.ActorInfo
-import com.kent.pub.actor.BaseActor.ActorType._
+import com.kent.pub.actor.BaseActor.ActorType./**/_
 import com.kent.pub.Event._
+import com.kent.pub._
+import akka.pattern.{ask, pipe}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -22,18 +23,24 @@ abstract class ClusterRole extends BaseActor {
   override def commonReceice = clusterReceice orElse super.commonReceice 
   
   private def clusterReceice: Actor.Receive = {
-    case MemberUp(member) => 
-     // log.info("Member is Up: {}", member.address)
-      onRoleMemberUp(member)
+    case MemberUp(member) =>
+      if (cluster.selfMember.address == member.address){
+        onSelfMemberUp()
+      } else {
+        onOtherMemberUp(member)
+      }
     case UnreachableMember(member) =>
-      log.info("Member detected as Unreachable: {}", member)
-    case NotifyActive(self) => sender ! notifyActive(self)
+      log.info("角色不可到达: {}", member)
+    case NotifyActive(sdr) => notifyActive(sdr) pipeTo sender
     case MemberRemoved(member, previousStatus) =>
-      log.info("Member is Removed: {} after {}", member.address, previousStatus)
-      onRoleMemberRemove(member)
+      log.info("删除角色: {} ，上一状态 {}", member.address, previousStatus)
+      onMemberRemove(member)
     case state: CurrentClusterState =>
     case _:MemberEvent => // ignore
-    case ShutdownCluster() => context.system.terminate()
+    case ShutdownCluster() =>
+      cluster.leave(cluster.selfAddress)
+      println(s"退出..............${self.path.name}")
+      context.system.terminate()
   }
 
   override def preStart(): Unit = {
@@ -43,23 +50,25 @@ abstract class ClusterRole extends BaseActor {
   }
 
   /**
-    * 有其他角色加入集群（包括自己）
+    * 目前角色检测到有其他角色加入
     * @param member
     */
-  def onRoleMemberUp(member: Member): Unit
+  def onOtherMemberUp(member: Member): Unit
+
+  def onSelfMemberUp(): Unit
 
   /**
     * 有其他角色退出集群
     * @param member
     */
-  def onRoleMemberRemove(member: Member): Unit
+  def onMemberRemove(member: Member): Unit
 
   /**
     * 活动master通知
     * @param masterRef
     * @return
     */
-  def notifyActive(masterRef: ActorRef): Result
+  def notifyActive(masterRef: ActorRef): Future[Result]
   /**
    * 得到角色的ip与端口串
    */

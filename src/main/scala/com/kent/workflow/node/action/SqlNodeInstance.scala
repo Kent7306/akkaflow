@@ -4,7 +4,7 @@ import java.sql.{Connection, Statement}
 
 import com.kent.pub.Event._
 import com.kent.pub.db.DBLink.DatabaseType._
-import com.kent.pub.db.{HiveOpera, MysqlOpera, OracleOpera}
+import com.kent.pub.db.{HiveOperator, MysqlOperator, OracleOperator}
 import com.kent.util.Util
 
 import scala.concurrent.Await

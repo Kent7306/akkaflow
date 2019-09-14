@@ -20,7 +20,7 @@ function getdate()
     fi
 }
 
-port=`cat ../config/application.conf | grep -e "connector-port" | grep -Eo "=\s*[0-9]+" | grep -Eo "[0-9]+"`
+port=`cat ../config/application.conf | grep -e "http-port" | grep -Eo "=\s*[0-9]+" | grep -Eo "[0-9]+"`
 host=`cat ../config/application.conf | grep -e "current.inner.hostname" |  grep -v "bind" | grep -Eo "\".*?\"" | grep -Eo "[^\"]+"`
 
 mysql_user=`cat ../config/application.conf | grep user | awk 'NR==1' | grep -Eo "\".*?\"" | grep -Eo "[^\"]+"`

@@ -1,5 +1,6 @@
 package com.kent.workflow.node.action
 
+import com.kent.pub.io.FileLink
 import org.json4s.jackson.JsonMethods
 import com.kent.util.Util
 import com.kent.util.FileUtil
@@ -11,11 +12,14 @@ import com.kent.util.FileUtil
  * </file-monitor>
  */
 class FileMonitorNode(name: String) extends ActionNode(name) {
-    var dir: String = _
-    var numThreshold: Int = 1
-    var filename: String = _
-    var sizeThreshold: String = "0B"
-    var warnMessage: String = _
+	var dir: String = _
+	var numThreshold: Int = 1
+	var filename: String = _
+	var sizeThreshold: String = "0B"
+	var warnMessage: String = _
+
+	var fileLink: String = _
+
   
   override def toJsonString(): String = {
     import com.kent.util.Util._
@@ -29,11 +33,14 @@ class FileMonitorNode(name: String) extends ActionNode(name) {
 }
 
 object FileMonitorNode {
+
   def apply(name: String): FileMonitorNode = new FileMonitorNode(name)
   def apply(name:String, node: scala.xml.Node): FileMonitorNode = {
 	  val fwan = FileMonitorNode(name)
 	  val fileOpt = node \ "file"
 	  val warnMsgOpt = node \ "warn-msg"
+
+
 	  if(fileOpt.nonEmpty) {
   	  val (dir, baseName) = FileUtil.getDirAndBaseName(fileOpt(0).text)
   	  fwan.dir = dir
@@ -42,9 +49,21 @@ object FileMonitorNode {
 	                        else fileOpt(0).attribute("min-num").get.text.toInt
 	    fwan.sizeThreshold = if(fileOpt(0).attribute("min-each-size").isEmpty) fwan.sizeThreshold
 	                        else fileOpt(0).attribute("min-each-size").get.text
+
+			val fileLinkOpt = fileOpt(0).attribute("file-link")
+			fwan.fileLink = if (fileLinkOpt.isEmpty) {
+				FileLink.DEFAULT_FILE_LINK
+			} else {
+				fileLinkOpt.get.text
+			}
+
+
 	  } else {
 	    throw new Exception(s"节点[file-monitor: ${name}] 未配置<file>子标签")
 	  }
+
+
+
 	  if(warnMsgOpt.nonEmpty) fwan.warnMessage = warnMsgOpt.head.text
 	  fwan
   }

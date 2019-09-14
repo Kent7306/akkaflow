@@ -3,43 +3,59 @@ package com.kent.test
 import akka.actor.Actor
 import akka.actor.ActorSystem
 import akka.actor.Props
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.pattern.ask
 import akka.pattern.pipe
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
+
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object ActorTest extends App{
-  val system = ActorSystem("my-system")
-  val p = system.actorOf(Props[Parent],"p")
+
+  val config = ConfigFactory.load("test.conf")
+  val system = ActorSystem("my-system", config)
+  val p = system.actorOf(Props[Parent],"parent")
   p ! "nihao"
+  Thread.sleep(1500)
+  p ! 2112
 }
 
 class Parent extends Actor {
   implicit val timeout = Timeout(10 seconds)
-  val child = context.actorOf(Props[Child],"c")
+  val child = context.actorOf(Props[Child],"child")
+
+  var str = ""
   
   def receive: Actor.Receive = {
     case a: String => 
-      println("p: " + a)
-      val aa = (child ? "111").mapTo[String]
-      val bb = (child ? "222").mapTo[String]
-    	val cc = (child ? "333").mapTo[String]
-    	val dd = (child ? "444").mapTo[String]
-      aa.map { x => println("return: " + x) }
-      bb.map { x => println("return: " + x) }
-      cc.map { x => println("return: " + x) }
-      dd.map { x => println("return: " + x) }
-      
+      println("parent receive: " + a)
+      val fl = List("111").map { x =>
+        val bb = (child ? x).mapTo[String]
+        bb
+      }
+
+      Future.sequence(fl).map{ x =>
+        str += x
+        println(str)
+        println(x)
+      }
+    case b: Int =>
+      println("parent receive: " + b)
+      Thread.sleep(10000)
+      str += "修改  "
+
   }
 }
 
 class Child extends Actor {
   def receive: Actor.Receive = {
-    case a:String => 
-      println("c: "+ a)
-      Thread.sleep(3000)
-      //println(sender.path.address.host+"*****")
+    case a: String =>
+      println("child receive: "+ a)
+      println(sender.path)
+      Thread.sleep(1000)
       sender ! a
   }
 }

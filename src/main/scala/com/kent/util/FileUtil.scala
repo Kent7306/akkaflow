@@ -27,7 +27,7 @@ object FileUtil {
   /**
 	  * 检出指定文件是否扩展名为extensions
 	  * @param file
-	  * @param extension
+	  * @param extensions
 	  * @return
 	  */
 	 def checkFileExtension(file: File, extensions: List[String]):Boolean = {

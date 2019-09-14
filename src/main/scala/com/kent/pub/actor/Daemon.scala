@@ -15,11 +15,11 @@ abstract class Daemon extends BaseActor{
   
   override def collectActorInfo():Future[ActorInfo] = {
 		val ai = new ActorInfo()
-    ai.name = s"${self.path.name}(${self.hashCode()})"
+    ai.name = s"${self.path.name}"
 		ai.atype = this.actorType
 		val cais = context.children.map{child => 
 		  val cai = new ActorInfo()
-		  cai.name = s"${child.path.name}(${self.hashCode()})"
+		  cai.name = s"${child.path.name}"
 		  cai.atype = ActorType.BASE
 		  cai
 		}.toList
@@ -33,6 +33,7 @@ object Daemon {
 	val DB_CONNECTOR = "db-connector"
 	val MAIL_SENDER = "mail-sender"
 	val XML_LOADER = "xml-loader"
-	val WORKFLOW_MANAGER  = "wfm"
+	val WORKFLOW_MANAGER  = "workflow-manager"
 	val LOG_RECORDER = "log-recorder"
+	val CRON_RUNNER = "cron-runner"
 }

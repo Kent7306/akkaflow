@@ -11,7 +11,7 @@
   <!-- 节点列表 -->
   <start name="start" to="data_monitor" />
 
-  <action name="data_monitor" desc="监控">
+  <action name="data_monitor" desc="监控" is-ignore="true">
       <data-monitor>
           <source type="COMMAND">cat /etc/profile | wc -l</source>
           <min type="NUM">2</min>

@@ -1,21 +1,22 @@
 package com.kent.workflow
 
-import java.sql.{Connection, ResultSet, SQLException}
 import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.kent.daemon.LogRecorder
 import com.kent.daemon.LogRecorder.LogType
-import com.kent.main.Master
-import com.kent.pub.Event._
 import com.kent.pub.dao.WorkflowDao
-import com.kent.pub.{DeepCloneable, Persistable}
+import com.kent.pub._
 import com.kent.util.{ParamHandler, Util}
 import com.kent.workflow.Coor.Depend
 import com.kent.workflow.node.Node
 
 import scala.xml.XML
 
+/**
+  * 工作流类
+  * @param name 工作流名称，名称唯一
+  */
 class Workflow(var name: String) extends DeepCloneable[Workflow] {
 
   import com.kent.workflow.Workflow.WStatus._
@@ -39,11 +40,11 @@ class Workflow(var name: String) extends DeepCloneable[Workflow] {
     */
   def resetCoor(): Boolean = {
     if (this.coorOpt.isDefined) {
-      if (this.coorOpt.get.cron == null || this.coorOpt.get.cron.setNextExecuteTime()) {
+      if (this.coorOpt.get.cronOpt.isEmpty || this.coorOpt.get.cronOpt.get.setNextExecuteTime()) {
         this.coorOpt.get.depends.foreach {
           _.isReady = false
         }
-        WorkflowDao.update(this)
+        WorkflowDao.updateStatus(this)
         true
       } else {
         false
@@ -64,7 +65,7 @@ class Workflow(var name: String) extends DeepCloneable[Workflow] {
         x.isReady = dependIsReady
         LogRecorder.info(LogType.WORKFLOW_MANAGER, null, this.name, s"前置依赖工作流[${dependWfName}]准备状态设置为：${dependIsReady}")
       }
-      WorkflowDao.update(this)
+      WorkflowDao.updateStatus(this)
     }
   }
 
@@ -80,11 +81,11 @@ class Workflow(var name: String) extends DeepCloneable[Workflow] {
         _ != null
       }
       if (unExistWfNames.nonEmpty)
-        Result(false, "前置依赖工作流不存在", Some(unExistWfNames))
+        FailedResult("前置依赖工作流不存在", Some(unExistWfNames))
       else
-        Result(true, "", None)
+        SucceedResult()
     } else {
-      Result(true, "", None)
+      SucceedResult()
     }
   }
 
@@ -116,10 +117,10 @@ class Workflow(var name: String) extends DeepCloneable[Workflow] {
     }
     dfs(this)
     if (isDag){
-      Result(isDag, "成功", None)
+      SucceedResult("成功")
     } else{
       val ringWfs = markMap.filter { case (_, mark) => mark == 1 }.keys.toList
-      Result(isDag, "失败，工作流依赖中存在有向环", Some(ringWfs))
+      FailedResult("失败，工作流依赖中存在有向环", Some(ringWfs))
     }
   }
 
@@ -138,36 +139,35 @@ class Workflow(var name: String) extends DeepCloneable[Workflow] {
 
   /**
     * 计算当前时间下，工作流在当天后续的执行次数
+    * @param wfCntMap
     * @param workflows
     * @return
     */
   def calculateTriggerCnt(wfCntMap: scala.collection.mutable.HashMap[String, Int], workflows: List[Workflow]): Int = {
-    //计算今日crontab计算次数
-    def getCronCnt(wf: Workflow):Int = {
-      val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
-      val nowFormatDateStr = dateFormat.format(Util.nowDate)
-      var nextFormatDateStr: String = null
-      var nextDate: Date = Util.nowDate
-      var i: Int = -1
-      do {
-        i = i + 1
-        nextDate = wf.coorOpt.get.cron.calculateNextTime(nextDate)
-        nextFormatDateStr = dateFormat.format(nextDate)
-      } while (nowFormatDateStr == nextFormatDateStr)
-      i
-    }
-    if (coorOpt.isEmpty || !coorOpt.get.isEnabled){
-      wfCntMap += (this.name -> 0)
-      0
-    }else {
-      val depCnts = coorOpt.get.depends.map{x =>
-        val wf = workflows.find(_.name == x.workFlowName).get
-        val cnt = wf.calculateTriggerCnt(wfCntMap, workflows)
-        wfCntMap += (wf.name -> cnt)
-        cnt
+    val isHasCalculated = if(wfCntMap.get(this.name).isDefined) true else false
+    if (isHasCalculated){
+      wfCntMap(this.name)
+    } else {
+      //计算今日crontab计算次数
+      val leftCnt = if (coorOpt.isEmpty || !coorOpt.get.isEnabled){ //未配置调度或调度不可用
+        0
+      }else { //调度可用，取依赖任务及时间剩余触发的最小的数值
+        //依赖任务集合的剩余执行数值
+        val depCnts = coorOpt.get.depends.map{x =>
+          val wf = workflows.find(_.name == x.workFlowName).get
+          val cnt = wf.calculateTriggerCnt(wfCntMap, workflows)
+          wfCntMap += (wf.name -> cnt)
+          cnt
+        }
+        var l = depCnts
+        if (coorOpt.get.cronOpt.isDefined){ //得到今日时间触发的次数
+          val cronCnt = coorOpt.get.cronOpt.get.getTodayExecuteLeftCnt()
+          l = l :+ cronCnt
+        }
+        l.min
       }
-      val l = depCnts :+  getCronCnt(this)
-      l.min
+      wfCntMap += (this.name -> leftCnt)
+      leftCnt
     }
   }
 
@@ -186,7 +186,7 @@ object Workflow {
     val dirOpt = node.attribute("dir")
     val coorNodeOpt = node \ "coordinator"
     if (nameOpt.isEmpty) throw new Exception("节点<work-flow/>未配置name属性")
-    val wf = new Workflow(nameOpt.get.text)
+    val wf = new Workflow(nameOpt.get.text.trim)
     wf.createTime = if (createTimeOpt.isDefined) Util.getStandarTimeWithStr(createTimeOpt.get.text) else Util.nowDate
     if (descOpt.isDefined) wf.desc = descOpt.get.text
     //工作流节点解析

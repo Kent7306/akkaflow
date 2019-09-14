@@ -38,16 +38,23 @@ class EmailSender(hostName: String, portOpt: Option[Int], auth:Boolean, account:
     email.setSSLOnConnect(false)
     email.setAuthentication(account, pwd)
     email.setCharset("UTF-8")
-    emailMessage.toUsers.foreach { email.addTo(_) }
+		//设置收件人，以第一个为收件人，其余为抄送
+		emailMessage.toUsers.indices.foreach{
+			case i if i == 0 => email.addTo(emailMessage.toUsers(i))
+			case i => email.addCc(emailMessage.toUsers(i))
+		}
+		//密送给自己，防止邮件服务器当做是垃圾邮件
+		email.addBcc(account)
+
     email.setFrom(account, nickName)
     email.setSubject(emailMessage.subject)
     email.setHtmlMsg(emailMessage.htmlText)
+
     try {
       email.send()
     } catch{
       case e: Exception => 
         log.error(s"发送邮件失败:+${e.getMessage}")
-        e.printStackTrace()
     }
   }
   

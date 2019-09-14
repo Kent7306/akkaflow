@@ -1,5 +1,5 @@
 name := "akkaflow"
-version := "2.10.1"
+version := "2.12.1"
 scalaVersion := "2.12.8"
 resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 resolvers += "oracle" at "https://maven.atlassian.com/3rdparty/"
@@ -12,6 +12,8 @@ resolvers += "cloudera Repository" at "https://repository.cloudera.com/artifacto
 
 libraryDependencies ++= { 
   val akkaVersion = "2.5.18"
+  val hiveVersion = "1.1.1"
+  val hadoopVersion = "2.6.0"
   Seq(
     "org.scala-lang.modules" %% "scala-xml" % "1.1.1",
     "com.typesafe.akka" %% "akka-actor"      % akkaVersion,
@@ -27,18 +29,17 @@ libraryDependencies ++= {
     "ch.qos.logback"    %  "logback-classic" % "1.2.3",
     "org.scalatest"     %% "scalatest"       % "3.0.5"       % "test",
     "mysql" % "mysql-connector-java" % "5.1.42",
-//    "com.github.philcali" %% "cronish" % "0.1.5",
     "com.frograms" %% "cronish" % "0.1.5-FROGRAMS",
     "org.json4s" %% "json4s-jackson" % "3.6.5",
     "org.apache.commons" % "commons-email" % "1.4",
-    "org.apache.hadoop" % "hadoop-client" % "2.6.0",
-    "org.apache.hive" % "hive-exec" % "1.1.1",
-    "org.apache.hive" % "hive-jdbc" % "1.1.1",
-    //"org.apache.hive" % "hive-jdbc" % "1.1.0-cdh5.13.3",
-    //"org.apache.hive" % "hive-exec" % "1.1.0-cdh5.15.1",
-    //"org.apache.hive" % "hive-exec" % "1.1.0-cdh5.3.6",
-    //"org.apache.sqoop" % "sqoop" % "1.4.6.2.4.2.12-1",
-    "com.oracle" % "ojdbc6" % "12.1.0.1-atlassian-hosted"
+    "org.apache.hadoop" % "hadoop-client" % hadoopVersion,
+    "org.apache.hive" % "hive-exec" % hiveVersion,
+    "org.apache.hive" % "hive-jdbc" % hiveVersion,
+    "com.oracle" % "ojdbc6" % "12.1.0.1-atlassian-hosted",
+    //db pool
+    "com.alibaba" % "druid" % "1.1.16",
+    //sftp
+    "com.jcraft" % "jsch" % "0.1.55"
   )
 }
 

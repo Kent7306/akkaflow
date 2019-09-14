@@ -2,7 +2,7 @@ package com.kent.workflow.node
 
 import java.sql.Connection
 
-import com.kent.pub.{DeepCloneable, Persistable}
+import com.kent.pub.{DeepCloneable}
 import com.kent.workflow.Workflow
 import com.kent.workflow.node.action._
 import com.kent.workflow.node.control._

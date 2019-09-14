@@ -2,15 +2,10 @@ package com.kent.workflow.node.action.transfer
 
 import akka.actor.Actor
 import akka.actor.ActorRef
-import com.kent.pub.Event.Start
 import akka.pattern.{ask, pipe}
-import com.kent.daemon.LogRecorder
 import com.kent.workflow.node.action.transfer.source.Source._
-import com.kent.daemon.LogRecorder.LogType
 import com.kent.pub.actor.BaseActor
 
-import scala.util.Try
-import scala.util.Success
 import com.kent.workflow.node.action.transfer.source.Source
 
 class Producer(source: Source) extends BaseActor {
@@ -31,7 +26,7 @@ class Producer(source: Source) extends BaseActor {
       handleException("初始化源数据失败",sender,() => {
         source.init()
         handleException("执行源数据查询失败",sender,() => {
-          val colsOpt = source.getAndSetColNums
+          val colsOpt = source.doGetColumns
           sender ! ColNums(colsOpt)
         })
       })
@@ -42,7 +37,7 @@ class Producer(source: Source) extends BaseActor {
    * 获取rows
    */
   def handleGetRows(sdr: ActorRef) = {
-    if(bufferRows == null && source.isEnd == false){  //最开始的时候
+    if(bufferRows == null && !source.isEnd){  //最开始的时候
       val data = source.fillRowBuffer()
       sdr ! Rows(data)
       bufferRows = source.fillRowBuffer()
@@ -50,7 +45,7 @@ class Producer(source: Source) extends BaseActor {
       sdr ! Rows(bufferRows)
       bufferRows = source.fillRowBuffer()
     }else{  //结束时候
-      sdr ! End(true)
+      (sdr ? End(true)).mapTo[Boolean]
     }
   }
   def finish() = {

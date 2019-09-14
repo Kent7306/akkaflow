@@ -1,11 +1,8 @@
 package com.kent.workflow.node.action
 
-import com.kent.workflow.node.action.DataMonitorNode.SourceType
-import org.json4s.reflect.`package`.SourceType
 import com.kent.util.Util._
 
 class SqlNode(name: String) extends ActionNode(name: String){
-  import com.kent.workflow.node.action.DataMonitorNode.SourceType._
   var dbLinkName: String = _
   var sqls: String = _
   

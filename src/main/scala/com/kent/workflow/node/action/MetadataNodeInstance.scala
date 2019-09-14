@@ -23,12 +23,12 @@ import com.kent.daemon.LogRecorder
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.concurrent.Await
-import com.kent.pub.db.MysqlOpera
+import com.kent.pub.db.MysqlOperator
 import com.kent.pub.db.DBLink.DatabaseType._
 import com.kent.pub.db.DBLink
 import com.kent.workflow.node.action.MetadataNode.SelfColumn
-import com.kent.pub.db.OracleOpera
-import com.kent.pub.db.HiveOpera
+import com.kent.pub.db.OracleOperator
+import com.kent.pub.db.HiveOperator
 
 class MetadataNodeInstance(override val nodeInfo: MetadataNode) extends ActionNodeInstance(nodeInfo)  {
   implicit val timeout = Timeout(60 seconds)
@@ -103,7 +103,7 @@ class MetadataNodeInstance(override val nodeInfo: MetadataNode) extends ActionNo
     dbLink.dbType match {
       case HIVE => 
         var sql = s"desc ${table}"
-        val columns = HiveOpera.querySql(sql, dbLink, rs => {
+        val columns = HiveOperator.query(sql, dbLink, rs => {
            var cols = List[SelfColumn]()
           while(rs.next()){
             val col = SelfColumn(rs.getString(1), rs.getString(2), rs.getString(3))
@@ -115,7 +115,7 @@ class MetadataNodeInstance(override val nodeInfo: MetadataNode) extends ActionNo
       case MYSQL =>
         var sql = s"select column_name,column_type,COLUMN_COMMENT from information_schema.COLUMNS where TABLE_NAME='${tableName}'"
         if(db != null) sql = sql + s" and TABLE_SCHEMA = '${db}'"
-        val columns = MysqlOpera.querySql(sql, dbLink, rs => {
+        val columns = MysqlOperator.query(sql, dbLink, rs => {
           var cols = List[SelfColumn]()
           while(rs.next()){
             val col = SelfColumn(rs.getString(1), rs.getString(2), rs.getString(3))
@@ -127,7 +127,7 @@ class MetadataNodeInstance(override val nodeInfo: MetadataNode) extends ActionNo
       case ORACLE => 
         var sql = s"select column_name,comments from all_col_comments where table_name='${tableName.toUpperCase()}'"
         if(db != null) sql = sql + s" and owner = '${db.toUpperCase()}'"
-        val columns = OracleOpera.querySql(sql, dbLink, rs => {
+        val columns = OracleOperator.query(sql, dbLink, rs => {
           var cols = List[SelfColumn]()
           while(rs.next()){
             val cmmt = if(rs.getString(2) == null) "" else rs.getString(2).toLowerCase()
@@ -149,7 +149,7 @@ class MetadataNodeInstance(override val nodeInfo: MetadataNode) extends ActionNo
           	val otherSql = s"ALTER TABLE ${table} SET TBLPROPERTIES('comment' = '${tableCommentOpt.get}')"
           	sqls = sqls :+ otherSql
         }
-        HiveOpera.executeSqls(sqls, dbLink)
+        HiveOperator.executeSqls(sqls, dbLink)
          
       case MYSQL =>
         var sqls = cols.map{ col =>
@@ -159,7 +159,7 @@ class MetadataNodeInstance(override val nodeInfo: MetadataNode) extends ActionNo
           	val otherSql = s"alter table ${table} comment '${tableCommentOpt.get}'"
           	sqls = sqls :+ otherSql
         }
-        MysqlOpera.executeSqls(sqls,dbLink, null)
+        MysqlOperator.executeSqls(sqls,dbLink, null)
       case ORACLE => 
         var sqls = cols.map{ col =>
           s"comment on column ${table}.${col.name} is '${col.comment}'"
@@ -168,7 +168,7 @@ class MetadataNodeInstance(override val nodeInfo: MetadataNode) extends ActionNo
           	val otherSql = s"comment on table ${table} is '${tableCommentOpt.get}'"
           	sqls = sqls :+ otherSql
         }
-        OracleOpera.executeSqls(sqls, dbLink)
+        OracleOperator.executeSqls(sqls, dbLink)
     }
     
     

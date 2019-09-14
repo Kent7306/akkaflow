@@ -9,4 +9,4 @@ mkdir -p logs
 
 printf "开始启动Master节点...\n"
 printf "启动日志请查看[根目录]/logs/run.log\n"
-nohup sh bin/master 1>logs/run.log 2>&1 &
+nohup bin/master 1>logs/run.log 2>&1 &

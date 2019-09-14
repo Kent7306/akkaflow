@@ -22,7 +22,6 @@ object Test extends App{
   println( hsani2.toString())*/
   
   import org.json4s.jackson.JsonMethods._
-  import org.json4s.JsonDSL._
   implicit val formats = DefaultFormats
   val paths = parse("""{"paths":["list1","list2","list3"]}""")
   val json = parse("""
@@ -39,8 +38,8 @@ object Test extends App{
            ]
          }
        """)
-   val aaa = (paths \ "paths")
-   println(aaa.toOption)
+   val aaa = paths \ "paths"
+   println(aaa)
        
    
    val l = (paths \ "paths" \ classOf[JString]).asInstanceOf[List[String]]

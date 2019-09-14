@@ -2,7 +2,7 @@ package com.kent.workflow
 
 import java.sql.{Connection, DriverManager}
 
-import com.kent.pub.{DeepCloneable, Persistable}
+import com.kent.pub.{DeepCloneable}
 
 /**
   * workflow的目录类

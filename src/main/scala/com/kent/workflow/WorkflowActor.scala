@@ -31,9 +31,10 @@ import scala.util.Success
 import com.kent.daemon.LogRecorder.LogType._
 import java.io.File
 
-import com.kent.daemon.{LogRecorder}
+import com.kent.daemon.LogRecorder
 import com.kent.pub.actor.BaseActor
 import com.kent.util.FileUtil
+import com.kent.workflow.Workflow.WStatus
 import com.kent.workflow.node.action.ActionNodeInstance
 
 class WorkflowActor(val workflowInstance: WorkflowInstance) extends BaseActor {
@@ -66,7 +67,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends BaseActor {
     if(!sn.isEmpty && sn.get.ifCanExecuted(workflowInstance)){
     	waitingNodeInstances = waitingNodeInstances.enqueue(sn.get)
     	//启动队列
-    	this.scheduler = context.system.scheduler.schedule(0 millis, 100 millis){
+    	this.scheduler = context.system.scheduler.schedule(0 millis, 500 millis){
     		self ! Tick() 
     	}
     	true
@@ -87,7 +88,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends BaseActor {
       val nodeTypeName =	 ni.getClass.getName.split("\\.").last.replace("NodeInstance", "")
       	ni match {
     	    //动作节点，设置了忽略执行
-      	  case x:ActionNodeInstance if x.nodeInfo.isIgnore => 
+      	  case x: ActionNodeInstance if x.nodeInfo.isIgnore =>
       	    	infoLog(s"忽略【${nodeTypeName}】节点：${ni.nodeInfo.name}")
       	    	ni.executedMsg = "忽略执行节点"
         		ni.endTime = Util.nowDate
@@ -117,7 +118,7 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends BaseActor {
  def handleActionResult(sta: Status, msg: String, actionSender: ActorRef){
     val ni = runningActors(actionSender)
     //剔除运行actor集合中，该actor
-    runningActors = runningActors.filter{case (ar, nodeInstance) => ar != actionSender}.toMap
+    runningActors = runningActors.filter{case (ar, nodeInstance) => ar != actionSender}
     //若失败重试
     if(sta == FAILED && ni.hasRetryTimes < ni.nodeInfo.retryTimes){
       ni.hasRetryTimes += 1
@@ -189,19 +190,21 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends BaseActor {
 	/**
 	 * kill掉所有运行action
 	 */
-  private def killAllRunningAction():Future[List[ActionExecuteResult]] = {
+  private def killAllRunningAction(): Future[List[ActionExecuteResult]] = {
 	  val futures = runningActors.map{case (ar, nodeInstance) => {
+      implicit val timeout = Timeout(16 second)
 	    val result = (ar ? Kill()).mapTo[ActionExecuteResult].recover{ case e: Exception => 
-	                    ar ! PoisonPill
-	                    errorLog(s"杀死actor:${ar}超时，将强制杀死")
-	                    ActionExecuteResult(FAILED,"节点超时")
-	                 }
+          ar ! PoisonPill
+          errorLog(s"杀死actor:${ar}超时，将强制杀死")
+          ActionExecuteResult(FAILED,"节点超时")
+       }
 		  result.map { rs => 
-		      val node = runningActors(ar)
-		      node.changeStatus(rs.status)
-		      node.endTime = Util.nowDate
-		      node.executedMsg = rs.msg
-		      rs
+        val node = runningActors(ar)
+        node.endTime = Util.nowDate
+        node.executedMsg = rs.msg
+        node.changeStatus(rs.status)
+        node.postTerminate()
+        rs
 		  }
 	  }}.toList
 	  Future.sequence(futures).andThen {case Success(x) => x}
@@ -221,8 +224,8 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends BaseActor {
     val resultF = status match {
       case W_SUCCESSED => 
         Future{true}
-      case _ => 
-        killAllRunningAction().map { l => if(l.filter { case ActionExecuteResult(sta,msg) => sta == FAILED}.size > 0) false else true }
+      case _ =>
+        killAllRunningAction().map { l => if(l.exists { case ActionExecuteResult(sta, msg) => sta == FAILED }) false else true }
     }
     resultF.map { x => 
       scheduler.cancel()
@@ -231,7 +234,15 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends BaseActor {
   	  //保存工作流实例
   	  this.workflowInstance.endTime = Util.nowDate
       this.workflowInstance.changeStatus(status)
-      log.debug("工作流实例："+workflowInstance.actorName+"执行完毕.执行状态: "+status)
+
+      val loglevel = status match {
+        case W_SUCCESSED => infoLog _
+        case W_FAILED => errorLog _
+        case W_KILLED => warnLog _
+        case _ => infoLog _
+      }
+      loglevel("工作流实例："+workflowInstance.actorName+"执行完毕.执行状态: " + WStatus.getStatusName(status))
+
       sdr ! WorkFlowInstanceExecuteResult(workflowInstance.deepClone())
   	  context.stop(self) 
     }
@@ -273,25 +284,37 @@ class WorkflowActor(val workflowInstance: WorkflowInstance) extends BaseActor {
       }
     //读取文件内容
     case GetFileContent(path)   => sender ! readFiles(path)
-    case GetDBLink(name) => 
-      val xmlLoader = context.actorSelection("../../xml-loader")
-      xmlLoader.forward(GetDBLink(name))
+    case GetDBLink(name) => context.actorSelection("../../xml-loader").forward(GetDBLink(name))
+    case GetFileLink(name) => context.actorSelection("../../xml-loader").forward(GetFileLink(name))
+    case GetAllFileLink() => context.actorSelection("../../xml-loader").forward(GetAllFileLink())
     case GetInstanceShortInfo() => sender ! getInstanceShortInfo()
     case Tick() => tick()
   }
   /**
    * INFO日志级别
    */
-  private def infoLog(line: String) = LogRecorder.info(WORFLOW_INSTANCE, this.workflowInstance.id,  workflowInstance.workflow.name, line)
+  private def infoLog(line: String) = {
+    line.split("\n").foreach { l =>
+      LogRecorder.info(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, l)
+    }
+  }
   /**
    * ERROR日志级别
    */
-  private def errorLog(line: String) = LogRecorder.error(WORFLOW_INSTANCE, this.workflowInstance.id,  workflowInstance.workflow.name, line)
+  private def errorLog(line: String) = {
+    line.split("\n").foreach{ l =>
+      LogRecorder.error(WORFLOW_INSTANCE, this.workflowInstance.id,  workflowInstance.workflow.name, l)
+    }
+  }
   /**
    * WARN日志级别
    */
-  private def warnLog(line: String) = LogRecorder.warn(WORFLOW_INSTANCE, this.workflowInstance.id,  workflowInstance.workflow.name, line)
-}
+  private def warnLog(line: String) = {
+    line.split("\n").foreach { l =>
+        LogRecorder.warn(WORFLOW_INSTANCE, this.workflowInstance.id, workflowInstance.workflow.name, l)
+      }
+    }
+ }
 
 object WorkflowActor {
   def apply(workflowInstance: WorkflowInstance): WorkflowActor = new WorkflowActor(workflowInstance)

@@ -4,19 +4,23 @@ import java.text.SimpleDateFormat
 import java.util.{Calendar, Date}
 
 /**
- * 参数处理器
- */
+  * 参数处理器
+  * @param date
+  */
 class ParamHandler(date:Date){
   /**
-   * 把字符串中的参数名称代替为函数值，并返回字符串(这里用了递归处理)
-   */
-  def getValue(expr: String, paramMap:  Map[String, String]): String = {
-    if(expr == null) return null
+    * 把字符串中的参数名称代替为函数值，并返回字符串(这里用了递归处理)
+    * @param sourceStr
+    * @param paramMap
+    * @return
+    */
+  def translate(sourceStr: String, paramMap:  Map[String, String]): String = {
+    if(sourceStr == null) return null
     //这里有个问题，目前测试了解，scala正则表达式只能单行匹配，所以先把\n替换成#@@#
-    val expr2 = expr.replace("\r", "").replace("\n", "#@@#")
+    val expr2 = sourceStr.replace("\r", "").replace("\n", "#@@#")
     val pattern = "\\$\\{(.*?)\\}".r
     if(pattern.findFirstIn(expr2).isEmpty){
-      expr
+      sourceStr
     }else{
       var result: String = ""
       	val pattern2 = "(.*?)\\$\\{(.*?)\\}(.*)".r
@@ -24,42 +28,49 @@ class ParamHandler(date:Date){
       	if(!"param:".r.findFirstIn(mid).isEmpty){
       	  val paramName = mid.split(":")(1).trim()
       	  if(!paramMap.get(paramName).isEmpty){
-      		  result = pre+paramMap.get(paramName).get + this.getValue(end, paramMap)    	    
+      		  result = pre+paramMap.get(paramName).get + this.translate(end, paramMap)
       	  }else{
-      	    result = pre+ "${param:undefined}" + this.getValue(end, paramMap) 
+      	    result = pre+ "${param:undefined}" + this.translate(end, paramMap)
       	  }
       	}
       	else if(!"time\\.".r.findFirstIn(mid).isEmpty){  //时间参数
-      	  result = pre + handleTimeParam(mid) + this.getValue(end, paramMap)
+      	  result = pre + handleTimeParam(mid) + this.translate(end, paramMap)
       	}
       	else{  //未找到，就不进行替换了
-      	  result = pre + "${"+mid+"}" + this.getValue(end, paramMap)
+      	  result = pre + "${"+mid+"}" + this.translate(end, paramMap)
       	}
       	result.replace("#@@#", "\n")
     }
   }
-  
-  def getValue(expr: String): String = {
-    getValue(expr, Map())
-  }
-  
+
   /**
-   * 处理时间参数 
-   *  time.today|yyyy-MM-dd|-1 day
-   */
-  private def handleTimeParam(expr: String): String = {
-    val arr = expr.split("\\|").map { _.trim() }
+    * 无参数
+    * @param sourceStr
+    * @return
+    */
+  def translate(sourceStr: String): String = {
+    translate(sourceStr, Map())
+  }
+
+  /**
+    * 处理时间参数
+    * time.today|yyyy-MM-dd|-1 day
+    * @param beforeValue
+    * @return
+    */
+  private def handleTimeParam(beforeValue: String): String = {
+    val arr = beforeValue.split("\\|").map { _.trim() }
     var sbt = new SimpleDateFormat("yyyy-MM-dd")
-    val optDay = Calendar.getInstance;
+    val optDay = Calendar.getInstance
     optDay.setTime(date)
 	  arr(0) match {
 	    case "time.today" =>
 	    case "time.yestoday" =>
-	       optDay.add(Calendar.DATE, -1);
+	       optDay.add(Calendar.DATE, -1)
 	    case "time.cur_month" =>
 	      sbt = new SimpleDateFormat("yyyy-MM")
 	    case "time.last_month" =>
-	      optDay.add(Calendar.MONTH, -1);
+	      optDay.add(Calendar.MONTH, -1)
 	      sbt = new SimpleDateFormat("yyyy-MM")
 	  }
     
@@ -96,9 +107,12 @@ object ParamHandler{
   def apply(): ParamHandler = {
     new ParamHandler(Util.nowDate)
   }
+
   /**
-   * 从xml串中提取参数
-   */
+    * 从xml串中提取参数列表
+    * @param xmlContent
+    * @return
+    */
   def extractParams(xmlContent: String):List[String] = {
     if(xmlContent == null) return null
     //这里有个问题，目前测试了解，scala正则表达式只能单行匹配，所以先把\n替换成#@@#

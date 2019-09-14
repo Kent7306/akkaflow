@@ -5,16 +5,21 @@ import java.sql.SQLException
 import akka.actor.{Actor, ActorRef, ActorSystem, OneForOneStrategy, Props}
 import akka.cluster.Member
 import akka.pattern.{ask, pipe}
+import com.alibaba.druid.pool.DruidDataSource
 import com.kent.daemon.LogRecorder
 import com.kent.pub.Event._
+import com.kent.pub._
 import com.kent.pub.actor.{ClusterRole, Daemon}
+import com.kent.pub.dao.ThreadConnector
 import com.kent.workflow.ActionActor
 import com.kent.workflow.node.action.ActionNodeInstance
 import com.typesafe.config.{Config, ConfigFactory}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import akka.pattern.{ask, pipe}
+import scala.util.{Failure, Success}
 
 /**
  * worker工作节点
@@ -32,14 +37,33 @@ class Worker extends ClusterRole {
     super.preStart()
     val config = context.system.settings.config
     //日志记录器配置
-    //mysql持久化参数配置
-    val mysqlConfig = (config.getString("workflow.mysql.user"),
-      config.getString("workflow.mysql.password"),
-      config.getString("workflow.mysql.jdbc-url"),
-    )
-    //创建日志记录器
-    Worker.logRecorder = context.actorOf(Props(LogRecorder(mysqlConfig._3, mysqlConfig._1, mysqlConfig._2)), "log-recorder")
-    LogRecorder.actor = Worker.logRecorder
+    //创建数据库连接池
+    //有些行动节点是需要持久化数据的
+    val cfgStr = config.getString _
+    val cfgInt = config.getInt _
+    val ds = new DruidDataSource()
+    ds.setUrl(cfgStr("workflow.mysql.jdbc-url"))
+    ds.setUsername(cfgStr("workflow.mysql.user"))
+    ds.setPassword(cfgStr("workflow.mysql.password"))
+    ds.setDriverClassName("com.mysql.jdbc.Driver")
+    ds.setMaxActive(cfgInt("workflow.mysql.max-active"))
+    ds.setMinIdle(cfgInt("workflow.mysql.min-idle"))
+    ds.setKeepAlive(true)
+    ds.setMinEvictableIdleTimeMillis(cfgInt("workflow.mysql.min-evictable-idle-time-millis"))
+    ds.setTestWhileIdle(true)
+    ds.setInitialSize(cfgInt("workflow.mysql.init-size"))
+    ds.setValidationQuery(cfgStr("workflow.mysql.validation-query"))
+    ds.setTestOnReturn(false)
+    ds.setDefaultAutoCommit(true)
+    ds.setMaxWait(cfgInt("workflow.mysql.max-wait"))
+    ds.setRemoveAbandoned(false)
+    ds.init()
+    ThreadConnector.setDataSource(ds)
+  }
+
+  override def postStop(): Unit = {
+    super.postStop()
+    ThreadConnector.getDataSource().close()
   }
 
   override def individualReceive: Actor.Receive = {
@@ -48,28 +72,22 @@ class Worker extends ClusterRole {
     case KillAllActionActor() => killAllActionActor() pipeTo sender
   }
 
-  override def onRoleMemberUp(member: Member): Unit = {
-    operaAfterRoleMemberUp(member, ClusterRole.MASTER, roleActor => {
-      val path = roleActor.path / Daemon.DB_CONNECTOR
-      val dbConnector = context.actorSelection(path)
-      dbConnector.resolveOne().map(Master.dbConnector = _)
-    })
-  }
+  override def onOtherMemberUp(member: Member): Unit = {}
+  override def onSelfMemberUp(): Unit = {}
 
   /**
     * 有其他角色退出集群
     *
     * @param member
     */
-  override def onRoleMemberRemove(member: Member): Unit = {
-    //先留空
+  override def onMemberRemove(member: Member): Unit = {//先留空
   }
 
   /**
     * 创建action actor
     */
   def createActionActor(actionNodeInstance: ActionNodeInstance): ActorRef = {
-    val actionActorRef = context.actorOf(Props(ActionActor(actionNodeInstance)), actionNodeInstance.hashCode() + "")
+    val actionActorRef = context.actorOf(Props(ActionActor(actionNodeInstance)), actionNodeInstance.id+"_"+actionNodeInstance.hashCode())
     runningActionActors = runningActionActors + (actionNodeInstance.name -> actionActorRef)
     actionActorRef
   }
@@ -92,10 +110,14 @@ class Worker extends ClusterRole {
     * @param masterRef
     * @return
     */
-  override def notifyActive(masterRef: ActorRef): Result = {
+  override def notifyActive(masterRef: ActorRef): Future[Result] = {
+    val logRecordPath = masterRef.path + "/"+Daemon.LOG_RECORDER
     Worker.activeMasterOpt = Some(masterRef)
     log.info(s"设置master引用: ${masterRef.path}")
-    Result(true, "", None)
+    context.actorSelection(logRecordPath).resolveOne(20 seconds).map{ x =>
+      LogRecorder.actorOpt = Some(x)
+      SucceedResult()
+    }
   }
 }
 

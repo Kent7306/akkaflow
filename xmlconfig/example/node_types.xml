@@ -54,12 +54,12 @@
       </transfer>
       <ok to="join2"/>
   </action>
-  <action name="数据库到数据库" is-ignore="true" desc = "可以是多种JDBC数据库传输到RMDB上">
+  <action name="数据库到数据库" desc = "可以是多种JDBC数据库传输到RMDB上">
       <transfer>
         <source type="DB" db-link="local_mysql">wf.log_record</source>
         <target type="DB" db-link="local_mysql" table="wf.bbb">
             <pre>
-              drop table if exists bbb
+              truncate table wf.bbb
             </pre>
         </target>
       </transfer>
@@ -83,7 +83,7 @@
       <ok to="库表注释配置节点"></ok>
   </action>
 
-  <action name="库表注释配置节点" desc = "可通过血缘表来默认自动生成表字段注释">
+  <action name="库表注释配置节点" desc = "可通过血缘表来默认自动生成表字段注释" is-ignore="true">
       <metadata table="wf.bbb" db-link="local_mysql" from="wf.log_record">
          <column-comment name="id">标识符（测试）</column-comment>
          <column-comment name="name">日志名称（测试）</column-comment>

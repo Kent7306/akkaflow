@@ -1,0 +1,78 @@
+package com.kent.pub.dao
+
+
+import com.kent.lineage.LineageTable
+
+/**
+  * @author kent
+  * @date 2019-04-22
+  * @desc 血缘关系库表数据操作类
+  *
+  **/
+object LineageTableDao extends TransationManager with Daoable {
+  def get(name: String): Option[LineageTable] = {
+    transaction {
+      val isExistSql =
+        s"""
+      select * from lineage_table where name = '${name}'
+      """
+      query[LineageTable](isExistSql, rs => {
+        if (rs.next()) {
+          val t = LineageTable(name)
+          t.lastUpdateTime = rs.getDate("last_update_time")
+          t.createTime = rs.getDate("create_time")
+          t.workflowName = rs.getString("workflow_name")
+          t.owner = rs.getString("owner")
+          t.dbLinkName = rs.getString("db_link_name")
+          t.accessNum = rs.getInt("access_cnt")
+          t
+        } else {
+          null
+        }
+      })
+    }
+  }
+
+  def merge(table: LineageTable): Boolean = {
+    import com.kent.util.Util._
+    transaction {
+      val uptime = if (table.lastUpdateTime == null) null else formatStandarTime(table.lastUpdateTime)
+      val ctime = if (table.createTime == null) null else formatStandarTime(table.createTime)
+      this.delete(table.name)
+      val insertSql =
+        s"""
+      insert into lineage_table values(
+      ${wq(table.name)},${wq(uptime)},${wq(ctime)},
+      ${wq(table.workflowName)},${wq(table.owner)},${wq(table.dbLinkName)},${table.accessNum})"""
+      execute(insertSql)
+    }
+  }
+
+  def update(table: LineageTable): Boolean = {
+    import com.kent.util.Util._
+    transaction {
+      val uptime = if (table.lastUpdateTime == null) null else formatStandarTime(table.lastUpdateTime)
+      val ctime = if (table.createTime == null) null else formatStandarTime(table.createTime)
+      val updaeSql =
+        s"""
+      update lineage_table set last_update_time = ${wq(uptime)},
+                               workflow_name = ${wq(table.workflowName)},
+                               owner = ${wq(table.owner)},
+                               db_link_name = ${wq(table.dbLinkName)}
+      where name = ${wq(table.name)}
+      """
+      execute(updaeSql)
+    }
+  }
+
+  def delete(name: String): Boolean = {
+    transaction {
+      val delSql =
+        s"""
+      delete from lineage_table where name = '${name}'
+      """
+      execute(delSql)
+    }
+  }
+
+}

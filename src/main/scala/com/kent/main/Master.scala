@@ -5,18 +5,21 @@ import java.sql.SQLException
 import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.cluster.{Cluster, Member}
 import akka.pattern.{ask, pipe}
+import com.alibaba.druid.pool.DruidDataSource
 import com.kent.daemon.HaDataStorager._
 import com.kent.daemon._
 import com.kent.pub.actor.BaseActor.ActorInfo
 import com.kent.pub.actor.BaseActor.ActorType._
 import com.kent.pub.Event._
+import com.kent.pub._
 import com.kent.pub.actor.{ClusterRole, Daemon}
+import com.kent.pub.dao.{ThreadConnector, UtilDao}
 import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
-import scala.util.{Random, Success}
+import scala.util.{Failure, Random, Success}
 
 
 class Master(var isActiveMember:Boolean) extends ClusterRole {
@@ -38,15 +41,6 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
   //创建集群高可用数据分布式数据寄存器
   Master.haDataStorager = context.actorOf(Props[HaDataStorager],"ha-data")
   /**
-   * 当集群节点可用时
-   */
-  Cluster(context.system).registerOnMemberUp({
-    //启动
-    if(!isActiveMember) standby()
-    else log.warning("等待worker启动....")
-  })
-
-  /**
     * 消息处理
     * @return
     */
@@ -56,25 +50,37 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     case CollectClusterActorInfo() =>
       val sdr = sender
       collectClusterActorInfo().andThen { case Success(x) =>
-        sdr ! ResponseData("success","成功获取集群信息", x.toMapList())
+        sdr ! SucceedResult("成功获取集群信息", Some(x.toMapList()))
       }
   }
 
+  override def preStart(): Unit = {
+    super.preStart()
+    if (this.isActiveMember) activeInit() else standby()
+  }
+
+  override def postStop(): Unit = {
+    ThreadConnector.closeDataSource()
+    super.postStop()
+  }
+
+  override def onSelfMemberUp(): Unit = {
+    //启动
+    if(isActiveMember) log.warning("等待worker启动....")
+  }
   /**
     * 注册角色节点
     * @param member
     */
-  override def onRoleMemberUp(member: Member){
+  override def onOtherMemberUp(member: Member){
     val hostPortKey = member.address.host.get + ":" + member.address.port.get
     //httpserver
     operaAfterRoleMemberUp(member, ClusterRole.HTTP_SERVER,x => {
       Master.haDataStorager ! AddRole(hostPortKey, x, ClusterRole.HTTP_SERVER)
-      //注册
       this.httpServerOpt = Some(x)
       log.info(s"注册新角色${ClusterRole.HTTP_SERVER}节点")
       if(this.isActiveMember) {
-        val resultF = (x ? NotifyActive(self)).mapTo[Result]
-        Await.result(resultF, 10 second)
+        (x ? NotifyActive(self)).mapTo[Result]
       }
     })
    //worker
@@ -82,26 +88,30 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       Master.haDataStorager ! AddRole(hostPortKey, roleActor, ClusterRole.WORKER)
       workers = workers :+ roleActor
       log.info(s"注册新角色${ClusterRole.WORKER}节点，已注册数量: ${workers.size}, 当前注册${ClusterRole.WORKER}:节点路径：${roleActor}")
-  	  if (this.isActiveMember){
-        val resultF = (roleActor ? NotifyActive(self)).mapTo[Result]
-        Await.result(resultF, 10 second)
-        active()
+
+      if (this.isActiveMember){  //当前是活动master
+        println(roleActor)
+        (roleActor ? NotifyActive(self)).mapTo[Result].map{result =>
+
+          if (!this.isActiveRunning){  //一有worker就启动
+            startDaemon()
+          }
+        }
       }
     })
     //另一个Master启动
     operaAfterRoleMemberUp(member,ClusterRole.MASTER,x => {
-      if(x != self){
-        this.otherMasterOpt = Some(x)
-        //启动时，如果当前是主master，则通知另外一个master
-        if (this.isActiveMember){
-          val curMasterOpt = synGetHaMaster()
-          if (curMasterOpt.isDefined && curMasterOpt.get.path == x.path){
-            val resultF = (x ? NotifyActive(self)).mapTo[Result]
-            Await.result(resultF, 10 second)
-            active()
-          }
+      this.otherMasterOpt = Some(x)
+      if (this.isActiveMember){  //启动时，如果当前是活动master
+        val curMasterOptF = synGetHaMaster()
+        curMasterOptF.map{
+          case Some(masterRef) if masterRef.path == x.path => //目前是旧活动节点，新检查的角色是新活动节点
+
+          case Some(maserRef) if maserRef.path != self.path => //目前是新活动节点，新检查的角色是旧活动节点
+            (x ? NotifyActive(self)).mapTo[Result]
+          case None =>
         }
-		  }
+      }
     })
   }
   /**
@@ -109,7 +119,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     *
     * @param member
     */
-  override def onRoleMemberRemove(member: Member): Unit = {
+  override def onMemberRemove(member: Member): Unit = {
     //若是worker，则删除
     if (member.hasRole(ClusterRole.WORKER)){
       val path = this.getRoleActorPath(member, ClusterRole.WORKER).get
@@ -121,29 +131,27 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       })
     }
 
-    //若终止的是活动主节点，则需要激活当前备份节点
+    //若终止的是活动主节点,当前是备份节点,则需要激活当前
     if (member.hasRole(ClusterRole.MASTER)) {
       this.otherMasterOpt = None
       if (!this.isActiveMember){
         log.info(s"${ClusterRole.MASTER_STANDBY}节点准备切换到${ClusterRole.MASTER}节点")
         val hostPortKey = member.address.host.get + ":" + member.address.port.get
         Master.haDataStorager ! removeRole(hostPortKey)
-        this.active()
+        this.activeInit()
 
-
-        //通知workers
+        //通知workers以及httpserver
         val listF = this.workers.map{ x =>
           (x ? NotifyActive(self)).mapTo[Result]
         }
-        val resultF = Future.sequence(listF).flatMap{x =>
-          //通知httpserver
+        Future.sequence(listF).flatMap{l =>
+          if(l.size > 0) this.startDaemon()
           if (this.httpServerOpt.isDefined){
             (this.httpServerOpt.get ? NotifyActive(self)).mapTo[Result]
           }else{
-            Future{Result(true, "", None)}
+            Future{SucceedResult()}
           }
         }
-        Await.result(resultF,20 second)
       }
     }
   }
@@ -172,9 +180,9 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     * 获取当前集群的活动master
     * @return
     */
-  private def synGetHaMaster():Option[ActorRef] = {
+  private def synGetHaMaster():Future[Option[ActorRef]] = {
     val rolesF = (Master.haDataStorager ? GetRoles()).mapTo[Map[String, RoleContent]]
-    val masterOptF = rolesF.map(roles => {
+    rolesF.map(roles => {
       val a = roles.find(_._2.roleType == ClusterRole.MASTER)
       if (a.isDefined){
         Some(a.get._2.sdr)
@@ -182,72 +190,89 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
         None
       }
     })
-    Await.result(masterOptF, 20 second)
   }
   /**
    * 作为活动主节点启动
    */
-  def active() = {
-    //满足条件才能激活
-    if (!this.isActiveRunning && this.workers.nonEmpty) {
-      //判断是否存在旧活动master
-      val isActiveMasterExist = if(synGetHaMaster().isDefined) true else false
-      //原master运行中，新master接替，原master变成备份master
-      //集群初始化，master直接启动
-      if ((isActiveMasterExist && this.otherMasterOpt.isDefined) || !isActiveMasterExist){
-        this.isActiveRunning = true
-        this.isActiveMember = true
-        val config = context.system.settings.config
-        //mysql持久化参数配置
-        val mysqlConfig = (config.getString("workflow.mysql.user"),
-          config.getString("workflow.mysql.password"),
-          config.getString("workflow.mysql.jdbc-url")
-        )
-        //Email参数配置
-        val isHasPort = config.hasPath("workflow.email.smtp-port")
-        val isHasNickName = config.hasPath("workflow.email.nickname")
-        val account = config.getString("workflow.email.account")
-        val mailPortOpt = if(isHasPort) Some(config.getInt("workflow.email.smtp-port")) else None
-        val nickName = if (isHasNickName) config.getString("workflow.email.nickname") else account
-        val emailConfig = (
-          config.getString("workflow.email.hostname"),
-          mailPortOpt,
-          config.getBoolean("workflow.email.auth"),
-          account,
-          nickName,
-          config.getString("workflow.email.password"),
-          config.getString("workflow.email.charset"),
-          config.getBoolean("workflow.email.is-enabled")
-        )
-        //xmlLoader参数配置
-        val xmlLoaderConfig = (config.getString("workflow.xml-loader.workflow-dir"),
-          config.getInt("workflow.xml-loader.scan-interval")
-        )
-        //创建数据库连接器
-        Master.dbConnector = context.actorOf(Props(DbConnector(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2)),Daemon.DB_CONNECTOR)
+  def activeInit() = {
+    this.isActiveMember = true
+    val config = context.system.settings.config
+    val cfgStr = config.getString _
+    val cfgInt = config.getInt _
 
-        //创建邮件发送器
-        Master.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5,emailConfig._6,emailConfig._7,emailConfig._8)),Daemon.MAIL_SENDER)
-        //创建日志记录器
-        Master.logRecorder = context.actorOf(Props(LogRecorder(mysqlConfig._3,mysqlConfig._1,mysqlConfig._2)),Daemon.LOG_RECORDER)
-        LogRecorder.actor = Master.logRecorder
-        //创建xml装载器
-        Master.xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2)),Daemon.XML_LOADER)
-        //创建workflow管理器
-        Master.workflowManager = context.actorOf(Props(WorkFlowManager(List())),Daemon.WORKFLOW_MANAGER)
-        //血缘记录器
-        //if(Master.lineageRecorder == null){
-        //  Master.lineageRecorder = context.actorOf(Props(LineageRecorder()),"lineaage-recorder")
-        //}
-        val (host,port) = getHostPortKey()
-        Master.haDataStorager ! AddRole(s"$host:$port", self, ClusterRole.MASTER)
-        Master.workflowManager ! Start()
-        Master.xmlLoader ! Start()
-        log.info(s"当前节点角色为${ClusterRole.MASTER}，已启动成功")
-      }
-
-
+    //Email参数配置
+    val isHasPort = config.hasPath("workflow.email.smtp-port")
+    val isHasNickName = config.hasPath("workflow.email.nickname")
+    val account = config.getString("workflow.email.account")
+    val mailPortOpt = if(isHasPort) Some(config.getInt("workflow.email.smtp-port")) else None
+    val nickName = if (isHasNickName) config.getString("workflow.email.nickname") else account
+    val emailConfig = (
+      config.getString("workflow.email.hostname"),
+      mailPortOpt,
+      config.getBoolean("workflow.email.auth"),
+      account,
+      nickName,
+      config.getString("workflow.email.password"),
+      config.getString("workflow.email.charset"),
+      config.getBoolean("workflow.email.is-enabled")
+    )
+    //创建数据库连接池
+    val ds = new DruidDataSource()
+    ds.setUrl(cfgStr("workflow.mysql.jdbc-url"))
+    ds.setUsername(cfgStr("workflow.mysql.user"))
+    ds.setPassword(cfgStr("workflow.mysql.password"))
+    ds.setDriverClassName("com.mysql.jdbc.Driver")
+    ds.setMaxActive(cfgInt("workflow.mysql.max-active"))
+    ds.setMinIdle(cfgInt("workflow.mysql.min-idle"))
+    ds.setKeepAlive(true)
+    ds.setMinEvictableIdleTimeMillis(cfgInt("workflow.mysql.min-evictable-idle-time-millis"))
+    ds.setTestWhileIdle(true)
+    ds.setDefaultAutoCommit(true)
+    ds.setInitialSize(cfgInt("workflow.mysql.init-size"))
+    ds.setValidationQuery(cfgStr("workflow.mysql.validation-query"))
+    ds.setTestOnReturn(false)
+    ds.setMaxWait(cfgInt("workflow.mysql.max-wait"))
+    ds.setRemoveAbandoned(false)
+    ds.init()
+    ThreadConnector.setDataSource(ds)
+    //初始化表
+    try {
+      UtilDao.initTables()
+    } catch {
+      case _:Exception => log.error("执行初始化建表sql失败")
     }
+    log.info(s"成功初始化数据库")
+
+    //xmlLoader参数配置
+    val xmlLoaderConfig = (config.getString("workflow.xml-loader.workflow-dir"),
+      config.getInt("workflow.xml-loader.scan-interval")
+    )
+    //创建邮件发送器
+    Master.emailSender = context.actorOf(Props(EmailSender(emailConfig._1,emailConfig._2,emailConfig._3,emailConfig._4,emailConfig._5,emailConfig._6,emailConfig._7,emailConfig._8)),Daemon.MAIL_SENDER)
+    //创建日志记录器
+    Master.logRecorder = context.actorOf(Props(LogRecorder()),Daemon.LOG_RECORDER)
+    LogRecorder.actorOpt = Some(Master.logRecorder)
+    //创建xml装载器
+    Master.xmlLoader = context.actorOf(Props(XmlLoader(xmlLoaderConfig._1,xmlLoaderConfig._2)),Daemon.XML_LOADER)
+    //创建workflow管理器
+    Master.workflowManager = context.actorOf(Props(WorkFlowManager(List())),Daemon.WORKFLOW_MANAGER)
+    //定时任务执行器
+    Master.cronRunner = context.actorOf(Props(CronRunner()), Daemon.CRON_RUNNER)
+
+    //血缘记录器
+    //if(Master.lineageRecorder == null){
+    //  Master.lineageRecorder = context.actorOf(Props(LineageRecorder()),"lineaage-recorder")
+    //}
+    val (host,port) = getHostPortKey()
+    Master.haDataStorager ! AddRole(s"$host:$port", self, ClusterRole.MASTER)
+  }
+
+  def startDaemon(): Unit ={
+    this.isActiveRunning = true
+    Master.workflowManager ! Start()
+    Master.xmlLoader ! Start()
+    Master.cronRunner ! Start()
+    log.info(s"当前节点角色为${ClusterRole.MASTER}，开始启动")
   }
 
   /**
@@ -259,16 +284,17 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     this.isActiveRunning = false
     context.children.filter(x => x.path.name != Daemon.HA_DATA_STORAGE).foreach( _ ! PoisonPill)
 
+    //Master.setNull()
     val (host,port) = getHostPortKey()
     Master.haDataStorager ! AddRole(s"$host:$port", self, ClusterRole.MASTER_STANDBY)
     log.info(s"启动成功，角色为【${ClusterRole.MASTER_STANDBY}】")
-    Result(true, "", None)
+    SucceedResult()
   }
   /**
    * 收集集群actor信息
    */
   def collectClusterActorInfo(): Future[ActorInfo] = {
-    var allActorInfo = new ActorInfo()
+    val allActorInfo = new ActorInfo()
     allActorInfo.name = "top"
     allActorInfo.atype = ROLE
     //获取本master的信息
@@ -280,7 +306,7 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
       null
     }
     //获取worker的actor信息
-    val waisF = this.workers.map { x => (x ? CollectActorInfo()).mapTo[ActorInfo]}.toList
+    val waisF = this.workers.map { x => (x ? CollectActorInfo()).mapTo[ActorInfo]}
 
     val allAIsF = if(omaiF == null){
       waisF ++ (maiF  :: Nil)
@@ -300,19 +326,21 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     * @return
     */
   def shutdownCluster(sdr: ActorRef) = {
-     if(Master.xmlLoader!=null) Master.xmlLoader ! Stop()
-     if(Master.workflowManager!=null){
-       val result = (Master.workflowManager ? KllAllWorkFlow()).mapTo[ResponseData]
-       result.andThen{
-         case Success(x) =>
-           workers.foreach { _ ! ShutdownCluster() }
-           if(otherMasterOpt.isDefined)otherMasterOpt.get ! ShutdownCluster()
-           context.system.terminate()
-      }
-     }else{
+     if(Master.xmlLoader != null) Master.xmlLoader ! Stop()
+     if(Master.workflowManager != null){
+       val result = (Master.workflowManager ? KllAllWorkFlow()).mapTo[Result]
+       result.recover{
+         case e: Exception => FailedResult(s"执行出错：${e.getMessage}")
+       }.andThen{ case _ =>
+         workers.foreach { _ ! ShutdownCluster() }
+         if(otherMasterOpt.isDefined)otherMasterOpt.get ! ShutdownCluster()
+         println("worker角色与master角色已关闭")
+         sdr ! SucceedResult("worker角色与master角色已关闭")
+         context.system.terminate()
+       }
+     } else {
        context.system.terminate()
      }
-     sdr ! ResponseData("success","worker角色与master角色已关闭",null)
   }
 
   /**
@@ -321,13 +349,15 @@ class Master(var isActiveMember:Boolean) extends ClusterRole {
     * @param masterRef
     * @return
     */
-  override def notifyActive(masterRef: ActorRef): Result = {
-    log.info(s"设置master引用: ${masterRef.path}")
-    if (this.isActiveMember){
+  override def notifyActive(masterRef: ActorRef): Future[Result] = {
+    val result = if (this.isActiveMember){
+      otherMasterOpt = Some(masterRef)
+      log.info(s"当前节点从活动节点变为备份节点")
       standby()
     }else {
-      Result(true,"",None)
+      SucceedResult()
     }
+    Future{ result}
   }
 }
 object Master extends App{
@@ -336,9 +366,17 @@ object Master extends App{
   var logRecorder: ActorRef = _
   var haDataStorager: ActorRef = _
   var lineageRecorder: ActorRef = _
-  var dbConnector: ActorRef = _
   var workflowManager: ActorRef = _
+  var cronRunner: ActorRef = _
   var xmlLoader: ActorRef = _
+
+  def setNull() = {
+    Master.emailSender = null
+    Master.logRecorder = null
+    Master.workflowManager = null
+    Master.cronRunner = null
+    Master.xmlLoader = null
+  }
 
   startUp()
   /**
